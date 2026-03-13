@@ -1,0 +1,56 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Happy Coder icon option C</title>
+  <desc>Fusion icon combining the icon-container feel of the monogram concept with the HC and Harmony ring semantics.</desc>
+
+  <defs>
+    <linearGradient id="optionCBg" x1="108" y1="104" x2="924" y2="936" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EEF2FF"/>
+      <stop offset="1" stop-color="#DCE4FA"/>
+    </linearGradient>
+
+    <linearGradient id="optionCInk" x1="246" y1="232" x2="806" y2="782" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5673F0"/>
+      <stop offset="1" stop-color="#25C2A5"/>
+    </linearGradient>
+
+    <linearGradient id="optionCRing" x1="234" y1="590" x2="792" y2="782" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F73E8"/>
+      <stop offset="1" stop-color="#25C2A5"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="72" y="72" width="880" height="880" rx="224" fill="url(#optionCBg)"/>
+
+  <path
+    d="M 258 666
+       C 308 614 376 588 452 588
+       H 598
+       C 672 588 734 614 784 666"
+    stroke="url(#optionCRing)"
+    stroke-width="44"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <path
+    d="M 258 666
+       C 314 726 394 758 482 758
+       H 542
+       C 634 758 716 726 784 666"
+    stroke="url(#optionCRing)"
+    stroke-width="44"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <g
+    stroke="url(#optionCInk)"
+    stroke-width="92"
+    stroke-linecap="round"
+    stroke-linejoin="round">
+    <path d="M 316 290 V 652"/>
+    <path d="M 472 290 V 652"/>
+    <path d="M 316 470 H 472"/>
+    <path d="M 748 370 C 698 330 628 334 582 384 C 534 434 534 516 580 564 C 624 610 694 616 748 584"/>
+  </g>
+
+  <circle cx="648" cy="326" r="26" fill="#25C2A5"/>
+</svg>

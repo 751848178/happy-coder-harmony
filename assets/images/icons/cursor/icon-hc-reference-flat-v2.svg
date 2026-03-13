@@ -1,0 +1,112 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bgRef" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(512 360) rotate(90) scale(760 860)">
+      <stop stop-color="#FBFAF7"/>
+      <stop offset="1" stop-color="#E7E3DE"/>
+    </radialGradient>
+
+    <linearGradient id="metalMainRef" x1="266" y1="292" x2="770" y2="752" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4F5F3"/>
+      <stop offset="0.18" stop-color="#E3E5E3"/>
+      <stop offset="0.55" stop-color="#C7CCCD"/>
+      <stop offset="1" stop-color="#AAB1B4"/>
+    </linearGradient>
+
+    <linearGradient id="metalFrontRef" x1="250" y1="606" x2="784" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D6DBDB"/>
+      <stop offset="0.5" stop-color="#BCC2C4"/>
+      <stop offset="1" stop-color="#9EA5A8"/>
+    </linearGradient>
+
+    <linearGradient id="metalHighlightRef" x1="322" y1="318" x2="714" y2="590" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.92"/>
+      <stop offset="0.42" stop-color="#FFFFFF" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="metalShadeRef" x1="416" y1="430" x2="760" y2="738" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#98A0A4" stop-opacity="0"/>
+      <stop offset="1" stop-color="#8A9296" stop-opacity="0.32"/>
+    </linearGradient>
+
+    <filter id="baseShadowRef" x="146" y="618" width="732" height="170" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#A9A9A9" flood-opacity="0.18"/>
+    </filter>
+
+    <filter id="ringShadowRef" x="152" y="474" width="720" height="280" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#9DA1A4" flood-opacity="0.18"/>
+    </filter>
+
+    <filter id="letterShadowRef" x="250" y="240" width="566" height="468" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#9DA1A4" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bgRef)"/>
+
+  <ellipse cx="512" cy="714" rx="268" ry="34" fill="#BBBFC0" fill-opacity="0.18" filter="url(#baseShadowRef)"/>
+
+  <g filter="url(#ringShadowRef)">
+    <ellipse
+      cx="512"
+      cy="632"
+      rx="282"
+      ry="118"
+      stroke="url(#metalMainRef)"
+      stroke-width="96"/>
+    <ellipse
+      cx="512"
+      cy="632"
+      rx="282"
+      ry="118"
+      stroke="url(#metalHighlightRef)"
+      stroke-width="24"
+      opacity="0.82"/>
+  </g>
+
+  <ellipse cx="512" cy="640" rx="190" ry="74" fill="#D8DDDD" fill-opacity="0.2"/>
+
+  <g filter="url(#letterShadowRef)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="url(#metalMainRef)" stroke-width="96">
+      <path d="M 364 346 V 636"/>
+      <path d="M 520 346 V 636"/>
+      <path d="M 364 492 H 520"/>
+      <path d="M 746 416 C 702 378 636 382 596 430 C 554 482 554 554 596 604 C 636 650 700 654 752 614"/>
+    </g>
+
+    <g stroke="url(#metalHighlightRef)" stroke-width="20" opacity="0.86">
+      <path d="M 364 346 V 636"/>
+      <path d="M 520 346 V 636"/>
+      <path d="M 364 492 H 520"/>
+      <path d="M 746 416 C 702 378 636 382 596 430 C 554 482 554 554 596 604 C 636 650 700 654 752 614"/>
+    </g>
+
+    <g stroke="url(#metalShadeRef)" stroke-width="18" opacity="0.74">
+      <path d="M 364 346 V 636"/>
+      <path d="M 520 346 V 636"/>
+      <path d="M 364 492 H 520"/>
+      <path d="M 746 416 C 702 378 636 382 596 430 C 554 482 554 554 596 604 C 636 650 700 654 752 614"/>
+    </g>
+  </g>
+
+  <g>
+    <path
+      d="M 230 632 C 262 730 762 730 794 632"
+      stroke="url(#metalFrontRef)"
+      stroke-width="96"
+      stroke-linecap="round"/>
+    <path
+      d="M 230 632 C 262 730 762 730 794 632"
+      stroke="url(#metalHighlightRef)"
+      stroke-width="20"
+      stroke-linecap="round"
+      opacity="0.78"/>
+  </g>
+
+  <path
+    d="M 298 234 C 358 198 430 178 500 176"
+    stroke="#FFFFFF"
+    stroke-opacity="0.32"
+    stroke-width="12"
+    stroke-linecap="round"/>
+</svg>

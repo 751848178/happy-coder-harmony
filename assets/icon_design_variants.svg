@@ -1,0 +1,114 @@
+<svg width="1024" height="512" viewBox="0 0 1024 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- 定义渐变 -->
+  <defs>
+    <!-- 华为鸿蒙渐变 -->
+    <linearGradient id="harmonyGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B35;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#F7931E;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF0000;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 深色版本渐变 -->
+    <linearGradient id="darkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E74C3C;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#C0392B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#A93226;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- HC字母渐变 -->
+    <linearGradient id="hcGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#F8F8F8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E8E8E8;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 阴影 -->
+    <filter id="shadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="3" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.25"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <filter id="innerShadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="0" dy="-1" result="offsetblur"/>
+      <feFlood flood-color="#FFFFFF" flood-opacity="0.4"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="1024" height="512" fill="#F5F5F5"/>
+  
+  <!-- 变体1：原始设计 -->
+  <g transform="translate(128, 128)">
+    <text x="128" y="-20" font-family="Arial, sans-serif" font-size="16" fill="#333" text-anchor="middle">原始设计</text>
+    
+    <g transform="rotate(15, 128, 128)">
+      <circle cx="128" cy="128" r="90" fill="none" stroke="url(#harmonyGradient1)" stroke-width="6" filter="url(#shadow)"/>
+      <circle cx="128" cy="128" r="82" fill="none" stroke="url(#harmonyGradient1)" stroke-width="1" opacity="0.6"/>
+      
+      <!-- HC 字母 -->
+      <g filter="url(#shadow)">
+        <rect x="90" y="90" width="12" height="76" fill="url(#hcGradient1)" rx="2" filter="url(#innerShadow)"/>
+        <rect x="154" y="90" width="12" height="76" fill="url(#hcGradient1)" rx="2" filter="url(#innerShadow)"/>
+        <rect x="90" y="121" width="76" height="12" fill="url(#hcGradient1)" rx="2" filter="url(#innerShadow)"/>
+        
+        <path d="M 190 100 A 30 30 0 1 1 190 156 L 177 156 A 17 17 0 1 0 177 100 Z" 
+              fill="url(#hcGradient1)" filter="url(#innerShadow)"/>
+      </g>
+      
+      <ellipse cx="128" cy="70" rx="60" ry="15" fill="white" opacity="0.2"/>
+    </g>
+  </g>
+  
+  <!-- 变体2：深色版本 -->
+  <g transform="translate(512, 128)">
+    <text x="128" y="-20" font-family="Arial, sans-serif" font-size="16" fill="#333" text-anchor="middle">深色版本</text>
+    
+    <g transform="rotate(15, 128, 128)">
+      <circle cx="128" cy="128" r="90" fill="none" stroke="url(#darkGradient)" stroke-width="6" filter="url(#shadow)"/>
+      <circle cx="128" cy="128" r="82" fill="none" stroke="url(#darkGradient)" stroke-width="1" opacity="0.6"/>
+      
+      <!-- HC 字母 -->
+      <g filter="url(#shadow)">
+        <rect x="90" y="90" width="12" height="76" fill="url(#hcGradient1)" rx="2" filter="url(#innerShadow)"/>
+        <rect x="154" y="90" width="12" height="76" fill="url(#hcGradient1)" rx="2" filter="url(#innerShadow)"/>
+        <rect x="90" y="121" width="76" height="12" fill="url(#hcGradient1)" rx="2" filter="url(#innerShadow)"/>
+        
+        <path d="M 190 100 A 30 30 0 1 1 190 156 L 177 156 A 17 17 0 1 0 177 100 Z" 
+              fill="url(#hcGradient1)" filter="url(#innerShadow)"/>
+      </g>
+      
+      <ellipse cx="128" cy="70" rx="60" ry="15" fill="white" opacity="0.15"/>
+    </g>
+  </g>
+  
+  <!-- 变体3：简化版本 -->
+  <g transform="translate(768, 128)">
+    <text x="128" y="-20" font-family="Arial, sans-serif" font-size="16" fill="#333" text-anchor="middle">简化版本</text>
+    
+    <g transform="rotate(15, 128, 128)">
+      <circle cx="128" cy="128" r="90" fill="none" stroke="url(#harmonyGradient1)" stroke-width="4"/>
+      
+      <!-- 简化的 HC 字母 -->
+      <g>
+        <rect x="94" y="94" width="8" height="68" fill="url(#hcGradient1)" rx="1"/>
+        <rect x="154" y="94" width="8" height="68" fill="url(#hcGradient1)" rx="1"/>
+        <rect x="94" y="124" width="68" height="8" fill="url(#hcGradient1)" rx="1"/>
+        
+        <path d="M 188 104 A 24 24 0 1 1 188 152 L 178 152 A 14 14 0 1 0 178 104 Z" 
+              fill="url(#hcGradient1)"/>
+      </g>
+    </g>
+  </g>
+</svg>

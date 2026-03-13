@@ -1,0 +1,99 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bgLight" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(512 312) rotate(90) scale(700 780)">
+      <stop stop-color="#FBFAF8"/>
+      <stop offset="1" stop-color="#EBE8E3"/>
+    </radialGradient>
+
+    <linearGradient id="silverMain" x1="242" y1="330" x2="780" y2="736" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EEF0EF"/>
+      <stop offset="0.5" stop-color="#D6DADA"/>
+      <stop offset="1" stop-color="#B7BCBE"/>
+    </linearGradient>
+
+    <linearGradient id="silverEdge" x1="286" y1="378" x2="742" y2="704" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.85"/>
+      <stop offset="0.45" stop-color="#F5F7F6" stop-opacity="0.48"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="silverShade" x1="364" y1="452" x2="720" y2="768" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B8BEC0" stop-opacity="0"/>
+      <stop offset="1" stop-color="#8E9599" stop-opacity="0.36"/>
+    </linearGradient>
+
+    <filter id="softShadow" x="140" y="470" width="744" height="286" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#A8A9AA" flood-opacity="0.18"/>
+    </filter>
+
+    <filter id="letterShadow" x="248" y="236" width="554" height="470" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#9AA0A4" flood-opacity="0.16"/>
+    </filter>
+
+    <filter id="ringShadow" x="148" y="440" width="728" height="314" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#9EA3A6" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <rect x="72" y="72" width="880" height="880" rx="224" fill="url(#bgLight)"/>
+
+  <ellipse cx="512" cy="708" rx="276" ry="42" fill="#C8CCCD" fill-opacity="0.18" filter="url(#softShadow)"/>
+
+  <g filter="url(#ringShadow)">
+    <path
+      d="M 232 618 A 280 126 0 0 0 792 618"
+      stroke="url(#silverMain)"
+      stroke-width="86"
+      stroke-linecap="round"/>
+    <path
+      d="M 232 618 A 280 126 0 0 0 792 618"
+      stroke="url(#silverEdge)"
+      stroke-width="26"
+      stroke-linecap="round"
+      opacity="0.72"/>
+  </g>
+
+  <g filter="url(#letterShadow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="url(#silverMain)" stroke-width="92">
+      <path d="M 372 360 V 678"/>
+      <path d="M 524 360 V 678"/>
+      <path d="M 372 538 H 524"/>
+      <path d="M 762 430 C 716 394 660 398 628 438 C 590 486 590 560 628 606 C 660 646 716 652 762 618"/>
+    </g>
+
+    <g stroke="url(#silverEdge)" stroke-width="22" opacity="0.86">
+      <path d="M 372 360 V 678"/>
+      <path d="M 524 360 V 678"/>
+      <path d="M 372 538 H 524"/>
+      <path d="M 762 430 C 716 394 660 398 628 438 C 590 486 590 560 628 606 C 660 646 716 652 762 618"/>
+    </g>
+
+    <g stroke="url(#silverShade)" stroke-width="18" opacity="0.72">
+      <path d="M 372 360 V 678"/>
+      <path d="M 524 360 V 678"/>
+      <path d="M 372 538 H 524"/>
+      <path d="M 762 430 C 716 394 660 398 628 438 C 590 486 590 560 628 606 C 660 646 716 652 762 618"/>
+    </g>
+  </g>
+
+  <g>
+    <path
+      d="M 232 618 A 280 126 0 0 1 792 618"
+      stroke="url(#silverMain)"
+      stroke-width="86"
+      stroke-linecap="round"/>
+    <path
+      d="M 232 618 A 280 126 0 0 1 792 618"
+      stroke="url(#silverEdge)"
+      stroke-width="22"
+      stroke-linecap="round"
+      opacity="0.68"/>
+  </g>
+
+  <path
+    d="M 282 242 C 346 202 432 180 508 178"
+    stroke="#FFFFFF"
+    stroke-opacity="0.38"
+    stroke-width="14"
+    stroke-linecap="round"/>
+</svg>

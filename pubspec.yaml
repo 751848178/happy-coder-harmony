@@ -1,0 +1,107 @@
+name: happy_coder_flutter
+description: Mobile and Web Client for Claude Code & Codex - Flutter version
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.5.0
+
+  # Network
+  socket_io_client: ^2.0.0
+  dio: ^5.4.0
+  web_socket_channel: ^2.4.0
+
+  # Encryption
+  sodium: ^2.0.0
+  sodium_libs: ^2.2.1+6
+  cryptography: ^2.7.0
+  pinenacl: ^0.6.0
+
+  # Storage
+  flutter_secure_storage: ^9.0.0
+  hive: ^2.2.0
+  hive_flutter: ^1.1.0
+  path_provider: ^2.0.0
+  shared_preferences: ^2.0.0
+
+  # Routing
+  go_router: ^14.0.0
+
+  # UI
+  cupertino_icons: ^1.0.8
+  flutter_svg: ^2.0.0
+  cached_network_image: ^3.3.0
+  shimmer: ^3.0.0
+
+  # Markdown and Code Rendering
+  flutter_markdown: ^0.7.0
+  flutter_highlight: ^0.7.0
+  markdown: ^7.3.0
+  # mermaid: ^0.11.0
+
+  # Files and Media
+  file_picker: ^8.0.0
+  image_picker: ^1.0.0
+  image_gallery_saver: ^2.0.0
+
+  # 2D Codes
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.0.0
+
+  # Push Notifications
+  flutter_local_notifications: ^17.0.0
+
+  # WebRTC (Voice)
+  flutter_webrtc: ^0.11.0
+
+  # Utils
+  uuid: ^4.0.0
+  intl: ^0.19.0
+  url_launcher: ^6.2.0
+  share_plus: ^9.0.0
+  permission_handler: ^11.0.0
+
+  # In-App Purchases
+  in_app_purchase: ^3.1.0
+
+  # JSON and Serialization
+  freezed_annotation: ^2.4.0
+  json_annotation: ^4.8.0
+
+  # Other
+  crypto: ^3.0.3
+  pointycastle: ^3.9.0
+  collection: ^1.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  build_runner: ^2.4.0
+  freezed: ^2.4.0
+  json_serializable: ^6.7.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/fonts/
+
+  fonts:
+    - family: IBMPlexSans
+      fonts:
+        - asset: assets/fonts/IBMPlexSans-Regular.ttf
+        - asset: assets/fonts/IBMPlexSans-Medium.ttf
+    - family: IBMPlexMono
+      fonts:
+        - asset: assets/fonts/IBMPlexMono-Regular.ttf
+        - asset: assets/fonts/IBMPlexMono-Medium.ttf

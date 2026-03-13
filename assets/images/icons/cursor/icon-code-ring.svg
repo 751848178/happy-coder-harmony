@@ -1,0 +1,62 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ringGradientCursor" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3F8CFF"/>
+      <stop offset="50%" stop-color="#3FD4FF"/>
+      <stop offset="100%" stop-color="#9A5CFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ?????? -->
+  <rect x="64" y="64" width="896" height="896" rx="224" fill="#F5F7FF"/>
+
+  <!-- ????? -->
+  <circle cx="512" cy="512" r="280" fill="#FFFFFF" opacity="0.96"/>
+
+  <!-- ??????? -->
+  <path
+    d="M 512 184
+       A 328 328 0 0 1 824 496
+       A 328 328 0 0 1 716 772"
+    fill="none"
+    stroke="url(#ringGradientCursor)"
+    stroke-width="44"
+    stroke-linecap="round"/>
+
+  <!-- ?????? -->
+  <path
+    d="M 308 780
+       A 328 328 0 0 1 200 512
+       A 328 328 0 0 1 340 260"
+    fill="none"
+    stroke="#C4D4FF"
+    stroke-width="32"
+    stroke-linecap="round"
+    opacity="0.8"/>
+
+  <!-- ?? </> ?? -->
+  <path
+    d="M 420 404 L 360 452 L 420 500"
+    fill="none"
+    stroke="#32406F"
+    stroke-width="32"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <path
+    d="M 604 404 L 664 452 L 604 500"
+    fill="none"
+    stroke="#32406F"
+    stroke-width="32"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <path
+    d="M 504 380 L 460 556"
+    fill="none"
+    stroke="#32406F"
+    stroke-width="32"
+    stroke-linecap="round"/>
+
+  <!-- ???? -->
+</svg>

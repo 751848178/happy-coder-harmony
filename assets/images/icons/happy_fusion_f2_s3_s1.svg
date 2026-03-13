@@ -1,0 +1,37 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="f2bg" x1="128" y1="118" x2="894" y2="910" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#697BFF"/>
+      <stop offset="1" stop-color="#3F4AD6"/>
+    </linearGradient>
+    <linearGradient id="f2card" x1="286" y1="252" x2="744" y2="770" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E9EEFF"/>
+    </linearGradient>
+    <filter id="f2shadow" x="208" y="194" width="608" height="644" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="28"/>
+      <feGaussianBlur stdDeviation="28"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0862745 0 0 0 0 0.117647 0 0 0 0 0.356863 0 0 0 0.22 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect x="72" y="72" width="880" height="880" rx="224" fill="url(#f2bg)"/>
+
+  <g filter="url(#f2shadow)">
+    <rect x="278" y="246" width="468" height="524" rx="120" fill="url(#f2card)"/>
+
+    <rect x="354" y="356" width="86" height="304" rx="43" fill="#5060F0"/>
+    <rect x="584" y="356" width="86" height="304" rx="43" fill="#5060F0"/>
+    <rect x="438" y="468" width="148" height="80" rx="40" fill="#5060F0"/>
+
+    <path d="M338 446L406 512L338 578" stroke="#16CA8E" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M564 610H654" stroke="#16CA8E" stroke-width="28" stroke-linecap="round"/>
+
+    <circle cx="610" cy="330" r="22" fill="#16CA8E"/>
+    <circle cx="664" cy="330" r="14" fill="#5060F0" fill-opacity="0.38"/>
+  </g>
+</svg>

@@ -1,0 +1,420 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import ../../../core/theme/app_theme.dart';
+import '../../../shared/utils/extensions.dart';
+
+import '../data/livekit_service.dart';
+
+/// 音频波形组件
+class Waveform extends StatefulWidget {
+  const Waveform({
+    super.key,
+    required this.isRecording,
+  });
+
+  final bool isRecording;
+
+  @override
+  State<Waveform> createState() => _WaveformState();
+}
+
+class _WaveformState extends State<Waveform>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late List<double> _waveHeights;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    _controller.repeat();
+
+    _waveHeights = List.generate(30, (index) => 0.0);
+
+    _controller.addListener(_updateWaves);
+  }
+
+  void _updateWaves() {
+    if (widget.isRecording) {
+      setState(() {
+        for (int i = 0; i < _waveHeights.length; i++) {
+          _waveHeights[i] = (Math.random() * 20).clamp(5.0, 25.0);
+        }
+      });
+    } else {
+      setState(() {
+        _waveHeights = List.filled(30, 0.0);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 40,
+      color: AppTheme.brandColor,
+      child: Row(
+        children: List.generate(
+          _waveHeights.length,
+          (index) => Container(
+                width: 3,
+                height: _waveHeights[index].clamp(5.0, 40.0),
+                margin: const EdgeInsets.symmetric(horizontal: 1),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+        ),
+        crossAxisAlignment: CrossAxisAlignment.end,
+      ),
+    );
+  }
+}
+
+/// 实时语音组件
+///
+/// 提供实时语音通话界面
+class VoiceChatWidget extends ConsumerWidget {
+  const VoiceChatWidget({
+    super.key,
+    required this.sessionId,
+  });
+
+  final String sessionId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final service = LiveKitService.instance;
+
+    return Scaffold(
+      backgroundColor: AppTheme.neutral50,
+      appBar: AppBar(
+        title: const Text('实时语音'),
+        backgroundColor: AppTheme.surface,
+        foregroundColor: AppTheme.textPrimary,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          // 设置按钮
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              _showSettingsDialog(context);
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // 连接状态
+          Expanded(
+            child: StreamBuilder<LiveKitConnectionState>(
+              stream: service.connectionStream,
+              builder: (context, snapshot) {
+                return _buildConnectionView(
+                  context,
+                  service,
+                  snapshot.data ?? LiveKitConnectionState.initial,
+                );
+              },
+            ),
+          ),
+
+          // 控制按钮区域
+          _buildControls(context, service),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConnectionView(
+    BuildContext context,
+    LiveKitService service,
+    LiveKitConnectionState state,
+  ) {
+    String statusText;
+    IconData statusIcon;
+    Color statusColor;
+    VoidCallback? onAction;
+
+    switch (state) {
+      case LiveKitConnectionState.initial:
+        statusText = '准备就绪';
+        statusIcon = Icons.play_circle_outline;
+        statusColor = AppTheme.neutral400;
+        onAction = () {};
+        break;
+
+      case LiveKitConnectionState.connecting:
+        statusText = '正在连接...';
+        statusIcon = Icons.sync;
+        statusColor = Colors.orange;
+        onAction = () {};
+        break;
+
+      case LiveKitConnectionState.connected:
+        statusText = '已连接';
+        statusIcon = Icons.check_circle;
+        statusColor = Colors.green;
+        onAction = () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => _buildInCallView(context, service),
+            ),
+          );
+        };
+        break;
+
+      case LiveKitConnectionState.disconnecting:
+        statusText = '断开连接...';
+        statusIcon = Icons.close;
+        statusColor = Colors.red;
+        onAction = () {};
+        break;
+
+      case LiveKitConnectionState.disconnected:
+        statusText = '已断开';
+        statusIcon = Icons.error_outline;
+        statusColor = AppTheme.neutral500;
+        onAction = () {};
+        break;
+
+      case LiveKitConnectionState.error:
+        statusText = '连接错误';
+        statusIcon = Icons.error_outline;
+        statusColor = Colors.red;
+        onAction = () {};
+        break;
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            statusIcon,
+            size: 64,
+            color: statusColor,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            statusText,
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 32),
+          if (onAction != null)
+            ElevatedButton.icon(
+              onPressed: onAction!,
+              icon: const Icon(Icons.refresh),
+              label: const Text('重新连接'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.brandColor,
+                foregroundColor: Colors.white,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControls(BuildContext context, LiveKitService service) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        border: Border(
+          top: BorderSide(color: AppTheme.neutral300, width: 1),
+        ),
+      ),
+      child: Column(
+        children: [
+          // 音频波形
+          Waveform(isRecording: false),
+
+          const SizedBox(height: 32),
+
+          // 控制按钮
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildControlButton(
+                icon: Icons.mic,
+                label: '录音',
+                color: AppTheme.brandColor,
+                onTap: () {
+                  service.startRecording();
+                },
+              ),
+              _buildControlButton(
+                icon: Icons.mic_off,
+                label: '停止',
+                color: Colors.red,
+                onTap: () {
+                  service.stopRecording();
+                },
+              ),
+              _buildControlButton(
+                icon: service.isMuted
+                    ? Icons.volume_off
+                    : Icons.volume_up,
+                label: service.isMuted ? '取消静音' : '静音',
+                onTap: () {
+                  service.toggleMute();
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControlButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    );
+  }
+
+  Widget _buildInCallView(BuildContext context, LiveKitService service) {
+    return Scaffold(
+      backgroundColor: AppTheme.neutral50,
+      appBar: AppBar(
+        title: const Text('通话中'),
+        backgroundColor: AppTheme.brandColor,
+        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.phone_in_talk,
+              size: 64,
+              color: Colors.white,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              '语音通话进行中',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 48),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: TextButton.icon(
+                onPressed: () {
+                  service.disconnect();
+                  Navigator.pop(context);
+                },
+                icon: const Icon(Icons.call_end, color: Colors.red),
+                label: const Text('挂断'),
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSettingsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('语音设置'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text('输入设备'),
+              subtitle: Text('麦克风'),
+            ),
+            const ListTile(
+              title: Text('输出设备'),
+              subtitle: Text('扬声器'),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.volume_up),
+              title: const Text('音量'),
+              trailing: Slider(value: 0.75),
+            ),
+            ListTile(
+              leading: const Icon(Icons.noise_suppression_cancel),
+              title: const Text('降噪'),
+              trailing: Switch(value: false),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('关闭'),
+        ),
+      ],
+    );
+  }
+}

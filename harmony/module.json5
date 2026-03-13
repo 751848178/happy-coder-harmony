@@ -1,0 +1,19 @@
+{
+  "module": {
+    "name": "happy_coder_harmony",
+    "type": "entry",
+    "description": "Happy Coder HarmonyOS Module",
+    "mainElement": "EntryAbility.ets",
+    "deviceTypes": [
+      "default",
+      "tablet"
+    ],
+    "deliveryWithInstall": true,
+    "pages": "$profile:main_pages",
+    "abilities": [
+      "EntryAbility"
+    ]
+  },
+  "targetPriority": 8,
+  "packageName": "com.happy.coder.harmony"
+}

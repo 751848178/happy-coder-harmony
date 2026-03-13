@@ -1,0 +1,15 @@
+{
+  "module": {
+    "name": "harmony_native",
+    "type": "har",
+    "description": "Happy Coder Native Plugins Module",
+    "deviceTypes": [
+      "default",
+      "tablet"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false
+  },
+  "targetPriority": 8,
+  "packageName": "com.happy.coder.harmony"
+}

@@ -1,0 +1,23 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Happy Coder flat logo mark v4</title>
+  <desc>Transparent logo mark version for app icon and brand asset usage.</desc>
+
+  <ellipse
+    cx="516"
+    cy="670"
+    rx="300"
+    ry="112"
+    stroke="#7C8797"
+    stroke-width="52"/>
+
+  <g
+    stroke="#17202C"
+    stroke-width="96"
+    stroke-linecap="round"
+    stroke-linejoin="round">
+    <path d="M 332 278 V 676"/>
+    <path d="M 488 278 V 676"/>
+    <path d="M 332 478 H 488"/>
+    <path d="M 812 368 C 764 328 694 332 644 382 C 592 436 592 522 642 578 C 690 632 762 638 816 596"/>
+  </g>
+</svg>

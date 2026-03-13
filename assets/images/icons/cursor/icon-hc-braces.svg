@@ -1,0 +1,63 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradientHCIcon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4460F7"/>
+      <stop offset="100%" stop-color="#9A5CFF"/>
+    </linearGradient>
+    <linearGradient id="braceGradientIcon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3FD4FF"/>
+      <stop offset="100%" stop-color="#7CF5C8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ?????? -->
+  <rect x="64" y="64" width="896" height="896" rx="224" fill="url(#bgGradientHCIcon)"/>
+
+  <!-- ???? -->
+  <path
+    d="M 280 340
+       C 260 340, 248 356, 248 384
+       L 248 424
+       C 248 452, 236 468, 216 476
+       C 236 484, 248 500, 248 528
+       L 248 568
+       C 248 596, 260 612, 280 612"
+    fill="none"
+    stroke="url(#braceGradientIcon)"
+    stroke-width="28"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity="0.95"/>
+
+  <!-- ???? -->
+  <path
+    d="M 744 340
+       C 764 340, 776 356, 776 384
+       L 776 424
+       C 776 452, 788 468, 808 476
+       C 788 484, 776 500, 776 528
+       L 776 568
+       C 776 596, 764 612, 744 612"
+    fill="none"
+    stroke="url(#braceGradientIcon)"
+    stroke-width="28"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity="0.95"/>
+
+  <!-- ?? HC ?? -->
+  <text
+    x="512"
+    y="540"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    font-size="220"
+    font-weight="700"
+    fill="#FFFFFF">
+    HC
+  </text>
+
+  <!-- ??? -->
+  <circle cx="320" cy="288" r="60" fill="#FFFFFF" opacity="0.14"/>
+  <circle cx="724" cy="756" r="80" fill="#FFFFFF" opacity="0.10"/>
+</svg>

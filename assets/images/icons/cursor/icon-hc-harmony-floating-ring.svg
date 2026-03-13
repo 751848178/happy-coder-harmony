@@ -1,0 +1,147 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgBase" x1="132" y1="118" x2="896" y2="910" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#19245A"/>
+      <stop offset="0.5" stop-color="#2442A1"/>
+      <stop offset="1" stop-color="#0E1231"/>
+    </linearGradient>
+
+    <radialGradient id="bgCoolGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(324 286) rotate(46) scale(330 274)">
+      <stop stop-color="#91A3FF" stop-opacity="0.72"/>
+      <stop offset="1" stop-color="#91A3FF" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="bgWarmGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(784 794) rotate(24) scale(286 240)">
+      <stop stop-color="#FF8E64" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#FF8E64" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="floorGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(520 760) scale(278 80)">
+      <stop stop-color="#FF6B4D" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#FF6B4D" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="ringMain" x1="228" y1="404" x2="828" y2="700" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF0DE"/>
+      <stop offset="0.14" stop-color="#FFB16B"/>
+      <stop offset="0.42" stop-color="#FF744C"/>
+      <stop offset="0.74" stop-color="#EC3E61"/>
+      <stop offset="1" stop-color="#B11D58"/>
+    </linearGradient>
+
+    <linearGradient id="ringHighlight" x1="340" y1="418" x2="744" y2="624" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.98"/>
+      <stop offset="0.34" stop-color="#FFE0C0" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="letterMain" x1="314" y1="334" x2="812" y2="722" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8EE"/>
+      <stop offset="0.16" stop-color="#FFD7A2"/>
+      <stop offset="0.4" stop-color="#FF9E56"/>
+      <stop offset="0.7" stop-color="#F4514E"/>
+      <stop offset="1" stop-color="#AD1C56"/>
+    </linearGradient>
+
+    <linearGradient id="letterHighlight" x1="364" y1="356" x2="718" y2="570" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.52" stop-color="#FFEBD3" stop-opacity="0.94"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.18"/>
+    </linearGradient>
+
+    <filter id="softBlur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="40"/>
+    </filter>
+
+    <filter id="ringGlow" x="90" y="240" width="860" height="540" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="26" stdDeviation="28" flood-color="#210713" flood-opacity="0.34"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="16" flood-color="#FF9B67" flood-opacity="0.18"/>
+    </filter>
+
+    <filter id="letterFloat" x="190" y="250" width="690" height="520" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="30" stdDeviation="24" flood-color="#160712" flood-opacity="0.46"/>
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#FFD7BE" flood-opacity="0.12"/>
+    </filter>
+
+    <filter id="frontArcDepth" x="110" y="360" width="820" height="420" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#220814" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect x="72" y="72" width="880" height="880" rx="228" fill="url(#bgBase)"/>
+  <circle cx="324" cy="286" r="240" fill="url(#bgCoolGlow)"/>
+  <circle cx="784" cy="794" r="228" fill="url(#bgWarmGlow)"/>
+
+  <ellipse cx="520" cy="760" rx="278" ry="80" fill="url(#floorGlow)" filter="url(#softBlur)"/>
+  <ellipse cx="520" cy="544" rx="192" ry="112" fill="#FF8A5B" fill-opacity="0.14" filter="url(#softBlur)"/>
+
+  <g transform="rotate(-17 520 590)" filter="url(#ringGlow)">
+    <path
+      d="M 220 590 A 300 126 0 0 0 820 590"
+      stroke="#4A0D24"
+      stroke-opacity="0.36"
+      stroke-width="94"
+      stroke-linecap="round"/>
+    <path
+      d="M 220 590 A 300 126 0 0 0 820 590"
+      stroke="url(#ringMain)"
+      stroke-width="80"
+      stroke-linecap="round"/>
+    <path
+      d="M 220 590 A 300 126 0 0 0 820 590"
+      stroke="url(#ringHighlight)"
+      stroke-width="32"
+      stroke-linecap="round"
+      opacity="0.92"/>
+  </g>
+
+  <g filter="url(#letterFloat)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#520D27" stroke-opacity="0.24" stroke-width="112">
+      <path d="M 334 370 V 668"/>
+      <path d="M 498 370 V 668"/>
+      <path d="M 334 520 H 498"/>
+      <path d="M 808 438 C 748 394 688 400 662 446 C 628 496 628 560 664 612 C 696 658 756 664 808 624"/>
+    </g>
+
+    <g stroke="url(#letterMain)" stroke-width="96">
+      <path d="M 334 370 V 668"/>
+      <path d="M 498 370 V 668"/>
+      <path d="M 334 520 H 498"/>
+      <path d="M 808 438 C 748 394 688 400 662 446 C 628 496 628 560 664 612 C 696 658 756 664 808 624"/>
+    </g>
+
+    <g stroke="url(#letterHighlight)" stroke-width="28" opacity="0.96">
+      <path d="M 334 370 V 668"/>
+      <path d="M 498 370 V 668"/>
+      <path d="M 334 520 H 498"/>
+      <path d="M 808 438 C 748 394 688 400 662 446 C 628 496 628 560 664 612 C 696 658 756 664 808 624"/>
+    </g>
+  </g>
+
+  <g transform="rotate(-17 520 590)" filter="url(#frontArcDepth)">
+    <path
+      d="M 220 590 A 300 126 0 0 1 820 590"
+      stroke="#5A0C29"
+      stroke-opacity="0.32"
+      stroke-width="92"
+      stroke-linecap="round"/>
+    <path
+      d="M 220 590 A 300 126 0 0 1 820 590"
+      stroke="url(#ringMain)"
+      stroke-width="76"
+      stroke-linecap="round"/>
+    <path
+      d="M 220 590 A 300 126 0 0 1 820 590"
+      stroke="url(#ringHighlight)"
+      stroke-width="28"
+      stroke-linecap="round"
+      opacity="0.88"/>
+  </g>
+
+  <path
+    d="M 262 224 C 328 170 416 138 506 136"
+    stroke="#FFFFFF"
+    stroke-opacity="0.18"
+    stroke-width="18"
+    stroke-linecap="round"/>
+</svg>

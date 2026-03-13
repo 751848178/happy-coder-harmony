@@ -1,0 +1,144 @@
+<svg width="1024" height="512" viewBox="0 0 1024 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- 定义渐变 -->
+  <defs>
+    <!-- 华为鸿蒙渐变 -->
+    <linearGradient id="harmonyGradient2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FF6B35;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#F7931E;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF0000;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- HC字母渐变 -->
+    <linearGradient id="hcGradient2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#F8F8F8;stop-opacity:1" />
+      <stop offset="60%" style="stop-color:#E8E8E8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D8D8D8;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 阴影 -->
+    <filter id="shadow2">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.3"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <filter id="hcShadow2">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="1" dy="1" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.4"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <filter id="innerShadow2">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1"/>
+      <feOffset dx="0" dy="-1" result="offsetblur"/>
+      <feFlood flood-color="#FFFFFF" flood-opacity="0.5"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="1024" height="512" fill="#F5F5F5"/>
+  
+  <!-- 变体1: 85度倾斜 -->
+  <g transform="translate(128, 128)">
+    <text x="128" y="-20" font-family="Arial, sans-serif" font-size="14" fill="#333" text-anchor="middle">85度倾斜</text>
+    
+    <g transform="rotate(85, 128, 128)">
+      <ellipse cx="128" cy="128" rx="100" ry="40" fill="none" stroke="url(#harmonyGradient2)" stroke-width="6" filter="url(#shadow2)"/>
+      <ellipse cx="128" cy="128" rx="92" ry="32" fill="none" stroke="url(#harmonyGradient2)" stroke-width="1" opacity="0.6"/>
+      
+      <!-- HC 字母浮出 -->
+      <g transform="translate(140, 115)" filter="url(#hcShadow2)">
+        <rect x="0" y="0" width="10" height="30" fill="url(#hcGradient2)" rx="2" filter="url(#innerShadow2)"/>
+        <rect x="20" y="0" width="10" height="30" fill="url(#hcGradient2)" rx="2" filter="url(#innerShadow2)"/>
+        <rect x="0" y="10" width="30" height="10" fill="url(#hcGradient2)" rx="2" filter="url(#innerShadow2)"/>
+        
+        <path d="M 40 5 A 15 15 0 1 1 40 25 L 32 25 A 7 7 0 1 0 32 5 Z" 
+              fill="url(#hcGradient2)" filter="url(#innerShadow2)"/>
+      </g>
+      
+      <ellipse cx="165" cy="110" rx="25" ry="8" fill="white" opacity="0.3"/>
+    </g>
+  </g>
+  
+  <!-- 变体2: 80度倾斜 -->
+  <g transform="translate(384, 128)">
+    <text x="128" y="-20" font-family="Arial, sans-serif" font-size="14" fill="#333" text-anchor="middle">80度倾斜</text>
+    
+    <g transform="rotate(80, 128, 128)">
+      <ellipse cx="128" cy="128" rx="100" ry="40" fill="none" stroke="url(#harmonyGradient2)" stroke-width="6" filter="url(#shadow2)"/>
+      <ellipse cx="128" cy="128" rx="92" ry="32" fill="none" stroke="url(#harmonyGradient2)" stroke-width="1" opacity="0.6"/>
+      
+      <!-- HC 字母浮出 -->
+      <g transform="translate(140, 115)" filter="url(#hcShadow2)">
+        <rect x="0" y="0" width="10" height="30" fill="url(#hcGradient2)" rx="2" filter="url(#innerShadow2)"/>
+        <rect x="20" y="0" width="10" height="30" fill="url(#hcGradient2)" rx="2" filter="url(#innerShadow2)"/>
+        <rect x="0" y="10" width="30" height="10" fill="url(#hcGradient2)" rx="2" filter="url(#innerShadow2)"/>
+        
+        <path d="M 40 5 A 15 15 0 1 1 40 25 L 32 25 A 7 7 0 1 0 32 5 Z" 
+              fill="url(#hcGradient2)" filter="url(#innerShadow2)"/>
+      </g>
+      
+      <ellipse cx="165" cy="110" rx="25" ry="8" fill="white" opacity="0.3"/>
+    </g>
+  </g>
+  
+  <!-- 变体3: 90度完全躺平 -->
+  <g transform="translate(640, 128)">
+    <text x="128" y="-20" font-family="Arial, sans-serif" font-size="14" fill="#333" text-anchor="middle">90度完全躺平</text>
+    
+    <g transform="rotate(90, 128, 128)">
+      <ellipse cx="128" cy="128" rx="100" ry="40" fill="none" stroke="url(#harmonyGradient2)" stroke-width="6" filter="url(#shadow2)"/>
+      <ellipse cx="128" cy="128" rx="92" ry="32" fill="none" stroke="url(#harmonyGradient2)" stroke-width="1" opacity="0.6"/>
+      
+      <!-- HC 字母浮出 -->
+      <g transform="translate(140, 115)" filter="url(#hcShadow2)">
+        <rect x="0" y="0" width="10" height="30" fill="url(#hcGradient2)" rx="2" filter="url(#innerShadow2)"/>
+        <rect x="20" y="0" width="10" height="30" fill="url(#hcGradient2)" rx="2" filter="url(#innerShadow2)"/>
+        <rect x="0" y="10" width="30" height="10" fill="url(#hcGradient2)" rx="2" filter="url(#innerShadow2)"/>
+        
+        <path d="M 40 5 A 15 15 0 1 1 40 25 L 32 25 A 7 7 0 1 0 32 5 Z" 
+              fill="url(#hcGradient2)" filter="url(#innerShadow2)"/>
+      </g>
+      
+      <ellipse cx="165" cy="110" rx="25" ry="8" fill="white" opacity="0.3"/>
+    </g>
+  </g>
+  
+  <!-- 变体4: 不同HC位置 -->
+  <g transform="translate(896, 128)">
+    <text x="128" y="-20" font-family="Arial, sans-serif" font-size="14" fill="#333" text-anchor="middle">HC居中位置</text>
+    
+    <g transform="rotate(85, 128, 128)">
+      <ellipse cx="128" cy="128" rx="100" ry="40" fill="none" stroke="url(#harmonyGradient2)" stroke-width="6" filter="url(#shadow2)"/>
+      <ellipse cx="128" cy="128" rx="92" ry="32" fill="none" stroke="url(#harmonyGradient2)" stroke-width="1" opacity="0.6"/>
+      
+      <!-- HC 字母居中浮出 -->
+      <g transform="translate(98, 115)" filter="url(#hcShadow2)">
+        <rect x="0" y="0" width="10" height="30" fill="url(#hcGradient2)" rx="2" filter="url(#innerShadow2)"/>
+        <rect x="20" y="0" width="10" height="30" fill="url(#hcGradient2)" rx="2" filter="url(#innerShadow2)"/>
+        <rect x="0" y="10" width="30" height="10" fill="url(#hcGradient2)" rx="2" filter="url(#innerShadow2)"/>
+        
+        <path d="M 40 5 A 15 15 0 1 1 40 25 L 32 25 A 7 7 0 1 0 32 5 Z" 
+              fill="url(#hcGradient2)" filter="url(#innerShadow2)"/>
+      </g>
+      
+      <ellipse cx="123" cy="110" rx="25" ry="8" fill="white" opacity="0.3"/>
+    </g>
+  </g>
+</svg>

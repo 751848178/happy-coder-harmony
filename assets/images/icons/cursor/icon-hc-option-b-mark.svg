@@ -1,0 +1,35 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Happy Coder icon option B mark</title>
+  <desc>Transparent mark version of icon option B.</desc>
+
+  <defs>
+    <linearGradient id="optionBMarkInk" x1="264" y1="238" x2="784" y2="794" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F73E8"/>
+      <stop offset="1" stop-color="#1FC3A3"/>
+    </linearGradient>
+
+    <linearGradient id="optionBMarkRing" x1="236" y1="556" x2="782" y2="768" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2E94D8"/>
+      <stop offset="1" stop-color="#1FC3A3"/>
+    </linearGradient>
+  </defs>
+
+  <ellipse
+    cx="512"
+    cy="666"
+    rx="278"
+    ry="104"
+    stroke="url(#optionBMarkRing)"
+    stroke-width="52"/>
+
+  <g
+    stroke="url(#optionBMarkInk)"
+    stroke-width="90"
+    stroke-linecap="round"
+    stroke-linejoin="round">
+    <path d="M 332 286 V 642"/>
+    <path d="M 474 286 V 642"/>
+    <path d="M 332 464 H 474"/>
+    <path d="M 746 374 C 700 336 632 340 586 388 C 538 438 538 520 584 568 C 628 614 698 620 750 586"/>
+  </g>
+</svg>

@@ -1,0 +1,68 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- background gradient -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4C6FFF"/>
+      <stop offset="1" stop-color="#2F3FBB"/>
+    </linearGradient>
+
+    <!-- Hongmeng ring gradient -->
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5AF2C4"/>
+      <stop offset="1" stop-color="#12C48B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- outer rounded square -->
+  <rect x="72" y="72" width="880" height="880" rx="220" fill="url(#bg)"/>
+
+  <!-- Hongmeng style arc ring -->
+  <path
+    d="M 256 368
+       C 280 300, 332 248, 400 224
+       C 472 200, 552 208, 616 244
+       C 688 284, 736 348, 760 424
+       C 784 500, 776 580, 744 644"
+    fill="none"
+    stroke="url(#ring)"
+    stroke-width="40"
+    stroke-linecap="round"/>
+
+  <!-- light circle behind window -->
+  <circle cx="512" cy="520" r="260" fill="#F5F7FF" opacity="0.96"/>
+
+  <!-- window card -->
+  <rect x="332" y="380" width="360" height="260" rx="48" fill="#FFFFFF"/>
+  <rect x="332" y="380" width="360" height="52" rx="48" fill="#EEF0FF"/>
+
+  <!-- top dots -->
+  <circle cx="364" cy="406" r="9" fill="#FF6B6B"/>
+  <circle cx="396" cy="406" r="9" fill="#FFD93B"/>
+  <circle cx="428" cy="406" r="9" fill="#6BCB77"/>
+
+  <!-- inner dark area -->
+  <rect x="352" y="424" width="320" height="200" rx="32" fill="#111A3A"/>
+
+  <!-- arrow (happy-coder feel) -->
+  <path
+    d="M 396 500 L 452 540 L 396 580"
+    fill="none"
+    stroke="#7D93FF"
+    stroke-width="26"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <!-- result line -->
+  <path
+    d="M 488 540 H 632"
+    stroke="#5AF2C4"
+    stroke-width="26"
+    stroke-linecap="round"/>
+
+  <!-- bottom info bars -->
+  <rect x="372" y="606" width="120" height="20" rx="10" fill="#D2DBFF" opacity="0.95"/>
+  <rect x="508" y="602" width="132" height="28" rx="14" fill="#E5EBFF" opacity="0.95"/>
+
+  <!-- accent dot (Hongmeng green) -->
+  <circle cx="744" cy="696" r="14" fill="#12C48B"/>
+</svg>

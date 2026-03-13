@@ -1,0 +1,16 @@
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/generated_plugin_registrant.dart"
+
+linter:
+  rules:
+    prefer_final_fields: ignore
+    prefer_const_declarations: ignore
+    prefer_typing_uninitialized_variables: ignore
+    use_key_in_widget_constructors: ignore
+    annotate_overrides: ignore
+    cascade_invocations: ignore
+    const_with_undefined_constructor: ignore
+    expected_token: ignore

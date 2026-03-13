@@ -1,0 +1,77 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgHappyHarmony" x1="140" y1="96" x2="900" y2="928" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6C7BFF"/>
+      <stop offset="0.55" stop-color="#5666F4"/>
+      <stop offset="1" stop-color="#3945BE"/>
+    </linearGradient>
+
+    <linearGradient id="glassHappyHarmony" x1="268" y1="248" x2="756" y2="680" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#EDF1FF" stop-opacity="0.9"/>
+    </linearGradient>
+
+    <linearGradient id="harmonyArc" x1="608" y1="660" x2="808" y2="864" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5AF2C4"/>
+      <stop offset="1" stop-color="#12C48B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <rect x="72" y="72" width="880" height="880" rx="220" fill="url(#bgHappyHarmony)"/>
+
+  <!-- central glass card -->
+  <rect x="230" y="230" width="564" height="520" rx="92" fill="url(#glassHappyHarmony)"/>
+
+  <!-- code window -->
+  <rect x="270" y="292" width="484" height="308" rx="44" fill="#121C44"/>
+  <rect x="296" y="318" width="432" height="256" rx="28" fill="#0D1636"/>
+
+  <!-- window dots -->
+  <circle cx="328" cy="340" r="10" fill="#5AF2C4"/>
+  <circle cx="360" cy="340" r="10" fill="#7D93FF"/>
+  <circle cx="392" cy="340" r="10" fill="#FFCF66"/>
+
+  <!-- arrow -->
+  <path
+    d="M 360 400 L 420 448 L 360 496"
+    fill="none"
+    stroke="#7D93FF"
+    stroke-width="30"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <!-- result line -->
+  <path
+    d="M 480 456 H 632"
+    stroke="#5AF2C4"
+    stroke-width="30"
+    stroke-linecap="round"/>
+
+  <!-- bottom info bars -->
+  <rect x="314" y="614" width="214" height="26" rx="13" fill="#D3DBFF" opacity="0.9"/>
+  <rect x="548" y="604" width="178" height="46" rx="23" fill="#E6EBFF" opacity="0.95"/>
+
+  <!-- harmony arc -->
+  <path
+    d="M 292 744
+       C 360 808, 456 840, 552 832
+       C 648 824, 728 784, 788 724"
+    fill="none"
+    stroke="url(#harmonyArc)"
+    stroke-width="26"
+    stroke-linecap="round"/>
+
+  <!-- secondary arc -->
+  <path
+    d="M 320 788
+       C 392 838, 484 860, 568 852"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-opacity="0.35"
+    stroke-width="12"
+    stroke-linecap="round"/>
+
+  <!-- accent dot -->
+  <circle cx="782" cy="736" r="12" fill="#12C48B"/>
+</svg>

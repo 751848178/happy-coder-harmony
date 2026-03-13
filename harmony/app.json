@@ -1,0 +1,9 @@
+{
+  "name": "Happy Coder",
+  "short_name": "Happy",
+  "description": "Mobile and Web Client for Claude Code & Codex",
+  "version": "1.0.0",
+  "build_number": "1",
+  "package": "com.happy.coder",
+  "vendor": "Happy Coder Team"
+}

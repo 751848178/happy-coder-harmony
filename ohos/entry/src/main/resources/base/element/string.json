@@ -1,0 +1,44 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "happy_coder_flutter"
+    },
+    {
+      "name": "camera_permission_reason",
+      "value": "Camera access is required to take photos and videos for your coding projects."
+    },
+    {
+      "name": "microphone_permission_reason",
+      "value": "Microphone access is required for voice input and audio recording features."
+    },
+    {
+      "name": "read_imagevideo_permission_reason",
+      "value": "Access to read images and videos is required to manage your media files."
+    },
+    {
+      "name": "write_imagevideo_permission_reason",
+      "value": "Access to write images and videos is required to save your media files."
+    },
+    {
+      "name": "read_media_permission_reason",
+      "value": "Access to read media files is required to manage your project resources."
+    },
+    {
+      "name": "write_media_permission_reason",
+      "value": "Access to write media files is required to save your project resources."
+    },
+    {
+      "name": "notification_permission_reason",
+      "value": "Notification access is required to keep you updated on coding tasks and builds."
+    }
+  ]
+}

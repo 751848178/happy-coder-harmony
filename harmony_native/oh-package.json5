@@ -1,0 +1,13 @@
+{
+  "name": "harmony_native",
+  "version": "1.0.0",
+  "description": "Happy Coder HarmonyOS Native Plugins",
+  "main": "index.ets",
+  "author": "Happy Coder Team",
+  "license": "MIT",
+  "dependencies": {
+    "@ohos/flutter_ohos": "^1.0.0"
+  },
+  "devDependencies": {},
+  "dynamicDependencies": {}
+}

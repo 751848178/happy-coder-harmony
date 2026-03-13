@@ -1,0 +1,155 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- 定义渐变和纹理效果 -->
+  <defs>
+    <!-- 华为鸿蒙毛毡质感渐变 -->
+    <radialGradient id="harmonyFeltGradient" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" style="stop-color:#FF8A5B;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#FF6B35;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#E85D2C;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#CC4A1F;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- HC字母毛毡质感渐变 -->
+    <radialGradient id="hcFeltGradient" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" style="stop-color:#FFB380;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#FF8A5B;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#E85D2C;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#CC4A1F;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- 毛毡纹理滤镜 -->
+    <filter id="feltTexture" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" result="turbulence"/>
+      <feColorMatrix in="turbulence" type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="discrete" tableValues="0 0.02 0.04 0.06 0.08 0.1 0.12 0.14 0.16 0.18 0.2"/>
+      </feComponentTransfer>
+      <feGaussianBlur stdDeviation="0.5"/>
+      <feComposite operator="over" in2="SourceGraphic"/>
+    </filter>
+    
+    <!-- 毛毡边缘柔和效果 -->
+    <filter id="feltEdge" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.15"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- HC字母的毛毡阴影 -->
+    <filter id="hcFeltShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="1" dy="2" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.2"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- 内部光泽效果 -->
+    <radialGradient id="innerGlow" cx="50%" cy="30%" r="40%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.2" />
+      <stop offset="50%" style="stop-color:#FFFFFF;stop-opacity:0.1" />
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0" />
+    </radialGradient>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="512" height="512" fill="#F8F8F8"/>
+  
+  <!-- 几乎躺平的椭圆形鸿蒙毛毡圆圈 (85度倾斜) -->
+  <g transform="rotate(85, 256, 256)">
+    <!-- 椭圆毛毡外环 -->
+    <ellipse cx="256" cy="256" rx="200" ry="80" 
+             fill="url(#harmonyFeltGradient)" 
+             filter="url(#feltEdge)"/>
+    
+    <!-- 椭圆毛毡纹理 -->
+    <ellipse cx="256" cy="256" rx="196" ry="76" 
+             fill="url(#harmonyFeltGradient)" 
+             filter="url(#feltTexture)"
+             opacity="0.8"/>
+    
+    <!-- 内部光泽 -->
+    <ellipse cx="256" cy="236" rx="180" ry="60" 
+             fill="url(#innerGlow)"/>
+    
+    <!-- 椭圆内环装饰 (更深的毛毡效果) -->
+    <ellipse cx="256" cy="256" rx="160" ry="60" 
+             fill="none" 
+             stroke="#CC4A1F" 
+             stroke-width="2"
+             opacity="0.3"/>
+  </g>
+  
+  <!-- HC 字母毛毡浮出效果 (在椭圆后半部分) -->
+  <g transform="rotate(85, 256, 256)" filter="url(#hcFeltShadow)">
+    <!-- H 字母 -->
+    <g transform="translate(280, 230)">
+      <!-- H 左竖 -->
+      <rect x="0" y="0" width="20" height="60" 
+            fill="url(#hcFeltGradient)" 
+            rx="4" 
+            filter="url(#feltTexture)"/>
+      
+      <!-- H 右竖 -->
+      <rect x="40" y="0" width="20" height="60" 
+            fill="url(#hcFeltGradient)" 
+            rx="4" 
+            filter="url(#feltTexture)"/>
+      
+      <!-- H 横梁 -->
+      <rect x="0" y="20" width="60" height="20" 
+            fill="url(#hcFeltGradient)" 
+            rx="4" 
+            filter="url(#feltTexture)"/>
+      
+      <!-- H 字母内部光泽 -->
+      <rect x="2" y="2" width="16" height="56" 
+            fill="url(#innerGlow)" 
+            rx="3" 
+            opacity="0.6"/>
+      <rect x="42" y="2" width="16" height="56" 
+            fill="url(#innerGlow)" 
+            rx="3" 
+            opacity="0.6"/>
+      <rect x="2" y="22" width="56" height="16" 
+            fill="url(#innerGlow)" 
+            rx="3" 
+            opacity="0.6"/>
+    </g>
+    
+    <!-- C 字母 -->
+    <g transform="translate(360, 230)">
+      <path d="M 40 10 
+               A 30 30 0 1 1 40 50
+               L 25 50
+               A 15 15 0 1 0 25 10
+               Z" 
+            fill="url(#hcFeltGradient)" 
+            filter="url(#feltTexture)"/>
+      
+      <!-- C 字母内部光泽 -->
+      <path d="M 38 12 
+               A 28 28 0 1 1 38 48
+               L 27 48
+               A 13 13 0 1 0 27 12
+               Z" 
+            fill="url(#innerGlow)" 
+            opacity="0.6"/>
+    </g>
+  </g>
+  
+  <!-- 整体毛毡光泽效果 -->
+  <g transform="rotate(85, 256, 256)">
+    <ellipse cx="330" cy="220" rx="80" ry="25" 
+             fill="white" 
+             opacity="0.1"/>
+  </g>
+</svg>
