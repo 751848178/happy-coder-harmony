@@ -16,8 +16,7 @@ class AppConfig {
       ServerConfigService.instance.customServerUrl ?? defaultServerUrl;
 
   /// Socket.IO 服务器地址
-  static String get socketUrl =>
-      serverUrl;
+  static String get socketUrl => serverUrl;
 
   /// Socket.IO 路径
   static const String socketPath = '/v1/updates';
@@ -37,8 +36,11 @@ class AppConfig {
   /// WebSocket 传输协议
   static const List<String> socketTransports = ['websocket'];
 
+  /// HTTP 连接超时 (毫秒)
+  static const int connectTimeout = 10000;
+
   /// Socket.IO 连接超时 (毫秒)
-  static const int socketTimeout = 30000;
+  static const int socketTimeout = 15000;
 
   /// Socket.IO 重连延迟 (毫秒)
   static const int socketReconnectDelay = 5000;
@@ -62,15 +64,13 @@ class AppConfig {
   static const int idleSessionTimeout = 300; // 5 分钟
 
   /// LiveKit 服务器地址 (用于实时语音)
-  static String get livekitUrl =>
-      String.fromEnvironment(
+  static String get livekitUrl => String.fromEnvironment(
         'LIVEKIT_URL',
         defaultValue: 'wss://livekit.happy.engineering',
       );
 
   /// ElevenLabs API 地址
-  static String get elevenLabsUrl =>
-      String.fromEnvironment(
+  static String get elevenLabsUrl => String.fromEnvironment(
         'ELEVENLABS_URL',
         defaultValue: 'https://api.elevenlabs.io',
       );
@@ -82,12 +82,10 @@ class AppConfig {
   static const bool telemetryEnabled = true;
 
   /// PostHog API Key (生产环境)
-  static const String? postHogKey =
-      String.fromEnvironment('POSTHOG_KEY');
+  static const String? postHogKey = String.fromEnvironment('POSTHOG_KEY');
 
   /// PostHog Host (用于中国区)
-  static const String? postHogHost =
-      String.fromEnvironment('POSTHOG_HOST');
+  static const String? postHogHost = String.fromEnvironment('POSTHOG_HOST');
 }
 
 enum LogLevel {

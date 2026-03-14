@@ -6,9 +6,13 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../domain/socket_service.dart';
 import '../../session/data/session_repository.dart';
+import '../../session/data/session_composer_queue_service.dart';
+import '../../session/data/session_preferences_service.dart';
 import '../../session/domain/session_models.dart';
+import '../../session/data/session_ui_state_service.dart';
 import '../../auth/data/token_storage_service.dart';
 import '../../encryption/domain/crypto_service.dart';
+import '../../storage/domain/storage_service.dart';
 import '../../../shared/utils/extensions.dart';
 import '../../../core/config/app_config.dart';
 import '../../../harmony/harmony_bridge.dart';
@@ -130,7 +134,7 @@ class SocketRepository {
 
   Future<void> ensureConnected({
     required String token,
-    Duration timeout = const Duration(seconds: 12),
+    Duration timeout = const Duration(milliseconds: AppConfig.connectTimeout),
   }) async {
     final tokenChanged = _token != null && _token != token;
     _token = token;
@@ -155,7 +159,7 @@ class SocketRepository {
   /// 连接到服务器
   Future<void> _connect({
     bool waitForReady = false,
-    Duration timeout = const Duration(seconds: 12),
+    Duration timeout = const Duration(milliseconds: AppConfig.connectTimeout),
   }) async {
     try {
       _eventController.add(SocketEvent.connecting());
@@ -359,6 +363,7 @@ class SocketRepository {
           final sessionId = body?['sid'] as String?;
           if (sessionId != null) {
             _sessionRepository.deleteSession(sessionId);
+            unawaited(_clearLocalSessionCache(sessionId));
           }
           break;
         case 'new-message':
@@ -661,7 +666,8 @@ class SocketRepository {
       throw Exception('Missing machine encryption key');
     }
 
-    final encrypted = await HarmonyBridge.encrypt(jsonEncode(payload), machineKey);
+    final encrypted =
+        await HarmonyBridge.encrypt(jsonEncode(payload), machineKey);
     if (encrypted == null || encrypted.isEmpty) {
       throw Exception('Failed to encrypt machine RPC payload');
     }
@@ -675,16 +681,16 @@ class SocketRepository {
   }) async {
     final crypto = await CryptoService.instance;
     if (dataEncryptionKey != null) {
-      final decrypted =
-          await crypto.decryptHappyCoderAesGcmJson(encryptedPayload, dataEncryptionKey);
+      final decrypted = await crypto.decryptHappyCoderAesGcmJson(
+          encryptedPayload, dataEncryptionKey);
       if (decrypted != null) {
         return decrypted;
       }
     }
 
     if (accountSecret != null && accountSecret.isNotEmpty) {
-      final decrypted =
-          await crypto.decryptHappyCoderLegacyJson(encryptedPayload, accountSecret);
+      final decrypted = await crypto.decryptHappyCoderLegacyJson(
+          encryptedPayload, accountSecret);
       if (decrypted != null) {
         return decrypted;
       }
@@ -806,7 +812,7 @@ class SocketRepository {
   }
 
   Future<void> _awaitConnection({
-    Duration timeout = const Duration(seconds: 12),
+    Duration timeout = const Duration(milliseconds: AppConfig.connectTimeout),
   }) async {
     _prepareConnectionCompleter();
     await _connectionCompleter!.future.timeout(
@@ -821,6 +827,17 @@ class SocketRepository {
     _messageController.close();
     _eventController.close();
     _toolCallRequestController.close();
+  }
+
+  Future<void> _clearLocalSessionCache(String sessionId) async {
+    try {
+      await SessionComposerQueueService.instance.clearSession(sessionId);
+      await SessionPreferencesService.instance.clearSession(sessionId);
+      await SessionUiStateService.instance.clearSession(sessionId);
+      await StorageService.instance.deleteSession(sessionId);
+    } catch (error) {
+      Logger.warning('Failed to clear cached session $sessionId: $error');
+    }
   }
 }
 

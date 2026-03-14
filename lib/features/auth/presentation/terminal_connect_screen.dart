@@ -177,18 +177,23 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
 
   Future<void> _prepareConnectedState() async {
     final authState = ref.read(authStateProvider);
+    final futures = <Future<void>>[
+      ref.read(sessionStateProvider.notifier).loadSessions(),
+    ];
     if (authState.isAuthenticated) {
       final credentials = authState.credentials!;
       final socketState = ref.read(socketStateProvider);
       if (!socketState.isConnected) {
-        await ref.read(socketStateProvider.notifier).initialize(
-              machineId: credentials.machineId,
-              token: credentials.token,
-            );
+        futures.add(
+          ref.read(socketStateProvider.notifier).initialize(
+                machineId: credentials.machineId,
+                token: credentials.token,
+              ),
+        );
       }
     }
 
-    await ref.read(sessionStateProvider.notifier).loadSessions();
+    await Future.wait(futures);
   }
 
   bool _previewLink({bool showError = true}) {

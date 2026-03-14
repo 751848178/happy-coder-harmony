@@ -11,13 +11,11 @@ class ApiService {
 
   static ApiService? _instance;
 
-  static const Duration _timeout = Duration(seconds: 30);
-
   final Dio _dio = Dio(
     BaseOptions(
       baseUrl: AppConfig.apiBaseUrl,
-      connectTimeout: _timeout,
-      receiveTimeout: _timeout,
+      connectTimeout: Duration(milliseconds: AppConfig.connectTimeout),
+      receiveTimeout: Duration(milliseconds: AppConfig.socketTimeout),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

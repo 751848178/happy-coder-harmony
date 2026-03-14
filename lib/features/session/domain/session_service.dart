@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/session_preferences_service.dart';
 import '../data/session_repository.dart';
+import '../data/session_composer_queue_service.dart';
+import '../data/session_ui_state_service.dart';
 import '../../socketio/data/socket_repository.dart';
 import '../../../shared/utils/extensions.dart';
 import '../../../app/services/api_service.dart';
@@ -143,6 +145,7 @@ class SessionSpawnResult {
 /// 管理会话状态和操作
 class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   static const Object _sessionOverrideSentinel = Object();
+  static const String _localSessionSnapshotKey = '__happyLocalSessionState';
 
   SessionServiceNotifier(this._repository)
       : super(SessionServiceState.initial) {
@@ -152,11 +155,15 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   final SessionRepository _repository;
   final SessionPreferencesService _preferencesService =
       SessionPreferencesService.instance;
+  final SessionComposerQueueService _composerQueueService =
+      SessionComposerQueueService.instance;
+  final SessionUiStateService _uiStateService = SessionUiStateService.instance;
   final TokenStorageService _tokenStorage = TokenStorageService.instance;
   final Map<String, Uint8List?> _sessionDataKeys = {};
   final Map<String, Uint8List?> _machineDataKeys = {};
   final Map<String, int> _sessionLastSeq = {};
   StreamSubscription<SessionStateChange>? _stateSubscription;
+  Timer? _cachePersistDebounce;
   String? _accountSecret;
   Future<void>? _loadSessionsInFlight;
   Future<void>? _loadMachinesInFlight;
@@ -183,6 +190,7 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
     switch (change.type) {
       case SessionChangeType.sessionsUpdated:
         _emitReadyState();
+        _schedulePersistCachedSessions();
         break;
       case SessionChangeType.messagesUpdated:
       case SessionChangeType.agentStateUpdated:
@@ -192,15 +200,34 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
       case SessionChangeType.permissionModeUpdated:
       case SessionChangeType.modelModeUpdated:
       case SessionChangeType.draftUpdated:
+        _emitReadyState();
+        _schedulePersistCachedSessions();
+        break;
       case SessionChangeType.toolCallApproved:
       case SessionChangeType.toolCallRejected:
-      case SessionChangeType.sessionDeleted:
         _emitReadyState();
         break;
+      case SessionChangeType.sessionDeleted:
+        _emitReadyState();
+        _schedulePersistCachedSessions();
+        break;
       case SessionChangeType.cleared:
+        _cachePersistDebounce?.cancel();
         state = SessionServiceState.initial;
         break;
     }
+  }
+
+  void _schedulePersistCachedSessions() {
+    _cachePersistDebounce?.cancel();
+    _cachePersistDebounce = Timer(
+      const Duration(milliseconds: 450),
+      () {
+        unawaited(
+          _persistCachedSessions(_repository.getAllSessions()),
+        );
+      },
+    );
   }
 
   /// 加载会话列表
@@ -247,6 +274,10 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
       final crypto = secretKey != null && secretKey.isNotEmpty
           ? await CryptoService.instance
           : null;
+      final machinesFuture = loadMachines(
+        force: force || _repository.machinesMap.isEmpty,
+        allowFailure: true,
+      );
 
       final sessionsMap = <String, Session>{};
       _sessionDataKeys.clear();
@@ -315,20 +346,10 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
         }
       }
 
-      final staleSessionIds = _repository.sessionsMap.keys
-          .where((sessionId) => !sessionsMap.containsKey(sessionId))
-          .toList();
-      for (final staleSessionId in staleSessionIds) {
-        await _purgeLocalSession(staleSessionId);
-      }
-
       _repository.applySessions(sessionsMap.values.toList());
       _lastSessionsLoadedAt = DateTime.now();
-      unawaited(_persistCachedSessions(sessionsMap.values.toList()));
-      await loadMachines(
-        force: force || _repository.machinesMap.isEmpty,
-        allowFailure: true,
-      );
+      _schedulePersistCachedSessions();
+      await machinesFuture;
       _emitReadyState();
       unawaited(_warmSessionPreviewData(sessionsMap.values.toList()));
 
@@ -507,7 +528,7 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   }
 
   Future<void> _warmSessionPreviewData(List<Session> sessions) async {
-    final previewSessions = sessions.take(8);
+    final previewSessions = sessions.take(3);
     for (final session in previewSessions) {
       final existing = _repository.getSessionMessages(session.id);
       if (existing?.isLoaded == true) {
@@ -658,8 +679,10 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
     required String sessionId,
     required String content,
     Map<String, dynamic>? metadata,
+    String? localId,
   }) async {
-    final localId = 'msg_${DateTime.now().microsecondsSinceEpoch}';
+    final resolvedLocalId =
+        localId ?? 'msg_${DateTime.now().microsecondsSinceEpoch}';
     try {
       final session = _repository.getSession(sessionId);
       if (session == null) {
@@ -668,13 +691,13 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
 
       _repository.applyMessages(sessionId, [
         ReducerMessage(
-          id: localId,
+          id: resolvedLocalId,
           kind: 'text',
           createdAt: DateTime.now(),
           text: content,
           metadata: {
             'role': 'user',
-            'localId': localId,
+            'localId': resolvedLocalId,
             'optimistic': true,
             ...?metadata,
           },
@@ -696,7 +719,7 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
           'messages': [
             {
               'content': encryptedContent,
-              'localId': localId,
+              'localId': resolvedLocalId,
             },
           ],
         },
@@ -710,7 +733,7 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
 
       Logger.info('Message sent to session: $sessionId');
     } catch (e) {
-      _repository.removeMessage(sessionId, localId);
+      _repository.removeMessage(sessionId, resolvedLocalId);
       Logger.error('Send message error: $e');
       rethrow;
     }
@@ -971,7 +994,9 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   Future<void> _purgeLocalSession(String sessionId) async {
     _sessionDataKeys.remove(sessionId);
     _sessionLastSeq.remove(sessionId);
+    await _composerQueueService.clearSession(sessionId);
     await _preferencesService.clearSession(sessionId);
+    await _uiStateService.clearSession(sessionId);
     await StorageService.instance.deleteSession(sessionId);
     SocketRepository.instance.unsubscribeFromSession(sessionId);
     _repository.deleteSession(sessionId);
@@ -992,16 +1017,25 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
     final metadata = cached.metadata == null
         ? null
         : Map<String, dynamic>.from(cached.metadata!);
+    final localState = metadata == null
+        ? null
+        : _asStringMap(metadata.remove(_localSessionSnapshotKey));
     return Session(
       id: cached.id,
       title: cached.title,
       messages: const [],
       createdAt: cached.createdAt,
       updatedAt: cached.updatedAt,
-      active: !cached.isArchived,
+      active: localState?['active'] as bool? ?? !cached.isArchived,
+      activeAt: _parseMessageDateTime(localState?['activeAt']),
       tag: cached.tag,
       path: metadata?['path']?.toString(),
       metadata: metadata,
+      permissionMode:
+          _normalizeOptionalValue(localState?['permissionMode']?.toString()),
+      modelMode: _normalizeOptionalValue(localState?['modelMode']?.toString()),
+      thinking: localState?['thinking'] as bool?,
+      thinkingAt: _parseMessageDateTime(localState?['thinkingAt']),
     );
   }
 
@@ -2506,6 +2540,7 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   @override
   void dispose() {
     _stateSubscription?.cancel();
+    _cachePersistDebounce?.cancel();
     super.dispose();
   }
 }

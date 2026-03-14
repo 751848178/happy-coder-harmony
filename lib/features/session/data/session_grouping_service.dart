@@ -2,6 +2,9 @@ import 'dart:convert';
 
 import '../../../shared/platform/platform_storage.dart';
 
+const _legacyUnavailableDefaultGroupLabel = '暂不可对话';
+const _expiredDefaultGroupLabel = '过期会话';
+
 class SessionGroup {
   const SessionGroup({
     required this.id,
@@ -58,17 +61,23 @@ class SessionGroupingState {
     this.useCustomGroups = false,
     this.groups = const <SessionGroup>[],
     this.ungroupedCollapsed = false,
+    this.collapsedDefaultGroups = const <String>{},
+    this.expandedDefaultGroups = const <String>{},
   });
 
   final bool useCustomGroups;
   final List<SessionGroup> groups;
   final bool ungroupedCollapsed;
+  final Set<String> collapsedDefaultGroups;
+  final Set<String> expandedDefaultGroups;
 
   Map<String, dynamic> toJson() {
     return {
       'useCustomGroups': useCustomGroups,
       'groups': groups.map((group) => group.toJson()).toList(),
       'ungroupedCollapsed': ungroupedCollapsed,
+      'collapsedDefaultGroups': collapsedDefaultGroups.toList(),
+      'expandedDefaultGroups': expandedDefaultGroups.toList(),
     };
   }
 
@@ -92,10 +101,22 @@ class SessionGroupingState {
             .whereType<SessionGroup>()
             .toList()
         : const <SessionGroup>[];
+    final collapsedDefaultGroups = (json['collapsedDefaultGroups'] as List?)
+            ?.map((value) => value.toString())
+            .toSet() ??
+        const <String>{};
+    final expandedDefaultGroups = (json['expandedDefaultGroups'] as List?)
+            ?.map((value) => value.toString())
+            .toSet() ??
+        const <String>{};
     return SessionGroupingState(
       useCustomGroups: json['useCustomGroups'] == true,
       groups: groups,
       ungroupedCollapsed: json['ungroupedCollapsed'] == true,
+      collapsedDefaultGroups:
+          _normalizeDefaultGroupLabels(collapsedDefaultGroups),
+      expandedDefaultGroups:
+          _normalizeDefaultGroupLabels(expandedDefaultGroups),
     );
   }
 
@@ -103,13 +124,29 @@ class SessionGroupingState {
     bool? useCustomGroups,
     List<SessionGroup>? groups,
     bool? ungroupedCollapsed,
+    Set<String>? collapsedDefaultGroups,
+    Set<String>? expandedDefaultGroups,
   }) {
     return SessionGroupingState(
       useCustomGroups: useCustomGroups ?? this.useCustomGroups,
       groups: groups ?? this.groups,
       ungroupedCollapsed: ungroupedCollapsed ?? this.ungroupedCollapsed,
+      collapsedDefaultGroups:
+          collapsedDefaultGroups ?? this.collapsedDefaultGroups,
+      expandedDefaultGroups:
+          expandedDefaultGroups ?? this.expandedDefaultGroups,
     );
   }
+}
+
+Set<String> _normalizeDefaultGroupLabels(Set<String> labels) {
+  if (!labels.contains(_legacyUnavailableDefaultGroupLabel)) {
+    return labels;
+  }
+  final normalized = Set<String>.from(labels)
+    ..remove(_legacyUnavailableDefaultGroupLabel)
+    ..add(_expiredDefaultGroupLabel);
+  return normalized;
 }
 
 class SessionGroupNameConflictException implements Exception {
@@ -244,6 +281,32 @@ class SessionGroupingService {
     final state = await load();
     final next = state.copyWith(
       ungroupedCollapsed: !state.ungroupedCollapsed,
+    );
+    await _persist(next);
+    return next;
+  }
+
+  Future<SessionGroupingState> toggleDefaultGroupCollapsed(
+    String label, {
+    bool defaultCollapsed = false,
+  }) async {
+    final state = await load();
+    final nextCollapsed = Set<String>.from(state.collapsedDefaultGroups);
+    final nextExpanded = Set<String>.from(state.expandedDefaultGroups);
+    if (defaultCollapsed) {
+      if (nextExpanded.contains(label)) {
+        nextExpanded.remove(label);
+      } else {
+        nextExpanded.add(label);
+      }
+    } else if (nextCollapsed.contains(label)) {
+      nextCollapsed.remove(label);
+    } else {
+      nextCollapsed.add(label);
+    }
+    final next = state.copyWith(
+      collapsedDefaultGroups: nextCollapsed,
+      expandedDefaultGroups: nextExpanded,
     );
     await _persist(next);
     return next;

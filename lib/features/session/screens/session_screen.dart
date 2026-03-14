@@ -14,7 +14,9 @@ import '../../../app/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../app/services/settings_service.dart' show SettingsState;
+import '../data/session_composer_queue_service.dart';
 import '../domain/session_stats.dart';
+import '../data/session_ui_state_service.dart';
 
 import '../../socketio/domain/socket_service.dart';
 import '../domain/session_creation_options.dart';
@@ -34,16 +36,35 @@ class SessionScreen extends ConsumerStatefulWidget {
 
 class _SessionScreenState extends ConsumerState<SessionScreen> {
   final TextEditingController _messageController = TextEditingController();
+  final FocusNode _messageFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _messageListViewportKey = GlobalKey();
   final Set<String> _toolActionsInFlight = <String>{};
   final Set<String> _expandedTurnIds = <String>{};
   final Set<String> _autoApprovedToolIds = <String>{};
+  final Map<String, GlobalKey> _turnSectionKeys = <String, GlobalKey>{};
+  final Map<String, GlobalKey> _turnReplyAnchorKeys = <String, GlobalKey>{};
+  final SessionComposerQueueService _composerQueueService =
+      SessionComposerQueueService.instance;
+  final SessionUiStateService _uiStateService = SessionUiStateService.instance;
   bool _isSending = false;
+  bool _isAutoSendingQueuedMessage = false;
+  bool _isRefreshingSessionState = false;
+  bool _queueReconcileScheduled = false;
+  bool _activeResponseObservedThinking = false;
   bool _collapseAllTurns = false;
-  bool _sessionOverviewCollapsed = false;
+  bool _sessionOverviewCollapsed = true;
   bool _hasScrolledToLatest = false;
   bool _canScrollToTop = false;
   bool _canScrollToBottom = false;
+  bool _isNearBottom = true;
+  bool _shouldStickToLatest = true;
+  bool _hasUnreadMessages = false;
+  bool _viewportUpdateScheduled = false;
+  String? _activeResponseLocalId;
+  String? _stickyTurnId;
+  List<QueuedComposerMessage> _queuedMessages = const <QueuedComposerMessage>[];
+  List<_MessageTurnGroup> _visibleTurnGroups = const <_MessageTurnGroup>[];
   StreamSubscription<SocketEvent>? _socketEventSubscription;
   Timer? _messagePollingTimer;
   Timer? _socketRefreshDebounce;
@@ -53,6 +74,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     super.initState();
     _scrollController.addListener(_handleScrollMetricsChanged);
     _messageController.addListener(_handleComposerChanged);
+    _loadQueuedComposerMessages();
+    _loadSessionUiState();
     _loadSessionData();
     _subscribeToSocketEvents();
   }
@@ -60,12 +83,69 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   @override
   void dispose() {
     _messageController.removeListener(_handleComposerChanged);
+    _messageFocusNode.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     _socketEventSubscription?.cancel();
     _messagePollingTimer?.cancel();
     _socketRefreshDebounce?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadSessionUiState() async {
+    final state = await _uiStateService.get(widget.sessionId);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _sessionOverviewCollapsed = state.overviewCollapsed;
+      _collapseAllTurns = state.collapseAllTurns;
+      _expandedTurnIds
+        ..clear()
+        ..addAll(state.expandedTurnIds);
+    });
+  }
+
+  Future<void> _persistSessionUiState() {
+    return _uiStateService.update(
+      widget.sessionId,
+      overviewCollapsed: _sessionOverviewCollapsed,
+      collapseAllTurns: _collapseAllTurns,
+      expandedTurnIds: Set<String>.from(_expandedTurnIds),
+    );
+  }
+
+  Future<void> _loadQueuedComposerMessages() async {
+    final queuedMessages = await _composerQueueService.get(widget.sessionId);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _queuedMessages = queuedMessages;
+    });
+  }
+
+  Future<void> _storeQueuedComposerMessages(
+    List<QueuedComposerMessage> queuedMessages,
+  ) async {
+    if (mounted) {
+      setState(() {
+        _queuedMessages = List<QueuedComposerMessage>.from(queuedMessages);
+      });
+    }
+    try {
+      await _composerQueueService.replace(widget.sessionId, queuedMessages);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('更新待发送消息失败: $error'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
   }
 
   Future<void> _loadSessionData() async {
@@ -90,11 +170,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     _messagePollingTimer?.cancel();
     _messagePollingTimer = Timer.periodic(
       const Duration(seconds: 8),
-      (_) async {
-        await ref.read(sessionStateProvider.notifier).loadSessionMessages(
-              widget.sessionId,
-            );
-        await _maybeAutoApprovePendingTools();
+      (_) {
+        _scheduleMessageRefresh(autoScroll: _shouldStickToLatest);
       },
     );
   }
@@ -105,15 +182,20 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       event.when(
         connecting: () {},
         connected: (_) {
-          _scheduleMessageRefresh();
+          _scheduleMessageRefresh(autoScroll: _shouldStickToLatest);
           unawaited(_maybeAutoApprovePendingTools());
         },
         disconnected: (_) {},
         error: (_) {},
         messageReceived: (message) {
           if (message.sessionId == widget.sessionId) {
-            _scheduleMessageRefresh();
-            _scrollToBottom();
+            final shouldAutoScroll = _shouldStickToLatest;
+            _scheduleMessageRefresh(autoScroll: shouldAutoScroll);
+            if (!shouldAutoScroll && mounted) {
+              setState(() {
+                _hasUnreadMessages = true;
+              });
+            }
           }
         },
         reconnecting: (_) {},
@@ -121,7 +203,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     });
   }
 
-  void _scheduleMessageRefresh() {
+  void _scheduleMessageRefresh({bool autoScroll = false}) {
     _socketRefreshDebounce?.cancel();
     _socketRefreshDebounce = Timer(
       const Duration(milliseconds: 150),
@@ -130,6 +212,16 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
               widget.sessionId,
             );
         await _maybeAutoApprovePendingTools();
+        if (autoScroll) {
+          _scheduleScrollToLatest(animate: true, force: true);
+          if (mounted) {
+            setState(() {
+              _hasUnreadMessages = false;
+            });
+          }
+        } else {
+          _scheduleViewportStateRefresh();
+        }
       },
     );
   }
@@ -146,11 +238,17 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       return;
     }
     final position = _scrollController.position;
-    final nextCanScrollToTop =
-        (position.maxScrollExtent - position.pixels) > 32;
-    final nextCanScrollToBottom = position.pixels > 32;
-    if (nextCanScrollToTop == _canScrollToTop &&
-        nextCanScrollToBottom == _canScrollToBottom) {
+    final distanceToBottom = position.maxScrollExtent - position.pixels;
+    final nextCanScrollToTop = position.pixels > 32;
+    final nextCanScrollToBottom = distanceToBottom > 32;
+    final nextIsNearBottom = distanceToBottom < 72;
+    final nextShouldStickToLatest = distanceToBottom <= 8;
+    final shouldUpdate = nextCanScrollToTop != _canScrollToTop ||
+        nextCanScrollToBottom != _canScrollToBottom ||
+        nextIsNearBottom != _isNearBottom ||
+        nextShouldStickToLatest != _shouldStickToLatest;
+    _scheduleViewportStateRefresh();
+    if (!shouldUpdate) {
       return;
     }
     if (!mounted) {
@@ -159,6 +257,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     setState(() {
       _canScrollToTop = nextCanScrollToTop;
       _canScrollToBottom = nextCanScrollToBottom;
+      _isNearBottom = nextIsNearBottom;
+      _shouldStickToLatest = nextShouldStickToLatest;
+      if (nextIsNearBottom) {
+        _hasUnreadMessages = false;
+      }
     });
   }
 
@@ -177,7 +280,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       if (_hasScrolledToLatest && !force) {
         return;
       }
-      final target = _scrollController.position.minScrollExtent;
+      final target = _scrollController.position.maxScrollExtent;
       if (animate) {
         _scrollController.animateTo(
           target,
@@ -188,6 +291,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         _scrollController.jumpTo(target);
       }
       _hasScrolledToLatest = true;
+      _shouldStickToLatest = true;
+      _hasUnreadMessages = false;
       _handleScrollMetricsChanged();
     });
   }
@@ -197,10 +302,371 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       return;
     }
     _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
+      _scrollController.position.minScrollExtent,
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
     );
+  }
+
+  void _scheduleQueuedMessageReconciliation() {
+    if (_queueReconcileScheduled) {
+      return;
+    }
+    _queueReconcileScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _queueReconcileScheduled = false;
+      if (!mounted) {
+        return;
+      }
+      unawaited(_reconcileQueuedMessageState());
+    });
+  }
+
+  Future<void> _reconcileQueuedMessageState() async {
+    final sessionNotifier = ref.read(sessionStateProvider.notifier);
+    final session = sessionNotifier.getSession(widget.sessionId);
+    final messages =
+        sessionNotifier.getSessionMessages(widget.sessionId)?.messages ??
+            const <ReducerMessage>[];
+    final turnGroups = _MessageTurnGroup.build(messages);
+
+    final activeLocalId = _activeResponseLocalId;
+    if (activeLocalId != null) {
+      final activeGroup = _findTurnGroupByLocalId(turnGroups, activeLocalId) ??
+          (turnGroups.isNotEmpty ? turnGroups.last : null);
+      final sawThinkingNow = _activeResponseObservedThinking ||
+          session?.thinking == true ||
+          _groupHasThinkingMessage(activeGroup);
+      if (sawThinkingNow != _activeResponseObservedThinking && mounted) {
+        setState(() {
+          _activeResponseObservedThinking = sawThinkingNow;
+        });
+      }
+      if (_hasActiveResponseCompleted(
+        session: session,
+        activeGroup: activeGroup,
+        sawThinking: sawThinkingNow,
+      )) {
+        if (mounted) {
+          setState(() {
+            _activeResponseLocalId = null;
+            _activeResponseObservedThinking = false;
+          });
+        }
+      }
+    }
+
+    await _maybeSendNextQueuedMessage(session, turnGroups);
+  }
+
+  _MessageTurnGroup? _findTurnGroupByLocalId(
+    List<_MessageTurnGroup> turnGroups,
+    String localId,
+  ) {
+    for (final group in turnGroups) {
+      final promptLocalId = group.userPrompt?.metadata?['localId']?.toString();
+      if (promptLocalId == localId) {
+        return group;
+      }
+    }
+    return null;
+  }
+
+  bool _groupHasThinkingMessage(_MessageTurnGroup? group) {
+    if (group == null) {
+      return false;
+    }
+    return group.messages.any(
+      (message) => message.metadata?['outputType']?.toString() == 'thinking',
+    );
+  }
+
+  bool _groupHasTurnClose(_MessageTurnGroup? group) {
+    if (group == null) {
+      return false;
+    }
+    return group.messages.any((message) => message.isTurnClose);
+  }
+
+  bool _groupHasCompletionSignal(_MessageTurnGroup? group) {
+    if (group == null) {
+      return false;
+    }
+    if (_groupHasTurnClose(group)) {
+      return true;
+    }
+    return group.messages.any((message) {
+      if (!message.isAgentEvent) {
+        return false;
+      }
+      final eventType = message.metadata?['eventType']?.toString();
+      return eventType == 'stop' ||
+          eventType == 'task_complete' ||
+          eventType == 'turn_aborted';
+    });
+  }
+
+  bool _groupHasPendingToolWork(_MessageTurnGroup? group) {
+    if (group == null) {
+      return false;
+    }
+    return group.messages.any((message) {
+      final status = message.tool?.status;
+      return status == ToolCallStatus.pending ||
+          status == ToolCallStatus.approved ||
+          status == ToolCallStatus.executing;
+    });
+  }
+
+  bool _groupHasRenderableAgentOutput(_MessageTurnGroup? group) {
+    if (group == null) {
+      return false;
+    }
+    return group.messages.any((message) {
+      if (message.isToolCall) {
+        return true;
+      }
+      if (!message.isText) {
+        return false;
+      }
+      final role = message.metadata?['role']?.toString();
+      final outputType = message.metadata?['outputType']?.toString();
+      return role != 'user' &&
+          outputType != 'thinking' &&
+          (message.text?.trim().isNotEmpty ?? false);
+    });
+  }
+
+  bool _isThinkingStillBlocking({
+    required Session? session,
+    required _MessageTurnGroup? group,
+  }) {
+    if (_groupHasThinkingMessage(group)) {
+      return true;
+    }
+    if (session?.thinking != true) {
+      return false;
+    }
+    return !_groupHasCompletionSignal(group);
+  }
+
+  bool _hasActiveResponseCompleted({
+    required Session? session,
+    required _MessageTurnGroup? activeGroup,
+    required bool sawThinking,
+  }) {
+    if (_isSending) {
+      return false;
+    }
+    final promptMetadata = activeGroup?.userPrompt?.metadata;
+    final promptStillOptimistic = promptMetadata?['optimistic'] == true;
+    if (promptStillOptimistic) {
+      return false;
+    }
+
+    final hasPendingToolWork = _groupHasPendingToolWork(activeGroup);
+    if (_groupHasCompletionSignal(activeGroup)) {
+      return !hasPendingToolWork;
+    }
+    if (_isThinkingStillBlocking(session: session, group: activeGroup)) {
+      return false;
+    }
+    if (hasPendingToolWork) {
+      return false;
+    }
+    if (!sawThinking) {
+      return false;
+    }
+    // Some backends finish a turn by clearing thinking without emitting an
+    // explicit turn-close event, so we fall back to the rendered agent output.
+    if (_groupHasRenderableAgentOutput(activeGroup)) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _isConversationBusy(
+    Session? session,
+    List<_MessageTurnGroup> turnGroups,
+  ) {
+    final latestGroup = turnGroups.isNotEmpty ? turnGroups.last : null;
+    if (_isSending || _isAutoSendingQueuedMessage) {
+      return true;
+    }
+    if (_activeResponseLocalId != null) {
+      return true;
+    }
+    if (_isThinkingStillBlocking(session: session, group: latestGroup)) {
+      return true;
+    }
+    if (_groupHasPendingToolWork(latestGroup)) {
+      return true;
+    }
+    final latestPrompt = latestGroup?.userPrompt;
+    if (latestPrompt?.metadata?['optimistic'] == true) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _maybeSendNextQueuedMessage(
+    Session? session,
+    List<_MessageTurnGroup> turnGroups,
+  ) async {
+    if (session == null) {
+      return;
+    }
+    if (_queuedMessages.isEmpty || _isConversationBusy(session, turnGroups)) {
+      return;
+    }
+    if (_isAutoSendingQueuedMessage) {
+      return;
+    }
+
+    final nextMessage = _queuedMessages.first;
+    final remaining = List<QueuedComposerMessage>.from(_queuedMessages)
+      ..removeAt(0);
+
+    setState(() {
+      _isAutoSendingQueuedMessage = true;
+      _queuedMessages = remaining;
+    });
+
+    try {
+      try {
+        await _composerQueueService.replace(widget.sessionId, remaining);
+      } catch (error) {
+        if (mounted) {
+          final restoredQueue = <QueuedComposerMessage>[
+            nextMessage,
+            ..._queuedMessages,
+          ];
+          setState(() {
+            _queuedMessages = restoredQueue;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('更新待发送消息失败: $error'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+        return;
+      }
+      final sent = await _dispatchMessage(
+        nextMessage.content,
+        restoreComposerOnError: false,
+      );
+      if (!sent && mounted) {
+        final restoredQueue = <QueuedComposerMessage>[
+          nextMessage,
+          ..._queuedMessages,
+        ];
+        setState(() {
+          _queuedMessages = restoredQueue;
+        });
+        await _composerQueueService.replace(widget.sessionId, restoredQueue);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAutoSendingQueuedMessage = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _enqueueComposerMessage(String content, {int? insertAt}) async {
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+    final nextMessage = _composerQueueService.createDraft(trimmed);
+    final nextQueue = List<QueuedComposerMessage>.from(_queuedMessages);
+    final targetIndex = insertAt == null
+        ? nextQueue.length
+        : insertAt.clamp(0, nextQueue.length);
+    nextQueue.insert(targetIndex, nextMessage);
+    await _storeQueuedComposerMessages(nextQueue);
+  }
+
+  Future<void> _removeQueuedComposerMessage(String messageId) async {
+    final nextQueue = _queuedMessages
+        .where((message) => message.id != messageId)
+        .toList(growable: false);
+    await _storeQueuedComposerMessages(nextQueue);
+  }
+
+  Future<void> _editQueuedComposerMessage(QueuedComposerMessage message) async {
+    final index = _queuedMessages.indexWhere((item) => item.id == message.id);
+    if (index < 0) {
+      return;
+    }
+    final currentDraft = _messageController.text.trim();
+    final nextQueue = List<QueuedComposerMessage>.from(_queuedMessages)
+      ..removeAt(index);
+    if (currentDraft.isNotEmpty && currentDraft != message.content.trim()) {
+      final preservedDraft = _composerQueueService.createDraft(currentDraft);
+      nextQueue.insert(index, preservedDraft);
+    }
+    await _storeQueuedComposerMessages(nextQueue);
+    _setComposerText(message.content);
+    _messageFocusNode.requestFocus();
+  }
+
+  void _setComposerText(String text) {
+    _messageController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
+  Future<void> _refreshSessionState() async {
+    if (_isRefreshingSessionState) {
+      return;
+    }
+
+    final authState = ref.read(authStateProvider);
+    final credentials = authState.credentials;
+    if (credentials == null) {
+      return;
+    }
+
+    setState(() {
+      _isRefreshingSessionState = true;
+    });
+
+    try {
+      await Future.wait([
+        ref.read(sessionStateProvider.notifier).loadSessions(force: true),
+        ref.read(socketStateProvider.notifier).initialize(
+              machineId: credentials.machineId,
+              token: credentials.token,
+            ),
+      ]);
+      await ref
+          .read(sessionStateProvider.notifier)
+          .loadSessionMessages(widget.sessionId);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('刷新连接状态失败: $error'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshingSessionState = false;
+        });
+      }
+    }
+  }
+
+  String _createLocalMessageId() {
+    return 'msg_${DateTime.now().microsecondsSinceEpoch}';
   }
 
   void _toggleAllTurns(List<_MessageTurnGroup> groups) {
@@ -214,6 +680,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         _expandedTurnIds.addAll(groups.map((group) => group.id));
       }
     });
+    unawaited(_persistSessionUiState());
     _scheduleScrollToLatest(force: true);
   }
 
@@ -224,6 +691,85 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       } else {
         _expandedTurnIds.add(group.id);
       }
+    });
+    unawaited(_persistSessionUiState());
+  }
+
+  GlobalKey _turnSectionKey(String turnId) {
+    return _turnSectionKeys.putIfAbsent(
+      turnId,
+      () => GlobalKey(debugLabel: 'turn-section-$turnId'),
+    );
+  }
+
+  GlobalKey _turnReplyAnchorKey(String turnId) {
+    return _turnReplyAnchorKeys.putIfAbsent(
+      turnId,
+      () => GlobalKey(debugLabel: 'turn-reply-$turnId'),
+    );
+  }
+
+  void _scheduleViewportStateRefresh() {
+    if (_viewportUpdateScheduled) {
+      return;
+    }
+    _viewportUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _viewportUpdateScheduled = false;
+      _refreshStickyTurnPrompt();
+    });
+  }
+
+  void _refreshStickyTurnPrompt() {
+    if (!mounted || _collapseAllTurns || _visibleTurnGroups.isEmpty) {
+      if (_stickyTurnId != null && mounted) {
+        setState(() {
+          _stickyTurnId = null;
+        });
+      }
+      return;
+    }
+
+    final viewportContext = _messageListViewportKey.currentContext;
+    final viewportRender = viewportContext?.findRenderObject();
+    if (viewportRender is! RenderBox) {
+      return;
+    }
+
+    final viewportTop = viewportRender.localToGlobal(Offset.zero).dy + 8;
+    const stickyHeight = 44.0;
+    String? nextStickyTurnId;
+
+    for (final group in _visibleTurnGroups) {
+      final prompt = group.userPrompt;
+      if (prompt == null || group.messages.length <= 1) {
+        continue;
+      }
+
+      final replyRender =
+          _turnReplyAnchorKey(group.id).currentContext?.findRenderObject();
+      final sectionRender =
+          _turnSectionKey(group.id).currentContext?.findRenderObject();
+      if (replyRender is! RenderBox || sectionRender is! RenderBox) {
+        continue;
+      }
+
+      final replyTop = replyRender.localToGlobal(Offset.zero).dy;
+      final sectionBottom =
+          sectionRender.localToGlobal(Offset(0, sectionRender.size.height)).dy;
+      if (replyTop <= viewportTop &&
+          sectionBottom > viewportTop + stickyHeight) {
+        nextStickyTurnId = group.id;
+        break;
+      }
+    }
+
+    if (nextStickyTurnId == _stickyTurnId) {
+      return;
+    }
+
+    setState(() {
+      _stickyTurnId = nextStickyTurnId;
     });
   }
 
@@ -262,7 +808,14 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       session,
       settings.commandPaletteEnabled,
     );
+    final visibleInputTemplates = _visibleInputTemplates();
+    final conversationBusy = _isConversationBusy(session, turnGroups);
     final hasLoadedSessions = sessionNotifier.sessions.isNotEmpty;
+    _visibleTurnGroups = turnGroups;
+    if (messages.isNotEmpty) {
+      _scheduleViewportStateRefresh();
+    }
+    _scheduleQueuedMessageReconciliation();
 
     return PopScope(
       canPop: false,
@@ -304,6 +857,31 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                                           : false,
                                     ),
                             ),
+                            if (messages.isNotEmpty &&
+                                _stickyTurnId != null &&
+                                !_collapseAllTurns)
+                              Positioned(
+                                left: AppTheme.spacingMd,
+                                top: 8,
+                                right: session?.thinking == true ? 132 : 16,
+                                child: _buildStickyTurnPrompt(),
+                              ),
+                            if (messages.isNotEmpty &&
+                                session?.thinking == true)
+                              Positioned(
+                                top: 8,
+                                right: AppTheme.spacingMd,
+                                child: _buildFloatingThinkingBadge(session!),
+                              ),
+                            if (messages.isNotEmpty && _hasUnreadMessages)
+                              Positioned(
+                                left: AppTheme.spacingMd,
+                                right: AppTheme.spacingMd,
+                                bottom: 76,
+                                child: Center(
+                                  child: _buildNewMessageIndicator(),
+                                ),
+                              ),
                             if (messages.isNotEmpty)
                               Align(
                                 alignment: Alignment.bottomRight,
@@ -321,9 +899,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                       _buildInputArea(
                         session,
                         turnGroups,
+                        conversationBusy: conversationBusy,
                         settings: settings,
                         slashCommands: slashCommands,
                         visibleSlashCommands: visibleSlashCommands,
+                        visibleInputTemplates: visibleInputTemplates,
                       ),
                     ],
                   ),
@@ -423,6 +1003,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
               setState(() {
                 _sessionOverviewCollapsed = !_sessionOverviewCollapsed;
               });
+              unawaited(_persistSessionUiState());
             },
             tooltip: _sessionOverviewCollapsed ? '展开会话信息' : '收起会话信息',
           ),
@@ -705,8 +1286,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   }) {
     if (_collapseAllTurns && turnGroups.isNotEmpty) {
       return ListView.builder(
+        key: _messageListViewportKey,
         controller: _scrollController,
-        reverse: true,
         padding: const EdgeInsets.fromLTRB(
           AppTheme.spacingMd,
           12,
@@ -715,7 +1296,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         ),
         itemCount: turnGroups.length,
         itemBuilder: (context, index) {
-          final group = turnGroups[turnGroups.length - 1 - index];
+          final group = turnGroups[index];
           return _buildTurnGroupCard(
             group,
             expanded: _expandedTurnIds.contains(group.id),
@@ -725,28 +1306,76 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       );
     }
 
-    return ListView.builder(
+    return ListView(
+      key: _messageListViewportKey,
       controller: _scrollController,
-      reverse: true,
       padding: const EdgeInsets.fromLTRB(
         AppTheme.spacingMd,
         12,
         AppTheme.spacingMd,
         12,
       ),
-      itemCount: messages.length,
-      itemBuilder: (context, index) {
-        final message = messages[messages.length - 1 - index];
-        return _MessageBubble(
-          key: ValueKey(message.id),
-          message: message,
-          autoApproveEnabled: autoApproveEnabled,
-          isToolActionPending: message.tool != null &&
-              _toolActionsInFlight.contains(message.tool!.id),
-          onApproveTool: _approveToolCall,
-          onRejectTool: _rejectToolCall,
-        );
-      },
+      children: [
+        for (final group in turnGroups)
+          _buildExpandedTurnSection(
+            group,
+            autoApproveEnabled: autoApproveEnabled,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildExpandedTurnSection(
+    _MessageTurnGroup group, {
+    required bool autoApproveEnabled,
+  }) {
+    final prompt = group.userPrompt;
+    final remainingMessages = prompt == null
+        ? group.messages
+        : group.messages
+            .where((message) => message.id != prompt.id)
+            .toList(growable: false);
+
+    return KeyedSubtree(
+      key: _turnSectionKey(group.id),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (prompt != null)
+              _buildMessageBubble(
+                prompt,
+                autoApproveEnabled: autoApproveEnabled,
+              ),
+            if (remainingMessages.isNotEmpty)
+              SizedBox(
+                key: _turnReplyAnchorKey(group.id),
+                height: 0,
+              ),
+            for (final message in remainingMessages)
+              _buildMessageBubble(
+                message,
+                autoApproveEnabled: autoApproveEnabled,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(
+    ReducerMessage message, {
+    required bool autoApproveEnabled,
+  }) {
+    return _MessageBubble(
+      key: ValueKey(message.id),
+      message: message,
+      autoApproveEnabled: autoApproveEnabled,
+      isToolActionPending: message.tool != null &&
+          _toolActionsInFlight.contains(message.tool!.id),
+      onApproveTool: _approveToolCall,
+      onRejectTool: _rejectToolCall,
     );
   }
 
@@ -802,14 +1431,9 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
               child: Column(
                 children: [
                   for (final message in group.messages)
-                    _MessageBubble(
-                      key: ValueKey(message.id),
-                      message: message,
+                    _buildMessageBubble(
+                      message,
                       autoApproveEnabled: autoApproveEnabled,
-                      isToolActionPending: message.tool != null &&
-                          _toolActionsInFlight.contains(message.tool!.id),
-                      onApproveTool: _approveToolCall,
-                      onRejectTool: _rejectToolCall,
                     ),
                 ],
               ),
@@ -817,6 +1441,129 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildNewMessageIndicator() {
+    return FilledButton.icon(
+      onPressed: _scrollToBottom,
+      icon: const Icon(Icons.arrow_downward_rounded, size: 16),
+      label: const Text('有新消息'),
+      style: FilledButton.styleFrom(
+        backgroundColor: AppTheme.brandColor,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+        ),
+        elevation: 3,
+      ),
+    );
+  }
+
+  Widget _buildFloatingThinkingBadge(Session session) {
+    final label = session.thinkingAt == null
+        ? 'AI 思考中'
+        : _formatThinkingLabel(session.thinkingAt!);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.brandColor.withValues(alpha: 0.16)),
+        boxShadow: AppTheme.shadowSm,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppTheme.brandColor,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.brandColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStickyTurnPrompt() {
+    final stickyGroup =
+        _visibleTurnGroups.cast<_MessageTurnGroup?>().firstWhere(
+              (group) => group?.id == _stickyTurnId,
+              orElse: () => null,
+            );
+    final prompt = stickyGroup?.userPrompt;
+    if (prompt == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.neutral200),
+        boxShadow: AppTheme.shadowSm,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: AppTheme.brandColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.person_outline_rounded,
+              size: 12,
+              color: AppTheme.brandColor,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              prompt.text?.replaceAll(RegExp(r'\s+'), ' ').trim().isNotEmpty ==
+                      true
+                  ? prompt.text!.replaceAll(RegExp(r'\s+'), ' ').trim()
+                  : stickyGroup!.preview,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatThinkingLabel(DateTime since) {
+    final duration = DateTime.now().difference(since);
+    if (duration.inSeconds < 1) {
+      return 'AI 思考中';
+    }
+    if (duration.inSeconds < 60) {
+      return 'AI 思考 ${duration.inSeconds}s';
+    }
+    if (duration.inMinutes < 60) {
+      return 'AI 思考 ${duration.inMinutes}m ${duration.inSeconds % 60}s';
+    }
+    return 'AI 思考 ${duration.inHours}h ${duration.inMinutes % 60}m';
   }
 
   Widget _buildScrollActions() {
@@ -890,6 +1637,20 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
               ),
             ),
             const SizedBox(width: 8),
+            IgnorePointer(
+              ignoring: _isRefreshingSessionState,
+              child: Opacity(
+                opacity: _isRefreshingSessionState ? 0.72 : 1,
+                child: _ControlChip(
+                  icon: _isRefreshingSessionState
+                      ? Icons.sync_rounded
+                      : Icons.refresh_rounded,
+                  label: _isRefreshingSessionState ? '刷新中' : '刷新',
+                  onTap: _refreshSessionState,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             _ControlChip(
               icon: Icons.security_rounded,
               label: '权限 ${permissionOption.label}',
@@ -920,12 +1681,16 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   Widget _buildInputArea(
     Session? session,
     List<_MessageTurnGroup> turnGroups, {
+    required bool conversationBusy,
     required SettingsState settings,
     required List<_SlashCommandItem> slashCommands,
     required List<_SlashCommandItem> visibleSlashCommands,
+    required List<_InputTemplateItem> visibleInputTemplates,
   }) {
     final flavor =
         _resolveFlavorLabel(session?.metadata?['flavor']?.toString());
+    final hasComposerText = _messageController.text.trim().isNotEmpty;
+    final sendTooltip = conversationBusy ? '加入待发送队列' : '发送消息';
     return Container(
       padding: const EdgeInsets.fromLTRB(
         AppTheme.spacingMd,
@@ -944,6 +1709,12 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_queuedMessages.isNotEmpty) ...[
+              _buildQueuedComposerPanel(
+                busy: conversationBusy,
+              ),
+              const SizedBox(height: 10),
+            ],
             if (session != null) ...[
               _buildSessionControls(session, turnGroups),
               const SizedBox(height: 8),
@@ -954,16 +1725,24 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _buildSlashCommandPanel(visibleSlashCommands),
               ),
+            if (_shouldShowInputTemplates(visibleInputTemplates))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _buildInputTemplatePanel(visibleInputTemplates),
+              ),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Expanded(
                   child: TextField(
                     controller: _messageController,
-                    maxLines: null,
+                    focusNode: _messageFocusNode,
+                    maxLines: 5,
                     minLines: 1,
                     decoration: InputDecoration(
-                      hintText: '向$flavor发送消息...',
+                      hintText: conversationBusy
+                          ? 'AI 正在回复，继续发送会加入队列...'
+                          : '向$flavor发送消息...',
                       filled: true,
                       fillColor: AppTheme.neutral100,
                       border: OutlineInputBorder(
@@ -980,20 +1759,27 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                         ? TextInputAction.send
                         : TextInputAction.newline,
                     onSubmitted: settings.agentInputEnterToSend
-                        ? (_) => _sendMessage()
+                        ? (_) => _handleSendAction(session, turnGroups)
                         : null,
                   ),
                 ),
                 const SizedBox(width: AppTheme.spacingSm),
                 IconButton(
-                  onPressed: _isSending ? null : _sendMessage,
+                  tooltip: sendTooltip,
+                  onPressed: hasComposerText
+                      ? () => _handleSendAction(session, turnGroups)
+                      : null,
                   icon: _isSending
                       ? const SizedBox(
                           width: 24,
                           height: 24,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.send_rounded),
+                      : Icon(
+                          conversationBusy
+                              ? Icons.playlist_add_rounded
+                              : Icons.send_rounded,
+                        ),
                   style: IconButton.styleFrom(
                     backgroundColor: AppTheme.brandColor,
                     foregroundColor: Colors.white,
@@ -1002,13 +1788,19 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                 ),
               ],
             ),
-            if (settings.commandPaletteEnabled && slashCommands.isNotEmpty)
+            if ((settings.commandPaletteEnabled && slashCommands.isNotEmpty) ||
+                _defaultInputTemplates.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    '输入 `/` 查看 ${slashCommands.length} 个可用指令',
+                    [
+                      if (settings.commandPaletteEnabled &&
+                          slashCommands.isNotEmpty)
+                        '输入 `/` 查看 ${slashCommands.length} 个可用指令',
+                      if (_defaultInputTemplates.isNotEmpty) '输入 `^` 快速插入模板',
+                    ].join(' · '),
                     style: const TextStyle(
                       fontSize: 11,
                       color: AppTheme.neutral600,
@@ -1260,6 +2052,33 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         commands.isNotEmpty;
   }
 
+  List<_InputTemplateItem> _visibleInputTemplates() {
+    final text = _messageController.text.trimLeft();
+    if (!text.startsWith('^')) {
+      return const <_InputTemplateItem>[];
+    }
+    final rawQuery = text.substring(1);
+    if (rawQuery.contains(' ')) {
+      return const <_InputTemplateItem>[];
+    }
+    final query = rawQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      return _defaultInputTemplates;
+    }
+    return _defaultInputTemplates
+        .where(
+          (item) =>
+              item.label.toLowerCase().contains(query) ||
+              item.content.toLowerCase().contains(query),
+        )
+        .toList();
+  }
+
+  bool _shouldShowInputTemplates(List<_InputTemplateItem> templates) {
+    return _messageController.text.trimLeft().startsWith('^') &&
+        templates.isNotEmpty;
+  }
+
   Widget _buildSlashCommandPanel(List<_SlashCommandItem> commands) {
     return Container(
       width: double.infinity,
@@ -1308,6 +2127,199 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
             },
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildInputTemplatePanel(List<_InputTemplateItem> templates) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 240),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.neutral200),
+        boxShadow: AppTheme.shadowSm,
+      ),
+      child: ListView.separated(
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: templates.length,
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          color: AppTheme.neutral200,
+        ),
+        itemBuilder: (context, index) {
+          final item = templates[index];
+          return ListTile(
+            dense: true,
+            leading: Icon(item.icon, size: 18, color: AppTheme.brandColor),
+            title: Text(
+              item.label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            subtitle: Text(
+              item.content,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12),
+            ),
+            onTap: () {
+              _messageController.value = TextEditingValue(
+                text: item.content,
+                selection: TextSelection.collapsed(offset: item.content.length),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildQueuedComposerPanel({required bool busy}) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 180),
+      child: SizedBox(
+        key: ValueKey<String>('queued-panel-${_queuedMessages.length}-$busy'),
+        width: double.infinity,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: AppTheme.brandColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.playlist_add_check_rounded,
+                    size: 14,
+                    color: AppTheme.brandColor,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '待发送消息 ${_queuedMessages.length}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                if (busy)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.brandColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'AI 回复中',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.brandColor,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 112),
+              child: ListView.separated(
+                shrinkWrap: true,
+                physics: _queuedMessages.length > 2
+                    ? const BouncingScrollPhysics()
+                    : const NeverScrollableScrollPhysics(),
+                itemCount: _queuedMessages.length,
+                separatorBuilder: (_, __) => Divider(
+                  height: 1,
+                  color: AppTheme.neutral200,
+                ),
+                itemBuilder: (context, index) {
+                  final item = _queuedMessages[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 22,
+                          child: Text(
+                            '${index + 1}.',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.neutral700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _editQueuedComposerMessage(item),
+                            behavior: HitTestBehavior.opaque,
+                            child: Text(
+                              item.content,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                height: 1.3,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => _editQueuedComposerMessage(item),
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            '修改',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () =>
+                              _removeQueuedComposerMessage(item.id),
+                          tooltip: '删除待发送消息',
+                          visualDensity: VisualDensity.compact,
+                          splashRadius: 18,
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            size: 18,
+                            color: AppTheme.neutral500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1418,27 +2430,64 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     }
   }
 
-  /// 发送消息
-  Future<void> _sendMessage() async {
+  Future<void> _handleSendAction(
+    Session? session,
+    List<_MessageTurnGroup> turnGroups,
+  ) async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      return;
+    }
 
-    setState(() => _isSending = true);
+    if (_isConversationBusy(session, turnGroups)) {
+      _messageController.clear();
+      _messageFocusNode.requestFocus();
+      await _enqueueComposerMessage(text);
+      return;
+    }
+
     _messageController.clear();
+    _messageFocusNode.requestFocus();
+    await _dispatchMessage(text);
+  }
+
+  Future<bool> _dispatchMessage(
+    String text, {
+    bool restoreComposerOnError = true,
+  }) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return false;
+    }
+
+    final localId = _createLocalMessageId();
+    setState(() {
+      _isSending = true;
+      _activeResponseLocalId = localId;
+      _activeResponseObservedThinking = false;
+    });
 
     try {
       final sendFuture = ref.read(sessionStateProvider.notifier).sendMessage(
             sessionId: widget.sessionId,
-            content: text,
+            content: trimmed,
+            localId: localId,
           );
       _scheduleScrollToLatest(animate: true, force: true);
       await sendFuture;
       _scrollToBottom();
+      return true;
     } catch (e) {
-      _messageController.text = text;
-      _messageController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _messageController.text.length),
-      );
+      if (_activeResponseLocalId == localId && mounted) {
+        setState(() {
+          _activeResponseLocalId = null;
+          _activeResponseObservedThinking = false;
+        });
+      }
+      if (restoreComposerOnError) {
+        _setComposerText(trimmed);
+        _messageFocusNode.requestFocus();
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1447,8 +2496,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
           ),
         );
       }
+      return false;
     } finally {
-      setState(() => _isSending = false);
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
     }
   }
 
@@ -1965,6 +3017,7 @@ class _MessageBubbleState extends State<_MessageBubble>
     final role = message.metadata?['role']?.toString();
     final isUser = role == 'user';
     final isThinking = message.metadata?['outputType'] == 'thinking';
+    final isOptimistic = message.metadata?['optimistic'] == true;
     final canCollapse = _shouldCollapseTextMessage(message.text ?? '');
     final bubbleColor = isUser ? AppTheme.brandColor : AppTheme.surface;
     final textColor = isUser ? Colors.white : AppTheme.textPrimary;
@@ -2020,6 +3073,33 @@ class _MessageBubbleState extends State<_MessageBubble>
                         textColor: textColor,
                       ),
               ),
+              if (isUser && isOptimistic) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '发送中',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -4873,6 +5953,39 @@ const Map<String, String> _slashCommandDescriptions = {
   'cancel': '取消当前任务',
 };
 
+const List<_InputTemplateItem> _defaultInputTemplates = [
+  _InputTemplateItem(
+    label: '解释这段代码',
+    content: '请解释这段代码的功能和实现方式。',
+    icon: Icons.lightbulb_outline_rounded,
+  ),
+  _InputTemplateItem(
+    label: '添加注释',
+    content: '请为这段代码添加清晰、简洁的注释。',
+    icon: Icons.comment_outlined,
+  ),
+  _InputTemplateItem(
+    label: '查找 Bug',
+    content: '请帮我排查这段代码中可能存在的问题，并给出修复建议。',
+    icon: Icons.bug_report_outlined,
+  ),
+  _InputTemplateItem(
+    label: '性能优化',
+    content: '请分析这段代码的性能瓶颈，并给出可落地的优化方案。',
+    icon: Icons.speed_rounded,
+  ),
+  _InputTemplateItem(
+    label: 'Code Review',
+    content: '请帮我做一次代码审查，重点关注潜在 Bug、性能问题和可维护性。',
+    icon: Icons.rate_review_outlined,
+  ),
+  _InputTemplateItem(
+    label: '编写测试',
+    content: '请为这段代码编写测试，覆盖主要场景和边界情况。',
+    icon: Icons.science_outlined,
+  ),
+];
+
 class _SlashCommandItem {
   const _SlashCommandItem({
     required this.command,
@@ -4881,4 +5994,16 @@ class _SlashCommandItem {
 
   final String command;
   final String? description;
+}
+
+class _InputTemplateItem {
+  const _InputTemplateItem({
+    required this.label,
+    required this.content,
+    required this.icon,
+  });
+
+  final String label;
+  final String content;
+  final IconData icon;
 }
