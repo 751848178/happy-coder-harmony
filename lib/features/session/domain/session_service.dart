@@ -162,9 +162,11 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   final Map<String, Uint8List?> _sessionDataKeys = {};
   final Map<String, Uint8List?> _machineDataKeys = {};
   final Map<String, int> _sessionLastSeq = {};
+  final Set<String> _lastRemoteSessionIds = <String>{};
   StreamSubscription<SessionStateChange>? _stateSubscription;
   Timer? _cachePersistDebounce;
   String? _accountSecret;
+  String? _sessionMessagesApiPrefix;
   Future<void>? _loadSessionsInFlight;
   Future<void>? _loadMachinesInFlight;
   DateTime? _lastSessionsLoadedAt;
@@ -233,41 +235,56 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   /// 加载会话列表
   Future<void> loadSessions({bool force = false}) async {
     if (_loadSessionsInFlight != null) {
+      Logger.info('Sessions load already in flight, joining existing request');
       return _loadSessionsInFlight!;
-    }
-
-    var hasCachedSessions = _repository.sessionsMap.isNotEmpty;
-    if (!hasCachedSessions) {
-      final restoredSessions = await _restoreCachedSessions();
-      if (restoredSessions.isNotEmpty) {
-        _repository.applySessions(restoredSessions);
-        _emitReadyState();
-        hasCachedSessions = true;
-      }
-    }
-
-    if (!force &&
-        hasCachedSessions &&
-        _lastSessionsLoadedAt != null &&
-        DateTime.now().difference(_lastSessionsLoadedAt!) <
-            const Duration(seconds: 2)) {
-      return;
     }
 
     final completer = Completer<void>();
     _loadSessionsInFlight = completer.future;
 
     try {
+      var hasCachedSessions = _repository.sessionsMap.isNotEmpty;
+      if (!hasCachedSessions) {
+        final restoredSessions = await _restoreCachedSessions();
+        if (restoredSessions.isNotEmpty) {
+          _repository.applySessions(restoredSessions);
+          _emitReadyState();
+          hasCachedSessions = true;
+        }
+      }
+
+      if (!force &&
+          hasCachedSessions &&
+          _lastSessionsLoadedAt != null &&
+          DateTime.now().difference(_lastSessionsLoadedAt!) <
+              const Duration(seconds: 2)) {
+        return;
+      }
+
       if (!hasCachedSessions) {
         state = const _SessionServiceLoadingState();
       }
-      final response = await ApiService.instance.get<Map<String, dynamic>>(
+      final response = await ApiService.instance.get<dynamic>(
         '/v1/sessions',
         options: Options(
           receiveTimeout: const Duration(seconds: 90),
         ),
       );
-      final sessionItems = _extractListPayload(response, 'sessions');
+      final responseRecognized = _containsListPayloadKey(
+        response,
+        'sessions',
+        fallbackKeys: const ['items', 'data', 'results'],
+      );
+      final sessionItems = _extractListPayload(
+        response,
+        'sessions',
+        fallbackKeys: const ['items', 'data', 'results'],
+      );
+      final responseMap = _asStringMap(response);
+      Logger.info(
+        'Sessions response extracted ${sessionItems.length} items '
+        '(recognized=$responseRecognized, keys=${responseMap?.keys.take(6).join(",") ?? "none"})',
+      );
       final sessionPreferences = await _preferencesService.loadAll();
       final secretKey = await _tokenStorage.getSecretKey();
       _accountSecret = secretKey;
@@ -280,14 +297,31 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
       );
 
       final sessionsMap = <String, Session>{};
+      final remoteSessionIds = <String>{};
+      final parseFailureSamples = <String>[];
+      var parseFailureCount = 0;
       _sessionDataKeys.clear();
       for (final item in sessionItems) {
-        final sessionJson = _asStringMap(item);
+        final sessionJson = _normalizeSessionPayload(item);
         if (sessionJson == null) {
+          final remoteSessionId = _extractSessionId(item);
+          if (remoteSessionId != null) {
+            remoteSessionIds.add(remoteSessionId);
+          }
+          parseFailureCount++;
+          if (parseFailureSamples.length < 3) {
+            parseFailureSamples.add(
+              'unrecognized session payload type=${item.runtimeType}',
+            );
+          }
           continue;
         }
+        final remoteSessionId = _extractSessionId(sessionJson);
+        if (remoteSessionId != null && remoteSessionId.isNotEmpty) {
+          remoteSessionIds.add(remoteSessionId);
+        }
         try {
-          final encryptedDataKey = sessionJson['dataEncryptionKey'] as String?;
+          final encryptedDataKey = sessionJson['dataEncryptionKey']?.toString();
           final dataKey = secretKey != null &&
                   secretKey.isNotEmpty &&
                   crypto != null &&
@@ -342,18 +376,68 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
           sessionsMap[session.id] = session;
           _sessionDataKeys[session.id] = dataKey;
         } catch (e) {
-          Logger.warning('Failed to parse session: $e');
+          parseFailureCount++;
+          if (parseFailureSamples.length < 3) {
+            parseFailureSamples.add(
+              '${remoteSessionId ?? "unknown"}: $e',
+            );
+          }
+          Logger.warning(
+            'Failed to parse session ${remoteSessionId ?? "unknown"}: $e',
+          );
         }
       }
 
-      _repository.applySessions(sessionsMap.values.toList());
+      if (sessionsMap.isEmpty && remoteSessionIds.isNotEmpty) {
+        for (final remoteSessionId in remoteSessionIds) {
+          final cachedSession = _repository.getSession(remoteSessionId);
+          if (cachedSession != null) {
+            sessionsMap[remoteSessionId] = cachedSession;
+          }
+        }
+      }
+
+      if (responseRecognized) {
+        _repository.applySessions(
+          sessionsMap.values.toList(),
+          replace: true,
+        );
+      } else if (sessionsMap.isNotEmpty) {
+        _repository.applySessions(sessionsMap.values.toList());
+      } else {
+        Logger.warning(
+          'Sessions response shape was not recognized; keeping cached sessions. '
+          'responseType=${response.runtimeType}',
+        );
+      }
+
+      _lastRemoteSessionIds
+        ..clear()
+        ..addAll(remoteSessionIds);
       _lastSessionsLoadedAt = DateTime.now();
-      _schedulePersistCachedSessions();
+      if (sessionsMap.isNotEmpty ||
+          (responseRecognized && sessionItems.isEmpty)) {
+        _schedulePersistCachedSessions();
+      }
       await machinesFuture;
       _emitReadyState();
-      unawaited(_warmSessionPreviewData(sessionsMap.values.toList()));
+      unawaited(
+        _warmSessionPreviewData(
+          sessionsMap.values.toList(),
+          force: force,
+        ),
+      );
 
-      Logger.info('Sessions loaded: ${sessionsMap.length}');
+      if (parseFailureCount > 0) {
+        Logger.warning(
+          'Sessions load completed with $parseFailureCount parse failures. '
+          'samples=${parseFailureSamples.join(" | ")}',
+        );
+      }
+      Logger.info(
+        'Sessions loaded: ${sessionsMap.length} '
+        '(raw=${sessionItems.length}, confirmed=${remoteSessionIds.length})',
+      );
     } catch (e) {
       if (_repository.sessionsMap.isEmpty) {
         final restoredSessions = await _restoreCachedSessions();
@@ -467,23 +551,38 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   }
 
   /// 加载会话消息
-  Future<void> loadSessionMessages(String sessionId) async {
+  Future<void> loadSessionMessages(
+    String sessionId, {
+    bool force = false,
+    bool throwOnError = false,
+  }) async {
     try {
       final sessionKey = _sessionDataKeys[sessionId];
       final existing = _repository.getSessionMessages(sessionId);
-      var afterSeq = existing == null ? 0 : (_sessionLastSeq[sessionId] ?? 0);
+      final previousCount = existing?.messages.length ?? 0;
+      var afterSeq = force
+          ? 0
+          : (existing == null ? 0 : (_sessionLastSeq[sessionId] ?? 0));
       var hasMore = true;
       final messages = <ReducerMessage>[];
 
       while (hasMore) {
-        final response = await ApiService.instance.get<Map<String, dynamic>>(
-          '/v3/sessions/$sessionId/messages',
-          queryParameters: {
-            'after_seq': afterSeq,
-            'limit': 100,
-          },
+        final response = await _requestSessionMessages<dynamic>(
+          sessionId: sessionId,
+          action: (path) => ApiService.instance.get<dynamic>(
+            path,
+            queryParameters: {
+              'after_seq': afterSeq,
+              'limit': 100,
+            },
+          ),
         );
-        final messageItems = _extractListPayload(response, 'messages');
+        final messageItems = _extractListPayload(
+          response,
+          'messages',
+          fallbackKeys: const ['items', 'data', 'results'],
+        );
+        final responseMap = _asStringMap(response);
         var maxSeq = afterSeq;
 
         for (final item in messageItems) {
@@ -509,7 +608,8 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
           }
         }
 
-        hasMore = response['hasMore'] == true;
+        hasMore =
+            responseMap?['hasMore'] == true || responseMap?['has_more'] == true;
         if (maxSeq == afterSeq) {
           hasMore = false;
         }
@@ -517,25 +617,72 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
       }
 
       _sessionLastSeq[sessionId] = afterSeq;
-      if (messages.isNotEmpty || existing == null) {
+      if (force) {
+        _repository.replaceMessages(sessionId, messages);
+      } else if (messages.isNotEmpty || existing == null) {
         _repository.applyMessages(sessionId, messages);
       }
+      final refreshedCount =
+          _repository.getSessionMessages(sessionId)?.messages.length ?? 0;
       Logger.info(
-          'Session messages loaded: $sessionId (${messages.length} messages)');
+        force
+            ? 'Session messages reloaded: $sessionId '
+                '(server=${messages.length}, local=$previousCount->$refreshedCount)'
+            : 'Session messages loaded: $sessionId '
+                '(server=${messages.length}, local=$previousCount->$refreshedCount)',
+      );
     } catch (e) {
-      Logger.error('Load session messages error: $e');
+      Logger.error('Load session messages error for $sessionId: $e');
+      if (throwOnError) {
+        rethrow;
+      }
     }
   }
 
-  Future<void> _warmSessionPreviewData(List<Session> sessions) async {
+  Future<void> refreshSessionMessageSnapshots(
+    Iterable<String> sessionIds, {
+    int batchSize = 4,
+  }) async {
+    final ids = sessionIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (ids.isEmpty) {
+      return;
+    }
+
+    Logger.info(
+      'Refreshing session message snapshots for ${ids.length} sessions',
+    );
+
+    for (var start = 0; start < ids.length; start += batchSize) {
+      final end =
+          (start + batchSize) > ids.length ? ids.length : start + batchSize;
+      final batch = ids.sublist(start, end);
+      await Future.wait([
+        for (final sessionId in batch)
+          loadSessionMessages(
+            sessionId,
+            force: true,
+            throwOnError: true,
+          ),
+      ]);
+    }
+  }
+
+  Future<void> _warmSessionPreviewData(
+    List<Session> sessions, {
+    bool force = false,
+  }) async {
     final previewSessions = sessions.take(3);
     for (final session in previewSessions) {
       final existing = _repository.getSessionMessages(session.id);
-      if (existing?.isLoaded == true) {
+      if (!force && existing?.isLoaded == true) {
         continue;
       }
       try {
-        await loadSessionMessages(session.id);
+        await loadSessionMessages(session.id, force: force);
       } catch (e) {
         Logger.warning('Failed to warm preview data for ${session.id}: $e');
       }
@@ -713,16 +860,19 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
         ),
       );
 
-      await ApiService.instance.post<Map<String, dynamic>>(
-        '/v3/sessions/$sessionId/messages',
-        data: {
-          'messages': [
-            {
-              'content': encryptedContent,
-              'localId': resolvedLocalId,
-            },
-          ],
-        },
+      await _requestSessionMessages<dynamic>(
+        sessionId: sessionId,
+        action: (path) => ApiService.instance.post<dynamic>(
+          path,
+          data: {
+            'messages': [
+              {
+                'content': encryptedContent,
+                'localId': resolvedLocalId,
+              },
+            ],
+          },
+        ),
       );
       unawaited(
         loadSessionMessages(sessionId).catchError((Object error) {
@@ -740,15 +890,24 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   }
 
   List<dynamic> _extractListPayload(
-      Map<String, dynamic>? response, String key) {
+    dynamic response,
+    String key, {
+    List<String> fallbackKeys = const [],
+  }) {
     if (response == null) {
       return const [];
     }
-    final value = response[key];
-    if (value is List<dynamic>) {
-      return value;
+    if (response is List<dynamic>) {
+      return response;
     }
-    return const [];
+    final responseMap = _asStringMap(response);
+    if (responseMap == null) {
+      return const [];
+    }
+    return _extractListFromMap(
+      responseMap,
+      [key, ...fallbackKeys],
+    );
   }
 
   Map<String, dynamic>? _asStringMap(dynamic value) {
@@ -760,7 +919,210 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
         (key, mapValue) => MapEntry(key.toString(), mapValue),
       );
     }
+    if (value is String && value.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        return _asStringMap(decoded);
+      } catch (_) {
+        return null;
+      }
+    }
     return null;
+  }
+
+  List<dynamic> _extractListFromMap(
+    Map<String, dynamic>? map,
+    List<String> candidateKeys,
+  ) {
+    if (map == null) {
+      return const [];
+    }
+    for (final candidate in candidateKeys) {
+      final value = map[candidate];
+      if (value is List<dynamic>) {
+        return value;
+      }
+      if (value is List) {
+        return value.toList();
+      }
+      final nested = _asStringMap(value);
+      final nestedList = _extractListFromMap(
+        nested,
+        const ['items', 'results', 'data', 'sessions', 'messages'],
+      );
+      if (nestedList.isNotEmpty || _containsListPayloadKey(nested, candidate)) {
+        return nestedList;
+      }
+    }
+    for (final fallback in const ['data', 'items', 'results']) {
+      if (candidateKeys.contains(fallback)) {
+        continue;
+      }
+      final value = map[fallback];
+      if (value is List<dynamic>) {
+        return value;
+      }
+      if (value is List) {
+        return value.toList();
+      }
+      final nested = _asStringMap(value);
+      final nestedList = _extractListFromMap(
+        nested,
+        const ['items', 'results', 'data', 'sessions', 'messages'],
+      );
+      if (nestedList.isNotEmpty || _containsListPayloadKey(nested, fallback)) {
+        return nestedList;
+      }
+    }
+    return const [];
+  }
+
+  bool _containsListPayloadKey(
+    dynamic response,
+    String key, {
+    List<String> fallbackKeys = const [],
+  }) {
+    if (response is List) {
+      return true;
+    }
+    final responseMap = _asStringMap(response);
+    if (responseMap == null) {
+      return false;
+    }
+    return _mapContainsListPayloadKey(
+      responseMap,
+      [key, ...fallbackKeys],
+    );
+  }
+
+  bool _mapContainsListPayloadKey(
+    Map<String, dynamic>? map,
+    List<String> candidateKeys,
+  ) {
+    if (map == null) {
+      return false;
+    }
+    for (final candidate in [...candidateKeys, 'data', 'items', 'results']) {
+      if (!map.containsKey(candidate)) {
+        continue;
+      }
+      final value = map[candidate];
+      if (value is List) {
+        return true;
+      }
+      final nested = _asStringMap(value);
+      if (nested != null &&
+          _mapContainsListPayloadKey(
+            nested,
+            const ['items', 'results', 'data', 'sessions', 'messages'],
+          )) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Map<String, dynamic>? _normalizeSessionPayload(dynamic value) {
+    final raw = _asStringMap(value);
+    if (raw == null) {
+      return null;
+    }
+    final merged = <String, dynamic>{...raw};
+    for (final candidateKey in const ['session', 'item', 'data', 'value']) {
+      final nested = _asStringMap(raw[candidateKey]);
+      if (nested != null) {
+        merged.addAll(nested);
+      }
+    }
+    final id = _extractSessionId(merged);
+    if (id == null) {
+      return merged;
+    }
+    return {
+      ...merged,
+      'id': id,
+      'sessionId': merged['sessionId'] ?? merged['session_id'] ?? merged['sid'],
+      'createdAt': merged['createdAt'] ?? merged['created_at'],
+      'updatedAt': merged['updatedAt'] ?? merged['updated_at'],
+      'activeAt': merged['activeAt'] ?? merged['active_at'],
+      'metadata': merged['metadata'] ??
+          merged['sessionMetadata'] ??
+          merged['session_metadata'],
+      'metadataVersion':
+          merged['metadataVersion'] ?? merged['metadata_version'],
+      'agentState': merged['agentState'] ?? merged['agent_state'],
+      'agentStateVersion':
+          merged['agentStateVersion'] ?? merged['agent_state_version'],
+      'dataEncryptionKey':
+          merged['dataEncryptionKey'] ?? merged['data_encryption_key'],
+      'permissionMode': merged['permissionMode'] ?? merged['permission_mode'],
+      'modelMode': merged['modelMode'] ?? merged['model_mode'],
+      'thinkingAt': merged['thinkingAt'] ?? merged['thinking_at'],
+      'latestUsage': merged['latestUsage'] ?? merged['latest_usage'],
+    };
+  }
+
+  String? _extractSessionId(dynamic value) {
+    final map = _asStringMap(value);
+    if (map == null) {
+      return null;
+    }
+    for (final candidate in const ['id', 'sessionId', 'session_id', 'sid']) {
+      final raw = map[candidate];
+      final id = raw?.toString().trim();
+      if (id != null && id.isNotEmpty && id != 'null') {
+        return id;
+      }
+    }
+    for (final nestedKey in const ['session', 'item', 'data', 'value']) {
+      final nestedId = _extractSessionId(map[nestedKey]);
+      if (nestedId != null) {
+        return nestedId;
+      }
+    }
+    return null;
+  }
+
+  Future<T> _requestSessionMessages<T>({
+    required String sessionId,
+    required Future<T> Function(String path) action,
+  }) async {
+    final prefixes = <String>[
+      if (_sessionMessagesApiPrefix != null) _sessionMessagesApiPrefix!,
+      '/v1',
+      '/v3',
+    ].toSet().toList(growable: false);
+    Object? lastError;
+
+    for (final prefix in prefixes) {
+      final path = '$prefix/sessions/$sessionId/messages';
+      try {
+        final response = await action(path);
+        if (_sessionMessagesApiPrefix != prefix) {
+          Logger.info('Resolved session messages endpoint: $prefix');
+        }
+        _sessionMessagesApiPrefix = prefix;
+        return response;
+      } catch (error) {
+        lastError = error;
+        if (_isMissingSessionMessagesEndpoint(error)) {
+          Logger.warning(
+              'Session messages endpoint unavailable at $path: $error');
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    throw lastError ?? Exception('No session messages endpoint available');
+  }
+
+  bool _isMissingSessionMessagesEndpoint(Object error) {
+    final message = error.toString();
+    return message.contains('(404)') ||
+        message.contains(' 404') ||
+        message.contains('404:') ||
+        message.contains('status code of 404');
   }
 
   /// 批准工具调用
@@ -1027,15 +1389,12 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
       createdAt: cached.createdAt,
       updatedAt: cached.updatedAt,
       active: localState?['active'] as bool? ?? !cached.isArchived,
-      activeAt: _parseMessageDateTime(localState?['activeAt']),
       tag: cached.tag,
       path: metadata?['path']?.toString(),
       metadata: metadata,
       permissionMode:
           _normalizeOptionalValue(localState?['permissionMode']?.toString()),
       modelMode: _normalizeOptionalValue(localState?['modelMode']?.toString()),
-      thinking: localState?['thinking'] as bool?,
-      thinkingAt: _parseMessageDateTime(localState?['thinkingAt']),
     );
   }
 
@@ -1062,6 +1421,10 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   /// 获取会话消息
   SessionMessages? getSessionMessages(String sessionId) =>
       _repository.getSessionMessages(sessionId);
+
+  /// 当前会话是否已在最近一次远端列表中确认存在
+  bool hasRemoteSession(String sessionId) =>
+      _lastRemoteSessionIds.contains(sessionId);
 
   Future<SessionBashResponse> executeSessionBash({
     required String sessionId,

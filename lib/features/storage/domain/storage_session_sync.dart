@@ -41,14 +41,9 @@ extension StorageSessionSync on StorageService {
       }
       metadata[StorageService._localSessionSnapshotKey] = <String, dynamic>{
         'active': session.active,
-        if (session.activeAt != null)
-          'activeAt': session.activeAt!.toIso8601String(),
         if (session.permissionMode != null)
           'permissionMode': session.permissionMode,
         if (session.modelMode != null) 'modelMode': session.modelMode,
-        if (session.thinking != null) 'thinking': session.thinking,
-        if (session.thinkingAt != null)
-          'thinkingAt': session.thinkingAt!.toIso8601String(),
       };
 
       final storageModel = SessionStorageModel(

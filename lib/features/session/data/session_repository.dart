@@ -53,8 +53,19 @@ class SessionRepository {
   }
 
   /// 应用会话列表
-  void applySessions(List<Session> sessions) {
+  void applySessions(List<Session> sessions, {bool replace = false}) {
     var changedCount = 0;
+    if (replace) {
+      final nextIds = sessions.map((session) => session.id).toSet();
+      final staleIds = _sessions.keys
+          .where((sessionId) => !nextIds.contains(sessionId))
+          .toList();
+      for (final staleId in staleIds) {
+        _sessions.remove(staleId);
+        _sessionMessages.remove(staleId);
+        changedCount++;
+      }
+    }
     for (final session in sessions) {
       final existing = _sessions[session.id];
       if (existing != null &&
@@ -126,6 +137,59 @@ class SessionRepository {
     Logger.info('Applied ${messages.length} messages to session: $sessionId');
   }
 
+  /// 用服务端快照替换会话消息，同时保留尚未被服务端确认的本地 optimistic 消息。
+  void replaceMessages(
+    String sessionId,
+    List<domain.ReducerMessage> messages, {
+    bool preserveOptimisticMessages = true,
+  }) {
+    final existing = _sessionMessages[sessionId];
+    final existingMessagesMap = existing?.messagesMap;
+    final nextMessagesMap = <String, domain.ReducerMessage>{};
+
+    for (final message in messages) {
+      final previous = _findPreviousMessageForIncoming(
+        existingMessagesMap,
+        message,
+      );
+      nextMessagesMap[message.id] = _mergeMessage(previous, message);
+    }
+
+    if (preserveOptimisticMessages && existingMessagesMap != null) {
+      for (final previous in existingMessagesMap.values) {
+        if (!_isOptimisticMessage(previous)) {
+          continue;
+        }
+        final localId =
+            previous.metadata?['localId']?.toString() ?? previous.id;
+        if (_findMessageIdByLocalId(nextMessagesMap, localId) != null) {
+          continue;
+        }
+        nextMessagesMap[previous.id] = previous;
+      }
+    }
+
+    final nextMessages = nextMessagesMap.values.toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    _sessionMessages[sessionId] = SessionMessages(
+      messages: nextMessages,
+      messagesMap: nextMessagesMap,
+      reducerState: existing?.reducerState ?? domain.ReducerState.initial,
+      isLoaded: true,
+    );
+    _stateController.add(
+      SessionStateChange(
+        type: SessionChangeType.messagesUpdated,
+        sessionId: sessionId,
+      ),
+    );
+    Logger.info(
+      'Replaced message snapshot for session: $sessionId '
+      '(${messages.length} server messages)',
+    );
+  }
+
   String? _findMessageIdByLocalId(
     Map<String, domain.ReducerMessage> messagesMap,
     String localId,
@@ -140,6 +204,35 @@ class SessionRepository {
       }
     }
     return null;
+  }
+
+  domain.ReducerMessage? _findPreviousMessageForIncoming(
+    Map<String, domain.ReducerMessage>? existingMessagesMap,
+    domain.ReducerMessage incoming,
+  ) {
+    if (existingMessagesMap == null) {
+      return null;
+    }
+    final directMatch = existingMessagesMap[incoming.id];
+    if (directMatch != null) {
+      return directMatch;
+    }
+    final localId = incoming.metadata?['localId']?.toString();
+    if (localId == null || localId.isEmpty) {
+      return null;
+    }
+    final optimisticMessageId = _findMessageIdByLocalId(
+      existingMessagesMap,
+      localId,
+    );
+    if (optimisticMessageId == null) {
+      return null;
+    }
+    return existingMessagesMap[optimisticMessageId];
+  }
+
+  bool _isOptimisticMessage(domain.ReducerMessage message) {
+    return message.metadata?['optimistic'] == true;
   }
 
   domain.ReducerMessage _mergeMessage(

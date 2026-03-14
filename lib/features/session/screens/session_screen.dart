@@ -18,6 +18,7 @@ import '../../../app/services/settings_service.dart' show SettingsState;
 import '../data/session_composer_queue_service.dart';
 import '../domain/session_stats.dart';
 import '../data/session_ui_state_service.dart';
+import '../presentation/session_turn_status.dart';
 
 import '../../socketio/domain/socket_service.dart';
 import '../domain/session_creation_options.dart';
@@ -52,7 +53,6 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   bool _isAutoSendingQueuedMessage = false;
   bool _isRefreshingSessionState = false;
   bool _queueReconcileScheduled = false;
-  bool _activeResponseObservedThinking = false;
   bool _collapseAllTurns = false;
   bool _sessionOverviewCollapsed = true;
   bool _hasScrolledToLatest = false;
@@ -151,20 +151,35 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
 
   Future<void> _loadSessionData() async {
     final sessionNotifier = ref.read(sessionStateProvider.notifier);
-    final currentSession = sessionNotifier.getSession(widget.sessionId);
-    if (currentSession == null || currentSession.metadata == null) {
-      await sessionNotifier.loadSessions();
+    if (mounted) {
+      setState(() {
+        _isRefreshingSessionState = true;
+      });
     }
-    if (sessionNotifier.getSession(widget.sessionId) == null) {
-      return;
-    }
-    await sessionNotifier.loadSessionMessages(widget.sessionId);
-    await _maybeAutoApprovePendingTools();
-    _scheduleScrollToLatest(force: true);
+    try {
+      await sessionNotifier.loadSessions(force: true);
+      if (sessionNotifier.getSession(widget.sessionId) == null) {
+        return;
+      }
+      await sessionNotifier.loadSessionMessages(
+        widget.sessionId,
+        force: true,
+      );
+      await _maybeAutoApprovePendingTools();
+      _scheduleScrollToLatest(force: true);
 
-    // 订阅 Socket 消息
-    ref.read(socketStateProvider.notifier).subscribeToSession(widget.sessionId);
-    _startMessagePolling();
+      // 订阅 Socket 消息
+      ref
+          .read(socketStateProvider.notifier)
+          .subscribeToSession(widget.sessionId);
+      _startMessagePolling();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshingSessionState = false;
+        });
+      }
+    }
   }
 
   void _startMessagePolling() {
@@ -335,23 +350,15 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     if (activeLocalId != null) {
       final activeGroup = _findTurnGroupByLocalId(turnGroups, activeLocalId) ??
           (turnGroups.isNotEmpty ? turnGroups.last : null);
-      final sawThinkingNow = _activeResponseObservedThinking ||
-          session?.thinking == true ||
-          _groupHasThinkingMessage(activeGroup);
-      if (sawThinkingNow != _activeResponseObservedThinking && mounted) {
-        setState(() {
-          _activeResponseObservedThinking = sawThinkingNow;
-        });
-      }
-      if (_hasActiveResponseCompleted(
+      if (sessionActiveResponseHasCompleted(
         session: session,
-        activeGroup: activeGroup,
-        sawThinking: sawThinkingNow,
+        messages: activeGroup?.messages ?? const <ReducerMessage>[],
+        userPrompt: activeGroup?.userPrompt,
+        isSending: _isSending,
       )) {
         if (mounted) {
           setState(() {
             _activeResponseLocalId = null;
-            _activeResponseObservedThinking = false;
           });
         }
       }
@@ -373,141 +380,19 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     return null;
   }
 
-  bool _groupHasThinkingMessage(_MessageTurnGroup? group) {
-    if (group == null) {
-      return false;
-    }
-    return group.messages.any(
-      (message) => message.metadata?['outputType']?.toString() == 'thinking',
-    );
-  }
-
-  bool _groupHasTurnClose(_MessageTurnGroup? group) {
-    if (group == null) {
-      return false;
-    }
-    return group.messages.any((message) => message.isTurnClose);
-  }
-
-  bool _groupHasCompletionSignal(_MessageTurnGroup? group) {
-    if (group == null) {
-      return false;
-    }
-    if (_groupHasTurnClose(group)) {
-      return true;
-    }
-    return group.messages.any((message) {
-      if (!message.isAgentEvent) {
-        return false;
-      }
-      final eventType = message.metadata?['eventType']?.toString();
-      return eventType == 'stop' ||
-          eventType == 'task_complete' ||
-          eventType == 'turn_aborted';
-    });
-  }
-
-  bool _groupHasPendingToolWork(_MessageTurnGroup? group) {
-    if (group == null) {
-      return false;
-    }
-    return group.messages.any((message) {
-      final status = message.tool?.status;
-      return status == ToolCallStatus.pending ||
-          status == ToolCallStatus.approved ||
-          status == ToolCallStatus.executing;
-    });
-  }
-
-  bool _groupHasRenderableAgentOutput(_MessageTurnGroup? group) {
-    if (group == null) {
-      return false;
-    }
-    return group.messages.any((message) {
-      if (message.isToolCall) {
-        return true;
-      }
-      if (!message.isText) {
-        return false;
-      }
-      final role = message.metadata?['role']?.toString();
-      final outputType = message.metadata?['outputType']?.toString();
-      return role != 'user' &&
-          outputType != 'thinking' &&
-          (message.text?.trim().isNotEmpty ?? false);
-    });
-  }
-
-  bool _isThinkingStillBlocking({
-    required Session? session,
-    required _MessageTurnGroup? group,
-  }) {
-    if (_groupHasThinkingMessage(group)) {
-      return true;
-    }
-    if (session?.thinking != true) {
-      return false;
-    }
-    return !_groupHasCompletionSignal(group);
-  }
-
-  bool _hasActiveResponseCompleted({
-    required Session? session,
-    required _MessageTurnGroup? activeGroup,
-    required bool sawThinking,
-  }) {
-    if (_isSending) {
-      return false;
-    }
-    final promptMetadata = activeGroup?.userPrompt?.metadata;
-    final promptStillOptimistic = promptMetadata?['optimistic'] == true;
-    if (promptStillOptimistic) {
-      return false;
-    }
-
-    final hasPendingToolWork = _groupHasPendingToolWork(activeGroup);
-    if (_groupHasCompletionSignal(activeGroup)) {
-      return !hasPendingToolWork;
-    }
-    if (_isThinkingStillBlocking(session: session, group: activeGroup)) {
-      return false;
-    }
-    if (hasPendingToolWork) {
-      return false;
-    }
-    if (!sawThinking) {
-      return false;
-    }
-    // Some backends finish a turn by clearing thinking without emitting an
-    // explicit turn-close event, so we fall back to the rendered agent output.
-    if (_groupHasRenderableAgentOutput(activeGroup)) {
-      return true;
-    }
-    return false;
-  }
-
   bool _isConversationBusy(
     Session? session,
     List<_MessageTurnGroup> turnGroups,
   ) {
     final latestGroup = turnGroups.isNotEmpty ? turnGroups.last : null;
-    if (_isSending || _isAutoSendingQueuedMessage) {
-      return true;
-    }
-    if (_activeResponseLocalId != null) {
-      return true;
-    }
-    if (_isThinkingStillBlocking(session: session, group: latestGroup)) {
-      return true;
-    }
-    if (_groupHasPendingToolWork(latestGroup)) {
-      return true;
-    }
-    final latestPrompt = latestGroup?.userPrompt;
-    if (latestPrompt?.metadata?['optimistic'] == true) {
-      return true;
-    }
-    return false;
+    return sessionConversationIsBusy(
+      session: session,
+      latestTurnMessages: latestGroup?.messages ?? const <ReducerMessage>[],
+      latestUserPrompt: latestGroup?.userPrompt,
+      isSending: _isSending,
+      isAutoSendingQueuedMessage: _isAutoSendingQueuedMessage,
+      activeResponseLocalId: _activeResponseLocalId,
+    );
   }
 
   Future<void> _maybeSendNextQueuedMessage(
@@ -645,9 +530,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
               token: credentials.token,
             ),
       ]);
-      await ref
-          .read(sessionStateProvider.notifier)
-          .loadSessionMessages(widget.sessionId);
+      await ref.read(sessionStateProvider.notifier).loadSessionMessages(
+            widget.sessionId,
+            force: true,
+            throwOnError: true,
+          );
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -811,6 +698,13 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     );
     final visibleInputTemplates = _visibleInputTemplates();
     final conversationBusy = _isConversationBusy(session, turnGroups);
+    final suppressStaleLiveState =
+        _isRefreshingSessionState && _activeResponseLocalId == null;
+    final effectiveConversationBusy =
+        suppressStaleLiveState ? false : conversationBusy;
+    final showLiveReplyBadge = messages.isNotEmpty &&
+        session?.thinking == true &&
+        !suppressStaleLiveState;
     final hasLoadedSessions = sessionNotifier.sessions.isNotEmpty;
     _visibleTurnGroups = turnGroups;
     if (messages.isNotEmpty) {
@@ -864,11 +758,10 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                               Positioned(
                                 left: AppTheme.spacingMd,
                                 top: 8,
-                                right: session?.thinking == true ? 132 : 16,
+                                right: showLiveReplyBadge ? 132 : 16,
                                 child: _buildStickyTurnPrompt(),
                               ),
-                            if (messages.isNotEmpty &&
-                                session?.thinking == true)
+                            if (showLiveReplyBadge)
                               Positioned(
                                 top: 8,
                                 right: AppTheme.spacingMd,
@@ -900,7 +793,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                       _buildInputArea(
                         session,
                         turnGroups,
-                        conversationBusy: conversationBusy,
+                        conversationBusy: effectiveConversationBusy,
                         settings: settings,
                         slashCommands: slashCommands,
                         visibleSlashCommands: visibleSlashCommands,
@@ -2465,7 +2358,6 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     setState(() {
       _isSending = true;
       _activeResponseLocalId = localId;
-      _activeResponseObservedThinking = false;
     });
 
     try {
@@ -2482,7 +2374,6 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       if (_activeResponseLocalId == localId && mounted) {
         setState(() {
           _activeResponseLocalId = null;
-          _activeResponseObservedThinking = false;
         });
       }
       if (restoreComposerOnError) {

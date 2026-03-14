@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'reducer.dart';
 
+const Object _sessionFieldUnset = Object();
+
 /// 会话模型
 class Session {
   final String id;
@@ -61,7 +63,7 @@ class Session {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? active,
-    DateTime? activeAt,
+    Object? activeAt = _sessionFieldUnset,
     String? tag,
     String? path,
     Map<String, dynamic>? metadata,
@@ -74,7 +76,7 @@ class Session {
     List<Todo>? todos,
     PresenceStatus? presence,
     bool? thinking,
-    DateTime? thinkingAt,
+    Object? thinkingAt = _sessionFieldUnset,
     LatestUsage? latestUsage,
   }) {
     return Session(
@@ -85,7 +87,9 @@ class Session {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       active: active ?? this.active,
-      activeAt: activeAt ?? this.activeAt,
+      activeAt: identical(activeAt, _sessionFieldUnset)
+          ? this.activeAt
+          : activeAt as DateTime?,
       tag: tag ?? this.tag,
       path: path ?? this.path,
       metadata: metadata ?? this.metadata,
@@ -98,7 +102,9 @@ class Session {
       todos: todos ?? this.todos,
       presence: presence ?? this.presence,
       thinking: thinking ?? this.thinking,
-      thinkingAt: thinkingAt ?? this.thinkingAt,
+      thinkingAt: identical(thinkingAt, _sessionFieldUnset)
+          ? this.thinkingAt
+          : thinkingAt as DateTime?,
       latestUsage: latestUsage ?? this.latestUsage,
     );
   }
@@ -131,51 +137,86 @@ class Session {
   }
 
   factory Session.fromJson(Map<String, dynamic> json) {
-    final metadata = _asStringMap(json['metadata']);
-    final agentState = _asStringMap(json['agentState']);
-    final fallbackId = json['id']?.toString() ?? '';
-    final metadataPath = metadata?['path']?.toString();
-    final pathSegments = metadataPath
-        ?.split('/')
-        .where((item) => item.isNotEmpty)
-        .toList();
-    final title = (json['title'] as String?) ??
-        (json['name'] as String?) ??
-        metadata?['name']?.toString() ??
-        metadata?['title']?.toString() ??
-        (pathSegments != null && pathSegments.isNotEmpty ? pathSegments.last : null) ??
-        (json['tag'] as String?) ??
+    final metadata = _asStringMap(
+      json['metadata'] ?? json['sessionMetadata'] ?? json['session_metadata'],
+    );
+    final agentState = _asStringMap(
+      json['agentState'] ?? json['agent_state'],
+    );
+    final fallbackId = _firstNonEmptyString([
+          json['id'],
+          json['sessionId'],
+          json['session_id'],
+          json['sid'],
+        ]) ??
+        '';
+    final metadataPath = _firstNonEmptyString([
+      json['path'],
+      json['sessionPath'],
+      json['session_path'],
+      metadata?['path'],
+    ]);
+    final pathSegments =
+        metadataPath?.split('/').where((item) => item.isNotEmpty).toList();
+    final title = _firstNonEmptyString([
+          json['title'],
+          json['name'],
+          json['sessionTitle'],
+          json['session_title'],
+          metadata?['name'],
+          metadata?['title'],
+        ]) ??
+        (pathSegments != null && pathSegments.isNotEmpty
+            ? pathSegments.last
+            : null) ??
+        _firstNonEmptyString(
+            [json['tag'], json['sessionTag'], json['session_tag']]) ??
         (fallbackId.isNotEmpty
             ? '会话 ${fallbackId.length > 8 ? fallbackId.substring(0, 8) : fallbackId}'
             : '未命名会话');
+    final latestUsageJson = _asStringMap(
+      json['latestUsage'] ?? json['latest_usage'],
+    );
     return Session(
       id: fallbackId,
-      seq: json['seq'] as int?,
+      seq: _parseInt(json['seq']),
       title: title,
-      messages: json['messages'] as List<dynamic>? ?? [],
-      createdAt: _parseDateTime(json['createdAt']) ?? DateTime.now(),
-      updatedAt: _parseDateTime(json['updatedAt']) ?? DateTime.now(),
-      active: json['active'] as bool? ?? true,
-      activeAt: _parseDateTime(json['activeAt']),
-      tag: json['tag'] as String?,
-      path: json['path'] as String?,
+      messages: _asDynamicList(json['messages']),
+      createdAt: _parseDateTime(json['createdAt'] ?? json['created_at']) ??
+          DateTime.now(),
+      updatedAt: _parseDateTime(json['updatedAt'] ?? json['updated_at']) ??
+          DateTime.now(),
+      active: _parseBool(json['active']) ?? true,
+      activeAt: _parseDateTime(json['activeAt'] ?? json['active_at']),
+      tag: _firstNonEmptyString([
+        json['tag'],
+        json['sessionTag'],
+        json['session_tag'],
+      ]),
+      path: metadataPath,
       metadata: metadata,
-      metadataVersion: json['metadataVersion'] as int?,
-      permissionMode: json['permissionMode'] as String?,
-      modelMode: json['modelMode'] as String?,
-      draft: json['draft'] as String?,
+      metadataVersion:
+          _parseInt(json['metadataVersion'] ?? json['metadata_version']),
+      permissionMode: _firstNonEmptyString([
+        json['permissionMode'],
+        json['permission_mode'],
+      ]),
+      modelMode: _firstNonEmptyString([
+        json['modelMode'],
+        json['model_mode'],
+      ]),
+      draft: _firstNonEmptyString([json['draft']]),
       agentState: agentState,
-      agentStateVersion: json['agentStateVersion'] as int?,
-      todos: (json['todos'] as List<dynamic>?)
-          ?.map((item) => Todo.fromJson(item as Map<String, dynamic>))
-          .toList(),
+      agentStateVersion:
+          _parseInt(json['agentStateVersion'] ?? json['agent_state_version']),
+      todos: _parseTodos(json['todos']),
       presence: json['presence'] != null
           ? PresenceStatus.fromDynamic(json['presence'])
           : null,
-      thinking: json['thinking'] as bool?,
-      thinkingAt: _parseDateTime(json['thinkingAt']),
-      latestUsage: json['latestUsage'] != null
-          ? LatestUsage.fromJson(json['latestUsage'] as Map<String, dynamic>)
+      thinking: _parseBool(json['thinking']),
+      thinkingAt: _parseDateTime(json['thinkingAt'] ?? json['thinking_at']),
+      latestUsage: latestUsageJson != null
+          ? LatestUsage.fromJson(latestUsageJson)
           : null,
     );
   }
@@ -206,17 +247,19 @@ class PresenceStatus {
   }
 
   factory PresenceStatus.fromJson(Map<String, dynamic> json) {
-    final status = json['status'] as String;
-    final lastActiveAt = _parseDateTime(json['lastActiveAt']);
-    final usersList = json['users'] as List<dynamic>?;
-    final users = usersList != null
-        ? usersList.map((u) => SessionPresence.fromJson(u as Map<String, dynamic>)).toList()
-        : null;
+    final status = _firstNonEmptyString([json['status']]) ?? 'offline';
+    final lastActiveAt =
+        _parseDateTime(json['lastActiveAt'] ?? json['last_active_at']);
+    final users = _asDynamicList(json['users'])
+        .map(_asStringMap)
+        .whereType<Map<String, dynamic>>()
+        .map(SessionPresence.fromJson)
+        .toList();
 
     return PresenceStatus(
       status: status,
       lastActiveAt: lastActiveAt,
-      users: users,
+      users: users.isEmpty ? null : users,
     );
   }
 
@@ -268,10 +311,11 @@ class SessionPresence {
 
   factory SessionPresence.fromJson(Map<String, dynamic> json) {
     return SessionPresence(
-      userId: json['userId'] as String,
-      userName: json['userName'] as String,
-      isOnline: json['isOnline'] as bool,
-      lastSeenAt: _parseDateTime(json['lastSeenAt']),
+      userId: _firstNonEmptyString([json['userId'], json['user_id']]) ?? '',
+      userName:
+          _firstNonEmptyString([json['userName'], json['user_name']]) ?? '',
+      isOnline: _parseBool(json['isOnline'] ?? json['is_online']) ?? false,
+      lastSeenAt: _parseDateTime(json['lastSeenAt'] ?? json['last_seen_at']),
     );
   }
 }
@@ -304,16 +348,20 @@ class LatestUsage {
 
   factory LatestUsage.fromJson(Map<String, dynamic> json) {
     return LatestUsage(
-      messageCount: json['messageCount'] as int? ??
-          json['outputTokens'] as int? ??
+      messageCount: _parseInt(json['messageCount']) ??
+          _parseInt(json['outputTokens']) ??
+          _parseInt(json['message_count']) ??
           0,
-      tokenCount: json['tokenCount'] as int? ??
-          json['contextSize'] as int? ??
-          json['inputTokens'] as int? ??
+      tokenCount: _parseInt(json['tokenCount']) ??
+          _parseInt(json['contextSize']) ??
+          _parseInt(json['inputTokens']) ??
+          _parseInt(json['token_count']) ??
           0,
       timestamp: _parseDateTime(json['timestamp']) ?? DateTime.now(),
-      filesAccessed: json['filesAccessed'] as int? ?? json['cacheRead'] as int?,
-      toolsUsed: json['toolsUsed'] as int? ?? json['cacheCreation'] as int?,
+      filesAccessed:
+          _parseInt(json['filesAccessed']) ?? _parseInt(json['cacheRead']),
+      toolsUsed:
+          _parseInt(json['toolsUsed']) ?? _parseInt(json['cacheCreation']),
     );
   }
 }
@@ -386,23 +434,125 @@ class Machine {
   }
 
   factory Machine.fromJson(Map<String, dynamic> json) {
-    final metadata = json['metadata'] as Map<String, dynamic>?;
+    final metadata = _asStringMap(json['metadata']);
+    final machineId = _firstNonEmptyString([
+          json['id'],
+          json['machineId'],
+          json['machine_id'],
+        ]) ??
+        '';
     return Machine(
-      id: json['id'] as String,
-      seq: json['seq'] as int?,
-      name: json['name'] as String? ??
+      id: machineId,
+      seq: _parseInt(json['seq']),
+      name: _firstNonEmptyString([
+            json['name'],
+            json['displayName'],
+            json['display_name'],
+          ]) ??
           metadata?['displayName']?.toString() ??
           metadata?['host']?.toString() ??
-          json['id'] as String,
-      platform: json['platform'] as String? ?? metadata?['platform']?.toString(),
-      createdAt: _parseDateTime(json['createdAt']) ?? DateTime.now(),
-      updatedAt: _parseDateTime(json['updatedAt']),
-      active: json['active'] as bool? ?? true,
-      activeAt: _parseDateTime(json['activeAt']),
+          machineId,
+      platform: _firstNonEmptyString([
+        json['platform'],
+        json['os'],
+        metadata?['platform'],
+      ]),
+      createdAt: _parseDateTime(json['createdAt'] ?? json['created_at']) ??
+          DateTime.now(),
+      updatedAt: _parseDateTime(json['updatedAt'] ?? json['updated_at']),
+      active: _parseBool(json['active']) ?? true,
+      activeAt: _parseDateTime(json['activeAt'] ?? json['active_at']),
       metadata: metadata,
-      metadataVersion: json['metadataVersion'] as int?,
+      metadataVersion:
+          _parseInt(json['metadataVersion'] ?? json['metadata_version']),
     );
   }
+}
+
+List<dynamic> _asDynamicList(dynamic value) {
+  if (value is List<dynamic>) {
+    return value;
+  }
+  if (value is List) {
+    return value.toList();
+  }
+  return const <dynamic>[];
+}
+
+List<Todo>? _parseTodos(dynamic value) {
+  final todos = <Todo>[];
+  for (final rawTodo in _asDynamicList(value)) {
+    final todoMap = _asStringMap(rawTodo);
+    if (todoMap == null) {
+      continue;
+    }
+    try {
+      todos.add(
+        Todo(
+          id: _firstNonEmptyString([todoMap['id']]) ?? '',
+          title: _firstNonEmptyString([todoMap['title']]) ?? '',
+          description: _firstNonEmptyString([todoMap['description']]),
+          completed: _parseBool(todoMap['completed']) ?? false,
+          createdAt:
+              _parseDateTime(todoMap['createdAt'] ?? todoMap['created_at']),
+          completedAt:
+              _parseDateTime(todoMap['completedAt'] ?? todoMap['completed_at']),
+          tags: _asDynamicList(todoMap['tags'])
+              .map((tag) => tag.toString())
+              .where((tag) => tag.isNotEmpty)
+              .toList(),
+        ),
+      );
+    } catch (_) {
+      continue;
+    }
+  }
+  return todos.isEmpty ? null : todos;
+}
+
+bool? _parseBool(dynamic value) {
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    return value != 0;
+  }
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'true' || normalized == '1') {
+      return true;
+    }
+    if (normalized == 'false' || normalized == '0') {
+      return false;
+    }
+  }
+  return null;
+}
+
+int? _parseInt(dynamic value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String && value.isNotEmpty) {
+    return int.tryParse(value);
+  }
+  return null;
+}
+
+String? _firstNonEmptyString(List<dynamic> candidates) {
+  for (final candidate in candidates) {
+    if (candidate == null) {
+      continue;
+    }
+    final value = candidate.toString().trim();
+    if (value.isNotEmpty && value != 'null') {
+      return value;
+    }
+  }
+  return null;
 }
 
 DateTime? _parseDateTime(dynamic value) {

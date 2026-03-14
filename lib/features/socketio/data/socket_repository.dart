@@ -8,6 +8,7 @@ import '../domain/socket_service.dart';
 import '../../session/data/session_repository.dart';
 import '../../session/data/session_composer_queue_service.dart';
 import '../../session/data/session_preferences_service.dart';
+import '../../session/domain/session_activity_state.dart';
 import '../../session/domain/session_models.dart';
 import '../../session/data/session_ui_state_service.dart';
 import '../../auth/data/token_storage_service.dart';
@@ -164,6 +165,7 @@ class SocketRepository {
     try {
       _eventController.add(SocketEvent.connecting());
       _prepareConnectionCompleter();
+      _disposeSocketInstance();
 
       _socket = io.io(
         AppConfig.socketUrl,
@@ -174,7 +176,7 @@ class SocketRepository {
               'token': _token,
               'clientType': 'user-scoped',
             })
-            .enableAutoConnect()
+            .disableAutoConnect()
             .setReconnectionAttempts(_maxReconnectAttempts)
             .setReconnectionDelay(AppConfig.socketReconnectDelay)
             .setTimeout(AppConfig.socketTimeout)
@@ -413,20 +415,26 @@ class SocketRepository {
       final activeAt =
           _parseDateTime(payload?['activeAt']) ?? existing.activeAt;
       final thinking = payload?['thinking'] as bool?;
-      final nextActive = payload?['active'] as bool? ?? existing.active;
-      final nextThinking = thinking ?? existing.thinking;
-      final nextThinkingAt = thinking == true ? activeAt : existing.thinkingAt;
+      final active = payload?['active'] as bool?;
+      final thinkingProvided = payload?.containsKey('thinking') == true;
+      final nextSession = applyEphemeralSessionActivity(
+        session: existing,
+        active: active,
+        activeAt: activeAt,
+        thinkingProvided: thinkingProvided,
+        thinking: thinking,
+      );
       final lastAppliedAt = _lastEphemeralSessionApplyAt[sessionId];
-      final onlyHeartbeatAdvance = existing.active == nextActive &&
-          existing.thinking == nextThinking &&
+      final onlyHeartbeatAdvance = existing.active == nextSession.active &&
+          existing.thinking == nextSession.thinking &&
           existing.activeAt != null &&
-          activeAt != null &&
-          activeAt.isAfter(existing.activeAt!);
+          nextSession.activeAt != null &&
+          nextSession.activeAt!.isAfter(existing.activeAt!);
 
-      if (existing.active == nextActive &&
-          existing.activeAt == activeAt &&
-          existing.thinking == nextThinking &&
-          existing.thinkingAt == nextThinkingAt) {
+      if (existing.active == nextSession.active &&
+          existing.activeAt == nextSession.activeAt &&
+          existing.thinking == nextSession.thinking &&
+          existing.thinkingAt == nextSession.thinkingAt) {
         return;
       }
 
@@ -438,15 +446,7 @@ class SocketRepository {
       }
 
       _lastEphemeralSessionApplyAt[sessionId] = DateTime.now();
-
-      _sessionRepository.applySessions([
-        existing.copyWith(
-          active: nextActive,
-          activeAt: activeAt,
-          thinking: nextThinking,
-          thinkingAt: nextThinkingAt,
-        ),
-      ]);
+      _sessionRepository.applySessions([nextSession]);
     } catch (e) {
       Logger.error('Failed to handle ephemeral payload: $e');
     }
@@ -803,6 +803,12 @@ class SocketRepository {
     _reconnectAttempts = 0;
 
     Logger.info('Socket disconnected');
+  }
+
+  void _disposeSocketInstance() {
+    _socket?.clearListeners();
+    _socket?.dispose();
+    _socket = null;
   }
 
   void _prepareConnectionCompleter() {

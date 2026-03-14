@@ -9,6 +9,7 @@ import '../../../shared/utils/extensions.dart';
 import '../../auth/presentation/qr_login_screen.dart';
 import '../../friends/data/inbox_repository.dart';
 import '../../friends/screens/inbox_screen.dart';
+import '../../session/domain/session_service.dart';
 import '../../settings/screens/settings_screen.dart';
 import '../../session/data/session_list_preferences_service.dart';
 import '../../session/screens/sessions_screen.dart';
@@ -185,7 +186,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
       }
 
+      final sessionNotifier = ref.read(sessionStateProvider.notifier);
       await Future.wait(futures);
+      if (_activeTab == HomeTab.sessions) {
+        await _refreshVisibleSessionSnapshots(sessionNotifier);
+      }
       await _refreshInboxBadge(token);
     });
   }
@@ -320,6 +325,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           token: credentials.token,
         ),
       ]);
+      await _refreshVisibleSessionSnapshots(sessionNotifier);
       await _refreshInboxBadge(credentials.token);
     } catch (error) {
       if (mounted) {
@@ -337,6 +343,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         });
       }
     }
+  }
+
+  Future<void> _refreshVisibleSessionSnapshots(
+    SessionServiceNotifier sessionNotifier,
+  ) async {
+    final machineOptions = _buildMachineFilterOptions(
+      machines: sessionNotifier.machines,
+      sessions: sessionNotifier.sessions,
+    );
+    final effectiveSelectedMachineId =
+        _effectiveSelectedMachineId(machineOptions);
+    final visibleSessionIds = sessionNotifier.sessions
+        .where(
+          (session) =>
+              sessionNotifier.hasRemoteSession(session.id) &&
+              _matchesSelectedMachine(session, effectiveSelectedMachineId),
+        )
+        .map((session) => session.id)
+        .toList(growable: false);
+    Logger.info(
+      'Home refresh will reload message snapshots for ${visibleSessionIds.length} sessions',
+    );
+    await sessionNotifier.refreshSessionMessageSnapshots(visibleSessionIds);
   }
 
   List<_HomeMachineFilterOption> _buildMachineFilterOptions({
@@ -440,6 +469,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return null;
     }
     return machineId.trim();
+  }
+
+  bool _matchesSelectedMachine(Session session, String? selectedMachineId) {
+    if (selectedMachineId == null) {
+      return true;
+    }
+    final machineId = _sessionMachineId(session);
+    if (selectedMachineId == SessionsScreen.unknownMachineFilterId) {
+      return machineId == null;
+    }
+    return machineId == selectedMachineId;
   }
 
   Widget _buildMachineDrawer({

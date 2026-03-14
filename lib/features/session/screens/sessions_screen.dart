@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/utils/extensions.dart';
 import '../../../shared/widgets/session_history_list.dart';
 import '../data/session_grouping_service.dart';
 import '../domain/session_stats.dart';
@@ -86,19 +87,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final hideInactiveByDefault =
         widget.showAppBar && settings.hideInactiveSessions;
     final filteredSessions = sessions.where((session) {
-      if (!_matchesSelectedMachine(session, selectedMachineId)) {
-        return false;
-      }
-      if ((_showActiveOnly || hideInactiveByDefault) && !session.active) {
-        return false;
-      }
-      if (_searchQuery.isEmpty) {
-        return true;
-      }
-      final query = _searchQuery.toLowerCase();
-      return session.title.toLowerCase().contains(query) ||
-          session.tag?.toLowerCase().contains(query) == true ||
-          session.path?.toLowerCase().contains(query) == true;
+      return _matchesSessionFilters(
+        session,
+        selectedMachineId: selectedMachineId,
+        hideInactiveByDefault: hideInactiveByDefault,
+      );
     }).toList()
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
@@ -253,6 +246,26 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       return machineId == null;
     }
     return machineId == selectedMachineId;
+  }
+
+  bool _matchesSessionFilters(
+    Session session, {
+    required String? selectedMachineId,
+    required bool hideInactiveByDefault,
+  }) {
+    if (!_matchesSelectedMachine(session, selectedMachineId)) {
+      return false;
+    }
+    if ((_showActiveOnly || hideInactiveByDefault) && !session.active) {
+      return false;
+    }
+    if (_searchQuery.isEmpty) {
+      return true;
+    }
+    final query = _searchQuery.toLowerCase();
+    return session.title.toLowerCase().contains(query) ||
+        session.tag?.toLowerCase().contains(query) == true ||
+        session.path?.toLowerCase().contains(query) == true;
   }
 
   void _openNewSession() {
@@ -986,6 +999,23 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
         notifier.loadSessions(force: true),
         notifier.loadMachines(force: true, allowFailure: true),
       ]);
+      final settings = ref.read(settingsStateProvider);
+      final hideInactiveByDefault =
+          widget.showAppBar && settings.hideInactiveSessions;
+      final visibleSessionIds = notifier.sessions
+          .where(
+            (session) => _matchesSessionFilters(
+              session,
+              selectedMachineId: widget.selectedMachineId,
+              hideInactiveByDefault: hideInactiveByDefault,
+            ),
+          )
+          .map((session) => session.id)
+          .toList(growable: false);
+      Logger.info(
+        'Sessions list refresh will reload message snapshots for ${visibleSessionIds.length} sessions',
+      );
+      await notifier.refreshSessionMessageSnapshots(visibleSessionIds);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

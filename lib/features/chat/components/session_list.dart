@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../shared/utils/extensions.dart';
+import '../../session/domain/session_stats.dart';
 
 /// 会话列表项
 class SessionListItem extends ConsumerWidget {
@@ -22,6 +23,19 @@ class SessionListItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final sessionMessages = ref.watch(
+      sessionStateProvider.select(
+        (state) => state.whenOrNull(
+          ready: (_, sessionMessages, __) =>
+              sessionMessages[session.id]?.messages,
+        ),
+      ),
+    );
+    final stats = SessionStatsCalculator.fromSession(
+      session: session,
+      messages: sessionMessages,
+    );
+    final messageCount = stats.messageCount;
     final isActive = session.active;
     final lastUpdated = session.updatedAt;
 
@@ -82,7 +96,7 @@ class SessionListItem extends ConsumerWidget {
                           ),
                         ),
                       // 消息数
-                      if (session.messages.isNotEmpty)
+                      if (messageCount > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 6,
@@ -93,7 +107,7 @@ class SessionListItem extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            '${session.messages.length}',
+                            '$messageCount',
                             style: const TextStyle(
                               color: AppTheme.neutral600,
                               fontSize: 11,
