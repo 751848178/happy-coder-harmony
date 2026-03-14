@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/config/app_config.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../app/routes/app_routes.dart';
 import 'session_list.dart';
@@ -37,7 +38,9 @@ class SidebarItem extends StatelessWidget {
           vertical: 10,
         ),
         decoration: BoxDecoration(
-          color: isActive ? AppTheme.brandColor.withOpacity(0.1) : Colors.transparent,
+          color: isActive
+              ? AppTheme.brandColor.withValues(alpha: 0.1)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -47,9 +50,7 @@ class SidebarItem extends StatelessWidget {
                 Icon(
                   icon,
                   size: 22,
-                  color: isActive
-                      ? AppTheme.brandColor
-                      : AppTheme.neutral600,
+                  color: isActive ? AppTheme.brandColor : AppTheme.neutral600,
                 ),
                 // 通知红点
                 if (showNotificationDot)
@@ -71,9 +72,7 @@ class SidebarItem extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: isActive
-                    ? AppTheme.brandColor
-                    : AppTheme.textPrimary,
+                color: isActive ? AppTheme.brandColor : AppTheme.textPrimary,
                 fontSize: 14,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
               ),
@@ -118,7 +117,8 @@ class UserInfo extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
-    final user = authState.isAuthenticated ? ref.watch(currentUserProvider) : null;
+    final user =
+        authState.isAuthenticated ? ref.watch(currentUserProvider) : null;
 
     if (user == null) {
       return const SizedBox.shrink();
@@ -148,7 +148,7 @@ class UserInfo extends ConsumerWidget {
               ),
               child: Center(
                 child: Text(
-                  user!.name.substring(0, 1).toUpperCase(),
+                  user.name.substring(0, 1).toUpperCase(),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -175,7 +175,7 @@ class UserInfo extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    user.email ?? '',
+                    user.email,
                     style: TextStyle(
                       color: AppTheme.neutral500,
                       fontSize: 12,
@@ -318,7 +318,7 @@ class Sidebar extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Happy Coder',
+                      AppConfig.appName,
                       style: const TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 16,

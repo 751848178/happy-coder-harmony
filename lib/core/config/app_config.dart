@@ -25,7 +25,16 @@ class AppConfig {
   static const String apiVersion = 'v1';
 
   /// 应用名称
-  static const String appName = 'Happy Coder';
+  static const String appName = 'Hapmony';
+
+  /// 应用副标题
+  static const String appTagline = 'Happy for HarmonyOS';
+
+  /// 应用描述
+  static const String appDescription = '为 HarmonyOS 打造的智能开发助手';
+
+  /// 助手默认名称
+  static const String assistantName = 'Hapmony 助手';
 
   /// 应用版本
   static const String appVersion = '1.0.0';

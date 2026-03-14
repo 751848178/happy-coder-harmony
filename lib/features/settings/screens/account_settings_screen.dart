@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/config/app_config.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../app/services/settings_service.dart' as settings;
@@ -205,7 +206,7 @@ class AccountSettingsScreen extends ConsumerWidget {
       MaterialPageRoute(
         builder: (_) => const ScanQrScreen(
           title: '扫描设备二维码',
-          description: '将摄像头对准 Happy Coder 设备或电脑上的二维码，识别后会自动继续。',
+          description: '将摄像头对准 ${AppConfig.appName} 设备或电脑上的二维码，识别后会自动继续。',
         ),
       ),
     );
@@ -234,8 +235,8 @@ class AccountSettingsScreen extends ConsumerWidget {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('无法识别二维码内容，请确认它来自 Happy Coder'),
+      SnackBar(
+        content: Text('无法识别二维码内容，请确认它来自 ${AppConfig.appName}'),
         backgroundColor: AppTheme.errorColor,
       ),
     );
@@ -453,7 +454,7 @@ class _QRCodeDialogContentState extends ConsumerState<_QRCodeDialogContent> {
                     const SizedBox(height: 16),
                     // 说明
                     Text(
-                      '在已登录的 Happy Coder 设备上扫描此二维码，即可继续连接。',
+                      '在已登录的 ${AppConfig.appName} 设备上扫描此二维码，即可继续连接。',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppTheme.neutral600,

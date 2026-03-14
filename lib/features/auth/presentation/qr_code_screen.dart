@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../app/providers/app_providers.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/extensions.dart';
 import '../../encryption/domain/crypto_service.dart';
@@ -134,7 +135,8 @@ class _QRCodeScreenState extends ConsumerState<QRCodeScreen>
   void _startStatusPolling() {
     _statusPollingTimer?.cancel();
 
-    _statusPollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+    _statusPollingTimer =
+        Timer.periodic(const Duration(seconds: 3), (timer) async {
       if (_isPolling || _isManualConfirm) return;
 
       setState(() {
@@ -310,7 +312,8 @@ class _QRCodeScreenState extends ConsumerState<QRCodeScreen>
                   color: AppTheme.brandColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.qr_code_scanner, color: AppTheme.brandColor),
+                child: const Icon(Icons.qr_code_scanner,
+                    color: AppTheme.brandColor),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -327,7 +330,7 @@ class _QRCodeScreenState extends ConsumerState<QRCodeScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '在电脑上打开开心编码，扫描此二维码即可链接设备',
+                      '在电脑上打开 ${AppConfig.appName}，扫描此二维码即可链接设备',
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppTheme.neutral600,
@@ -348,25 +351,25 @@ class _QRCodeScreenState extends ConsumerState<QRCodeScreen>
               color: AppTheme.neutral50,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '1. 在电脑上打开开心编码',
+                  '1. 在电脑上打开 ${AppConfig.appName}',
                   style: TextStyle(fontSize: 14, color: AppTheme.neutral900),
                 ),
-                SizedBox(height: 8),
-                Text(
+                const SizedBox(height: 8),
+                const Text(
                   '2. 进入设置 → 账户',
                   style: TextStyle(fontSize: 14, color: AppTheme.neutral900),
                 ),
-                SizedBox(height: 8),
-                Text(
+                const SizedBox(height: 8),
+                const Text(
                   '3. 点击"链接新设备"',
                   style: TextStyle(fontSize: 14, color: AppTheme.neutral900),
                 ),
-                SizedBox(height: 8),
-                Text(
+                const SizedBox(height: 8),
+                const Text(
                   '4. 扫描此二维码',
                   style: TextStyle(fontSize: 14, color: AppTheme.neutral900),
                 ),
@@ -728,7 +731,8 @@ class _QRCodeScreenState extends ConsumerState<QRCodeScreen>
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppTheme.brandColor, width: 2),
+                    borderSide:
+                        BorderSide(color: AppTheme.brandColor, width: 2),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 20,

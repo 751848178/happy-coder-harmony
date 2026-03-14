@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/config/server_config_service.dart';
 import '../../shared/platform/platform_storage.dart';
 
@@ -225,7 +226,7 @@ class SettingsService {
   Future<void> setPermissionMode(String value) =>
       _setString(_keyPermissionMode, value);
 
-  String get username => _getString(_keyUsername, 'Happy Coder');
+  String get username => _getString(_keyUsername, AppConfig.appName);
   Future<void> setUsername(String value) => _setString(_keyUsername, value);
 
   String get email => _getString(_keyEmail, 'user@example.com');
@@ -327,7 +328,7 @@ class SettingsState {
     this.doNotDisturbStart = 22,
     this.doNotDisturbEnd = 8,
     this.permissionMode = 'manual',
-    this.username = 'Happy Coder',
+    this.username = AppConfig.appName,
     this.email = 'user@example.com',
     this.experiments = false,
     this.useEnhancedSessionWizard = false,

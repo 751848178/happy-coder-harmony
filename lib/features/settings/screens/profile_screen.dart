@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../app/providers/app_providers.dart';
+import '../../../core/config/app_config.dart';
 
 /// 个人资料屏幕
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -72,7 +73,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             // 用户信息
             _buildSectionHeader('基本信息'),
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+              margin:
+                  const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
               decoration: BoxDecoration(
                 color: AppTheme.surface,
                 borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -110,7 +112,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             // 使用统计
             _buildSectionHeader('使用统计'),
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+              margin:
+                  const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
               decoration: BoxDecoration(
                 color: AppTheme.surface,
                 borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -252,7 +255,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 bottom: 0,
                 right: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppTheme.successColor,
                     borderRadius: BorderRadius.circular(12),
@@ -313,7 +317,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required String value,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingSm),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingSm),
       child: Row(
         children: [
           Icon(icon, size: 20, color: AppTheme.neutral600),
@@ -347,7 +352,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required String value,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingSm),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingSm),
       child: Row(
         children: [
           Icon(icon, size: 20, color: AppTheme.brandColor),
@@ -386,7 +392,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     VoidCallback? onTap,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: 4),
+      margin: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingMd, vertical: 4),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(10),
@@ -414,7 +421,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String _getMachineId(dynamic credentials) {
     try {
       if (credentials is Map) {
-        return credentials['machineId']?.toString().substring(0, 12) ?? 'unknown';
+        return credentials['machineId']?.toString().substring(0, 12) ??
+            'unknown';
       }
       return 'unknown';
     } catch (e) {
@@ -497,9 +505,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _shareApp() async {
     try {
       await Share.share(
-        'Happy Coder - AI 驱动的代码开发助手\n\n'
+        '${AppConfig.appName}\n${AppConfig.appTagline}\n\n'
         'https://github.com/slopus/happy',
-        subject: 'Happy Coder',
+        subject: AppConfig.appName,
       );
     } catch (e) {
       if (mounted) {

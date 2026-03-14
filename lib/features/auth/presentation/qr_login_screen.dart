@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../app/providers/app_providers.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/extensions.dart';
 import '../data/auth_repository.dart';
@@ -54,7 +55,7 @@ class _QRLoginScreenState extends ConsumerState<QRLoginScreen>
       MaterialPageRoute(
         builder: (_) => const ScanQrScreen(
           title: '扫描登录二维码',
-          description: '将摄像头对准 Happy Coder 生成的二维码，识别后会自动继续。',
+          description: '将摄像头对准 ${AppConfig.appName} 生成的二维码，识别后会自动继续。',
         ),
       ),
     );
@@ -171,7 +172,7 @@ class _QRLoginScreenState extends ConsumerState<QRLoginScreen>
 
                 // App Name
                 const Text(
-                  '开心编码',
+                  AppConfig.appName,
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -183,7 +184,7 @@ class _QRLoginScreenState extends ConsumerState<QRLoginScreen>
 
                 // Subtitle
                 Text(
-                  'AI 驱动的代码开发助手',
+                  AppConfig.appTagline,
                   style: TextStyle(
                     fontSize: 16,
                     color: AppTheme.neutral600,
@@ -284,7 +285,7 @@ class _QRLoginScreenState extends ConsumerState<QRLoginScreen>
 
                     // App Name
                     const Text(
-                      '开心编码',
+                      AppConfig.appName,
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -296,7 +297,7 @@ class _QRLoginScreenState extends ConsumerState<QRLoginScreen>
 
                     // Subtitle
                     Text(
-                      'AI 驱动的代码开发助手',
+                      AppConfig.appTagline,
                       style: TextStyle(
                         fontSize: 16,
                         color: AppTheme.neutral600,

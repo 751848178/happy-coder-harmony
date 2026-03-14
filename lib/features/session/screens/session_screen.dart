@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../../app/routes/app_routes.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../app/services/settings_service.dart' show SettingsState;
@@ -1857,7 +1858,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         return 'Gemini';
       case null:
       case '':
-        return 'Happy 助手';
+        return AppConfig.assistantName;
       default:
         return flavor;
     }

@@ -45,7 +45,7 @@ class AboutScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppTheme.spacingLg),
                 const Text(
-                  'Happy Coder',
+                  AppConfig.appName,
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -54,10 +54,18 @@ class AboutScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppTheme.spacingSm),
                 Text(
-                  'AI 驱动的代码开发助手',
+                  AppConfig.appTagline,
                   style: TextStyle(
                     fontSize: 14,
                     color: AppTheme.neutral600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  AppConfig.appDescription,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.neutral500,
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacingMd),
@@ -133,10 +141,10 @@ class AboutScreen extends StatelessWidget {
 
           // 开源信息
           _buildSectionHeader('开源'),
-          const Padding(
+          Padding(
             padding: EdgeInsets.all(AppTheme.spacingMd),
             child: Text(
-              'Happy Coder 是一个开源项目，遵循 MIT 协议开源。感谢所有贡献者的支持！',
+              '${AppConfig.appName} 是一个开源项目，遵循 MIT 协议开源。感谢所有贡献者的支持！',
               style: TextStyle(
                 fontSize: 13,
                 color: AppTheme.neutral600,
@@ -162,7 +170,7 @@ class AboutScreen extends StatelessWidget {
           // 版权信息
           Center(
             child: Text(
-              '© 2026 Happy Coder. All rights reserved.',
+              '© 2026 ${AppConfig.appName}. All rights reserved.',
               style: TextStyle(
                 fontSize: 12,
                 color: AppTheme.neutral400,
@@ -196,7 +204,8 @@ class AboutScreen extends StatelessWidget {
     required String value,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: 4),
+      margin: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingMd, vertical: 4),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(10),
@@ -233,7 +242,8 @@ class AboutScreen extends StatelessWidget {
     VoidCallback? onTap,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: 4),
+      margin: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingMd, vertical: 4),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(10),

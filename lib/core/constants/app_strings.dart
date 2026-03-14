@@ -5,7 +5,7 @@ class AppStrings {
   AppStrings._();
 
   // ========== 通用 ==========
-  static const String appName = '开心编码';
+  static const String appName = 'Hapmony';
   static const String loading = '加载中...';
   static const String error = '错误';
   static const String retry = '重试';
@@ -16,7 +16,7 @@ class AppStrings {
   static const String done = '完成';
 
   // ========== 认证 ==========
-  static const String loginTitle = '登录开心编码';
+  static const String loginTitle = '登录 Hapmony';
   static const String scanQRCode = '扫码';
   static const String waitingForQR = '等待二维码...';
   static const String scanInstructions = '扫描电脑上显示的二维码';

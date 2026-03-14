@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/config/app_config.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../shared/utils/extensions.dart';
 
@@ -185,7 +186,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            'Welcome to Happy Coder',
+            'Welcome to ${AppConfig.appName}',
             style: TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 24,

@@ -672,7 +672,7 @@ TerminalApprovalRequest _parseTerminalApprovalRequest(GoRouterState state) {
     command: state.uri.queryParameters['command'],
     requestingApp: state.uri.queryParameters['requestingApp'] ??
         state.uri.queryParameters['app'] ??
-        'Happy Coder',
+        AppConfig.appName,
     requestedAt: requestedAt,
   );
 }
