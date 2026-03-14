@@ -257,7 +257,8 @@ class _MachinePathSelectorState extends State<MachinePathSelector> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (nameController.text.trim().isEmpty || hostController.text.trim().isEmpty) {
+              if (nameController.text.trim().isEmpty ||
+                  hostController.text.trim().isEmpty) {
                 return;
               }
               // In a real app, this would save the machine
@@ -538,14 +539,10 @@ class _MachineChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.brandColor
-              : AppTheme.neutral100,
+          color: isSelected ? AppTheme.brandColor : AppTheme.neutral100,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected
-                ? AppTheme.brandColor
-                : AppTheme.neutral300,
+            color: isSelected ? AppTheme.brandColor : AppTheme.neutral300,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -598,9 +595,7 @@ class _PathChip extends StatelessWidget {
               : AppTheme.neutral100,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected
-                ? AppTheme.brandColor
-                : AppTheme.neutral300,
+            color: isSelected ? AppTheme.brandColor : AppTheme.neutral300,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -699,7 +694,8 @@ class QuickPathSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextField(
-      controller: TextEditingController(text: path)..selection = TextSelection.collapsed(0),
+      controller: TextEditingController(text: path)
+        ..selection = TextSelection.collapsed(offset: 0),
       decoration: InputDecoration(
         labelText: '路径',
         border: const OutlineInputBorder(),

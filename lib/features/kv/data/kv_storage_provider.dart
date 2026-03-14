@@ -1,14 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../domain/kv_models.dart';
 import 'kv_storage_repository.dart';
+import '../presentation/kv_storage_notifier.dart';
 
 /// KV Storage State Provider
 ///
 /// 全局 KV 存储状态管理
 final kvStorageStateProvider =
-    StateNotifierProvider<KVStorageState>((ref) {
-  return KVStorageNotifier(KVStorageRepository());
+    StateNotifierProvider<KVStorageNotifier, KVStorageState>((ref) {
+  return KVStorageNotifier(ref.watch(kvStorageRepositoryProvider));
 });
 
 /// KV Storage Repository Provider

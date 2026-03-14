@@ -42,8 +42,8 @@ class KVBatchUpdateRequest {
   const KVBatchUpdateRequest({required this.mutations});
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-    'mutations': mutations.map((m) => m.toJson()).toList(),
-  };
+        'mutations': mutations.map((m) => m.toJson()).toList(),
+      };
 }
 
 /// KV 变更
@@ -60,10 +60,10 @@ class KVMutation {
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-    'key': key,
-    if (value != null) 'value': value,
-    if (version != null) 'version': version,
-  };
+        'key': key,
+        if (value != null) 'value': value,
+        if (version != null) 'version': version,
+      };
 }
 
 /// KV 获取响应
@@ -73,5 +73,6 @@ class KVListResponse {
 
   const KVListResponse({required this.items});
 
-  factory KVListResponse.fromJson(Map<String, dynamic> json) => _$KVListResponseFromJson(json);
+  factory KVListResponse.fromJson(Map<String, dynamic> json) =>
+      _$KVListResponseFromJson(json);
 }

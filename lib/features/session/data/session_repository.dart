@@ -189,11 +189,11 @@ class SessionRepository {
     domain.ToolCallStatus previous,
     domain.ToolCallStatus incoming,
   ) {
+    // Ignore stale server refreshes that still report `pending` after the
+    // local client has already transitioned the tool call to a stronger state.
     if (previous != domain.ToolCallStatus.pending &&
         incoming == domain.ToolCallStatus.pending) {
-      return previous == domain.ToolCallStatus.approved
-          ? domain.ToolCallStatus.executing
-          : previous;
+      return previous;
     }
 
     const terminalStatuses = <domain.ToolCallStatus>{

@@ -1,256 +1,22 @@
-import 'package:json_annotation/json_annotation.dart';
+import '../../profile/domain/profile_models.dart' as core;
 
-part 'profile_models.g.dart';
+typedef AIBackendProfile = core.AIProfile;
+typedef AnthropicConfig = core.AnthropicConfig;
+typedef OpenAIConfig = core.OpenAIConfig;
+typedef AzureOpenAIConfig = core.AzureOpenAIConfig;
+typedef TogetherAIConfig = core.TogetherAIConfig;
+typedef TmuxConfig = core.TmuxConfig;
+typedef EnvironmentVariable = core.EnvironmentVariable;
+typedef ProfileCompatibility = core.ProfileCompatibility;
+typedef SessionType = core.SessionType;
+typedef PermissionMode = core.PermissionMode;
 
-/// AI 后端配置档案 (Backend Profile)
-///
-/// 用于配置不同 AI 提供商的环境变量和参数
-@JsonSerializable()
-class AIBackendProfile {
-  final String id;
-  final String name;
-  final String? description;
-  final AnthropicConfig? anthropicConfig;
-  final OpenAIConfig? openaiConfig;
-  final AzureOpenAIConfig? azureOpenAIConfig;
-  final TmuxConfig? tmuxConfig;
-  final TogetherAIConfig? togetherAIConfig;
-  final List<EnvironmentVariable> environmentVariables;
-  final String? defaultSessionType;
-  final String? defaultPermissionMode;
-  final String? defaultModelMode;
-  final ProfileCompatibility compatibility;
-  final bool isBuiltIn;
-  final int createdAt;
-  final int updatedAt;
-  final String version;
-
-  const AIBackendProfile({
-    required this.id,
-    required this.name,
-    this.description,
-    this.anthropicConfig,
-    this.openaiConfig,
-    this.azureOpenAIConfig,
-    this.tmuxConfig,
-    this.togetherAIConfig,
-    required this.environmentVariables,
-    this.defaultSessionType,
-    this.defaultPermissionMode,
-    this.defaultModelMode,
-    required this.compatibility,
-    this.isBuiltIn = false,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.version,
-  });
-
-  factory AIBackendProfile.fromJson(Map<String, dynamic> json) =>
-      _$AIBackendProfileFromJson(json);
-
-  Map<String, dynamic> toJson() => _$AIBackendProfileToJson(this);
-
-  AIBackendProfile copyWith({
-    String? id,
-    String? name,
-    String? description,
-    AnthropicConfig? anthropicConfig,
-    OpenAIConfig? openaiConfig,
-    AzureOpenAIConfig? azureOpenAIConfig,
-    TmuxConfig? tmuxConfig,
-    TogetherAIConfig? togetherAIConfig,
-    List<EnvironmentVariable>? environmentVariables,
-    String? defaultSessionType,
-    String? defaultPermissionMode,
-    String? defaultModelMode,
-    ProfileCompatibility? compatibility,
-    bool? isBuiltIn,
-    int? createdAt,
-    int? updatedAt,
-    String? version,
-  }) {
-    return AIBackendProfile(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      description: description ?? this.description,
-      anthropicConfig: anthropicConfig ?? this.anthropicConfig,
-      openaiConfig: openaiConfig ?? this.openaiConfig,
-      azureOpenAIConfig: azureOpenAIConfig ?? this.azureOpenAIConfig,
-      tmuxConfig: tmuxConfig ?? this.tmuxConfig,
-      togetherAIConfig: togetherAIConfig ?? this.togetherAIConfig,
-      environmentVariables: environmentVariables ?? this.environmentVariables,
-      defaultSessionType: defaultSessionType ?? this.defaultSessionType,
-      defaultPermissionMode: defaultPermissionMode ?? this.defaultPermissionMode,
-      defaultModelMode: defaultModelMode ?? this.defaultModelMode,
-      compatibility: compatibility ?? this.compatibility,
-      isBuiltIn: isBuiltIn ?? this.isBuiltIn,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      version: version ?? this.version,
-    );
-  }
-
-/// Anthropic 配置
-@JsonSerializable()
-class AnthropicConfig {
-  final String? baseUrl;
-  final String? authToken;
-  final String? model;
-
-  const AnthropicConfig({
-    this.baseUrl,
-    this.authToken,
-    this.model,
-  });
-
-  factory AnthropicConfig.fromJson(Map<String, dynamic> json) =>
-      _$AnthropicConfigFromJson(json);
-
-  Map<String, dynamic> toJson() => _$AnthropicConfigToJson(this);
-}
-
-/// OpenAI 配置
-@JsonSerializable()
-class OpenAIConfig {
-  final String? apiKey;
-  final String? baseUrl;
-  final String? model;
-
-  const OpenAIConfig({
-    this.apiKey,
-    this.baseUrl,
-    this.model,
-  });
-
-  factory OpenAIConfig.fromJson(Map<String, dynamic> json) =>
-      _$OpenAIConfigFromJson(json);
-
-  Map<String, dynamic> toJson() => _$OpenAIConfigToJson(this);
-}
-
-/// Azure OpenAI 配置
-@JsonSerializable()
-class AzureOpenAIConfig {
-  final String? apiKey;
-  final String? endpoint;
-  final String? apiVersion;
-  final String? deploymentName;
-
-  const AzureOpenAIConfig({
-    this.apiKey,
-    this.endpoint,
-    this.apiVersion,
-    this.deploymentName,
-  });
-
-  factory AzureOpenAIConfig.fromJson(Map<String, dynamic> json) =>
-      _$AzureOpenAIConfigFromJson(json);
-
-  Map<String, dynamic> toJson() => _$AzureOpenAIConfigToJson(this);
-}
-
-/// Together AI 配置
-@JsonSerializable()
-class TogetherAIConfig {
-  final String? apiKey;
-  final String? model;
-
-  const TogetherAIConfig({
-    this.apiKey,
-    this.model,
-  });
-
-  factory TogetherAIConfig.fromJson(Map<String, dynamic> json) =>
-      _$TogetherAIConfigFromJson(json);
-
-  Map<String, dynamic> toJson() => _$TogetherAIConfigToJson(this);
-}
-
-/// Tmux 配置
-@JsonSerializable()
-class TmuxConfig {
-  final String? sessionName;
-  final String? tmpDir;
-  final bool? updateEnvironment;
-
-  const TmuxConfig({
-    this.sessionName,
-    this.tmpDir,
-    this.updateEnvironment,
-  });
-
-  factory TmuxConfig.fromJson(Map<String, dynamic> json) =>
-      _$TmuxConfigFromJson(json);
-
-  Map<String, dynamic> toJson() => _$TmuxConfigToJson(this);
-}
-
-/// 环境变量
-@JsonSerializable()
-class EnvironmentVariable {
-  final String name;
-  final String value;
-
-  const EnvironmentVariable({
-    required this.name,
-    required this.value,
-  });
-
-  factory EnvironmentVariable.fromJson(Map<String, dynamic> json) =>
-      _$EnvironmentVariableFromJson(json);
-
-  Map<String, dynamic> toJson() => _$EnvironmentVariableToJson(this);
-
-  EnvironmentVariable copyWith({
-    String? name,
-    String? value,
-  }) {
-    return EnvironmentVariable(
-      name: name ?? this.name,
-      value: value ?? this.value,
-    );
-  }
-}
-
-/// 档兼容性
-@JsonSerializable()
-class ProfileCompatibility {
-  final bool claude;
-  final bool codex;
-  final bool gemini;
-
-  const ProfileCompatibility({
-    this.claude = true,
-    this.codex = true,
-    this.gemini = true,
-  });
-
-  factory ProfileCompatibility.fromJson(Map<String, dynamic> json) =>
-      _$ProfileCompatibilityFromJson(json);
-
-  Map<String, dynamic> toJson() => _$ProfileCompatibilityToJson(this);
-}
-
-/// 创建/更新档案请求
-@JsonSerializable()
+/// Thin request DTO kept for compatibility with the legacy `features/profiles`
+/// surface while reusing the canonical profile domain models.
 class ProfileRequest {
-  final String? id;
-  final String name;
-  final String? description;
-  final AnthropicConfig? anthropicConfig;
-  final OpenAIConfig? openaiConfig;
-  final AzureOpenAIConfig? azureOpenAIConfig;
-  final TmuxConfig? tmuxConfig;
-  final TogetherAIConfig? togetherAIConfig;
-  final List<EnvironmentVariable>? environmentVariables;
-  final String? defaultSessionType;
-  final String? defaultPermissionMode;
-  final String? defaultModelMode;
-  final ProfileCompatibility? compatibility;
-
-  ProfileRequest copyWith({
+  const ProfileRequest({
     this.id,
-    this.name,
+    required this.name,
     this.description,
     this.anthropicConfig,
     this.openaiConfig,
@@ -264,37 +30,147 @@ class ProfileRequest {
     this.compatibility,
   });
 
+  final String? id;
+  final String name;
+  final String? description;
+  final AnthropicConfig? anthropicConfig;
+  final OpenAIConfig? openaiConfig;
+  final AzureOpenAIConfig? azureOpenAIConfig;
+  final TmuxConfig? tmuxConfig;
+  final TogetherAIConfig? togetherAIConfig;
+  final List<EnvironmentVariable>? environmentVariables;
+  final SessionType? defaultSessionType;
+  final PermissionMode? defaultPermissionMode;
+  final String? defaultModelMode;
+  final ProfileCompatibility? compatibility;
+
+  factory ProfileRequest.fromProfile(AIBackendProfile profile) {
+    return ProfileRequest(
+      id: profile.id,
+      name: profile.name,
+      description: profile.description,
+      anthropicConfig: profile.anthropicConfig,
+      openaiConfig: profile.openaiConfig,
+      azureOpenAIConfig: profile.azureOpenAIConfig,
+      tmuxConfig: profile.tmuxConfig,
+      togetherAIConfig: profile.togetherAIConfig,
+      environmentVariables: profile.environmentVariables,
+      defaultSessionType: profile.defaultSessionType,
+      defaultPermissionMode: profile.defaultPermissionMode,
+      defaultModelMode: profile.defaultModelMode,
+      compatibility: profile.compatibility,
+    );
+  }
+
+  ProfileRequest copyWith({
+    String? id,
+    String? name,
+    String? description,
+    AnthropicConfig? anthropicConfig,
+    OpenAIConfig? openaiConfig,
+    AzureOpenAIConfig? azureOpenAIConfig,
+    TmuxConfig? tmuxConfig,
+    TogetherAIConfig? togetherAIConfig,
+    List<EnvironmentVariable>? environmentVariables,
+    SessionType? defaultSessionType,
+    PermissionMode? defaultPermissionMode,
+    String? defaultModelMode,
+    ProfileCompatibility? compatibility,
+  }) {
+    return ProfileRequest(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      anthropicConfig: anthropicConfig ?? this.anthropicConfig,
+      openaiConfig: openaiConfig ?? this.openaiConfig,
+      azureOpenAIConfig: azureOpenAIConfig ?? this.azureOpenAIConfig,
+      tmuxConfig: tmuxConfig ?? this.tmuxConfig,
+      togetherAIConfig: togetherAIConfig ?? this.togetherAIConfig,
+      environmentVariables: environmentVariables ?? this.environmentVariables,
+      defaultSessionType: defaultSessionType ?? this.defaultSessionType,
+      defaultPermissionMode:
+          defaultPermissionMode ?? this.defaultPermissionMode,
+      defaultModelMode: defaultModelMode ?? this.defaultModelMode,
+      compatibility: compatibility ?? this.compatibility,
+    );
+  }
+
   Map<String, dynamic> toJson() {
-    final json = <String, dynamic>{};
-    if (id != null) json['id'] = id;
-    if (name != null) json['name'] = name;
-    if (description != null) json['description'] = description;
-    if (anthropicConfig != null) json['anthropicConfig'] = anthropicConfig!.toJson();
-    if (openaiConfig != null) json['openaiConfig'] = openaiConfig!.toJson();
-    if (azureOpenAIConfig != null) json['azureOpenAIConfig'] = azureOpenAIConfig!.toJson();
-    if (tmuxConfig != null) json['tmuxConfig'] = tmuxConfig!.toJson();
-    if (togetherAIConfig != null) json['togetherAIConfig'] = togetherAIConfig!.toJson();
-    if (environmentVariables != null) {
-      json['environmentVariables'] =
-          environmentVariables.map((v) => v.toJson()).toList();
+    return {
+      if (id != null) 'id': id,
+      'name': name,
+      if (description != null) 'description': description,
+      if (anthropicConfig != null) 'anthropicConfig': anthropicConfig!.toJson(),
+      if (openaiConfig != null) 'openaiConfig': openaiConfig!.toJson(),
+      if (azureOpenAIConfig != null)
+        'azureOpenAIConfig': azureOpenAIConfig!.toJson(),
+      if (tmuxConfig != null) 'tmuxConfig': tmuxConfig!.toJson(),
+      if (togetherAIConfig != null)
+        'togetherAIConfig': togetherAIConfig!.toJson(),
+      if (environmentVariables != null)
+        'environmentVariables':
+            environmentVariables!.map((item) => item.toJson()).toList(),
+      if (defaultSessionType != null)
+        'defaultSessionType': defaultSessionType!.value,
+      if (defaultPermissionMode != null)
+        'defaultPermissionMode': defaultPermissionMode!.value,
+      if (defaultModelMode != null) 'defaultModelMode': defaultModelMode,
+      if (compatibility != null) 'compatibility': compatibility!.toJson(),
+    };
+  }
+
+  AIBackendProfile toProfile({
+    String? profileId,
+    bool isBuiltIn = false,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String version = '1.0.0',
+  }) {
+    final resolvedId = profileId ?? id;
+    if (resolvedId == null || resolvedId.isEmpty) {
+      throw ArgumentError('profileId is required');
     }
-    if (defaultSessionType != null) json['defaultSessionType'] = defaultSessionType;
-    if (defaultPermissionMode != null) json['defaultPermissionMode'] = defaultPermissionMode;
-    if (defaultModelMode != null) json['defaultModelMode'] = defaultModelMode;
-    if (compatibility != null) json['compatibility'] = compatibility!.toJson();
-    return json;
+
+    return AIBackendProfile(
+      id: resolvedId,
+      name: name,
+      description: description,
+      anthropicConfig: anthropicConfig,
+      openaiConfig: openaiConfig,
+      azureOpenAIConfig: azureOpenAIConfig,
+      tmuxConfig: tmuxConfig,
+      togetherAIConfig: togetherAIConfig,
+      environmentVariables: environmentVariables ?? const [],
+      defaultSessionType: defaultSessionType,
+      defaultPermissionMode: defaultPermissionMode,
+      defaultModelMode: defaultModelMode,
+      compatibility: compatibility ?? const ProfileCompatibility(),
+      isBuiltIn: isBuiltIn,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      version: version,
+    );
   }
 }
 
-/// 档案列表响应
-@JsonSerializable()
 class ProfileListResponse {
-  final List<AIBackendProfile> items;
-
   const ProfileListResponse({required this.items});
 
-  factory ProfileListResponse.fromJson(Map<String, dynamic> json) =>
-      _$ProfileListResponseFromJson(json);
+  final List<AIBackendProfile> items;
 
-  Map<String, dynamic> toJson() => _$ProfileListResponseToJson(this);
+  factory ProfileListResponse.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'] as List<dynamic>? ?? const [];
+    return ProfileListResponse(
+      items: rawItems
+          .map(
+              (item) => AIBackendProfile.fromJson(item as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'items': items.map((item) => item.toJson()).toList(),
+    };
+  }
 }

@@ -1,5 +1,4 @@
-import 'package:flutter/services.dart';
-
+import '../platform/happy_link_bridge.dart';
 import '../../shared/utils/extensions.dart';
 
 class HappyLinkService {
@@ -7,23 +6,14 @@ class HappyLinkService {
 
   static final HappyLinkService instance = HappyLinkService._();
 
-  static const MethodChannel _channel = MethodChannel('happy.linking');
-
   Future<String?> takePendingLink() async {
-    try {
-      final link = await _channel.invokeMethod<String>('takePendingLink');
-      final trimmed = link?.trim();
-      if (trimmed == null || trimmed.isEmpty) {
-        return null;
-      }
-      Logger.info('Received pending happy link');
-      return trimmed;
-    } on MissingPluginException {
-      return null;
-    } on PlatformException catch (error) {
-      Logger.warning('Failed to read pending happy link: ${error.message}');
+    final link = await HappyLinkBridge.instance.takePendingLink();
+    final trimmed = link?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
       return null;
     }
+    Logger.info('Received pending happy link');
+    return trimmed;
   }
 
   bool isTerminalLink(String link) {

@@ -60,7 +60,10 @@ class GitRepository {
   List<String> get conflicted => [];
 
   bool get hasChanges =>
-      staged.isNotEmpty || modified.isNotEmpty || untracked.isNotEmpty || conflicted.isNotEmpty;
+      staged.isNotEmpty ||
+      modified.isNotEmpty ||
+      untracked.isNotEmpty ||
+      conflicted.isNotEmpty;
 
   int get totalChanges => staged.length + modified.length + untracked.length;
 }
@@ -362,7 +365,7 @@ class GitStatusCard extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            Icons.branch,
+            Icons.account_tree_outlined,
             size: 20,
             color: AppTheme.neutral600,
           ),

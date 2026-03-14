@@ -21,21 +21,6 @@ class PlatformStorage {
 
   static const String _boxName = 'platform_storage';
 
-  /// Get the app directory path
-  Future<String> _getAppDirPath() async {
-    if (kIsWeb) {
-      // Web platform: use temporary directory
-      return Directory.systemTemp.path;
-    } else if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
-      // These platforms support Hive.initFlutter() with path_provider
-      await Hive.initFlutter();
-      return ''; // Hive.initFlutter() already initialized
-    } else {
-      // HarmonyOS and other platforms: use temporary directory
-      return Directory.systemTemp.path;
-    }
-  }
-
   /// Initialize the storage
   Future<void> _init() async {
     if (_isInitialized) return;
@@ -43,21 +28,42 @@ class PlatformStorage {
     try {
       if (kIsWeb) {
         await Hive.initFlutter();
-      } else if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
-        // Already initialized in _getAppDirPath
       } else {
-        // HarmonyOS and other platforms: use custom path
-        final dir = Directory.systemTemp;
-        Hive.init(dir.path);
+        await _initializeHiveForIo();
       }
 
-      _box = await Hive.openBox(_boxName);
+      _box = Hive.isBoxOpen(_boxName)
+          ? Hive.box(_boxName)
+          : await Hive.openBox(_boxName);
       _isInitialized = true;
       print('[PlatformStorage] Initialized successfully');
     } catch (e) {
       print('[PlatformStorage] Initialization error: $e');
       rethrow;
     }
+  }
+
+  Future<void> _initializeHiveForIo() async {
+    if (Platform.isAndroid ||
+        Platform.isIOS ||
+        Platform.isMacOS ||
+        Platform.isWindows ||
+        Platform.isLinux) {
+      try {
+        await Hive.initFlutter();
+        return;
+      } catch (_) {
+        // In widget tests and unsupported desktop harnesses path_provider may
+        // not be registered. Fall back to a writable temp directory so the app
+        // can still bootstrap.
+      }
+    }
+
+    final dir = Directory('${Directory.systemTemp.path}/happy_coder_platform');
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    Hive.init(dir.path);
   }
 
   /// Get the box, initializing if needed

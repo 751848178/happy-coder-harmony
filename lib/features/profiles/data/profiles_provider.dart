@@ -1,14 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../domain/profile_models.dart';
 import 'profiles_repository.dart';
+import '../presentation/profiles_notifier.dart';
 
 /// Profiles State Provider
 ///
 /// 全局 AI 配置档案状态管理
 final profilesStateProvider =
     StateNotifierProvider<ProfilesNotifier, ProfilesState>((ref) {
-  return ProfilesNotifier(ProfilesRepository());
+  return ProfilesNotifier(ref.watch(profilesRepositoryProvider));
 });
 
 /// Profiles Repository Provider
