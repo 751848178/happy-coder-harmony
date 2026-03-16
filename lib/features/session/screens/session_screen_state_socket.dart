@@ -99,6 +99,4 @@ extension _SessionScreenStateSocket on _SessionScreenState {
       }
     });
   }
-
-
 }

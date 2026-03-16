@@ -16,19 +16,33 @@ extension _SessionScreenStateScroll on _SessionScreenState {
       if (_hasScrolledToLatest && !force) {
         return;
       }
-      final target = _scrollController.position.maxScrollExtent;
+      final position = _scrollController.position;
+      final target = position.maxScrollExtent;
+      final alreadyAtLatest = (position.pixels - target).abs() < 1;
       if (animate) {
-        _scrollController.animateTo(
-          target,
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOutCubic,
-        );
+        if (!alreadyAtLatest) {
+          _scrollController.animateTo(
+            target,
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+          );
+        }
       } else {
-        _scrollController.jumpTo(target);
+        if (!alreadyAtLatest) {
+          _scrollController.jumpTo(target);
+        }
       }
-      _hasScrolledToLatest = true;
-      _shouldStickToLatest = true;
-      _hasUnreadMessages = false;
+      if (mounted) {
+        _updateState(() {
+          _hasScrolledToLatest = true;
+          _shouldStickToLatest = true;
+          _hasUnreadMessages = false;
+        });
+      } else {
+        _hasScrolledToLatest = true;
+        _shouldStickToLatest = true;
+        _hasUnreadMessages = false;
+      }
       _handleScrollMetricsChanged();
     });
   }
@@ -37,8 +51,12 @@ extension _SessionScreenStateScroll on _SessionScreenState {
     if (!_scrollController.hasClients) {
       return;
     }
+    final target = _scrollController.position.minScrollExtent;
+    if ((_scrollController.position.pixels - target).abs() < 1) {
+      return;
+    }
     _scrollController.animateTo(
-      _scrollController.position.minScrollExtent,
+      target,
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
     );
@@ -57,6 +75,4 @@ extension _SessionScreenStateScroll on _SessionScreenState {
       unawaited(_reconcileQueuedMessageState());
     });
   }
-
-
 }

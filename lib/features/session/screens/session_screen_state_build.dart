@@ -44,9 +44,10 @@ extension _SessionScreenStateBuild on _SessionScreenState {
     final showLiveReplyBadge = messages.isNotEmpty &&
         session?.thinking == true &&
         !suppressStaleLiveState;
+    final messageViewportReady = messages.isEmpty || _hasScrolledToLatest;
     final hasLoadedSessions = sessionNotifier.sessions.isNotEmpty;
     _visibleTurnGroups = turnGroups;
-    if (messages.isNotEmpty) {
+    if (messageViewportReady && messages.isNotEmpty) {
       _scheduleViewportStateRefresh();
     }
     _scheduleQueuedMessageReconciliation();
@@ -83,18 +84,26 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                             Positioned.fill(
                               child: messages.isEmpty
                                   ? _buildEmptyState()
-                                  : _buildMessageList(
-                                      messages: messages,
-                                      turnGroups: turnGroups,
-                                      autoApproveEnabled: session != null
-                                          ? _shouldAutoApprove(session)
-                                          : false,
+                                  : IgnorePointer(
+                                      ignoring: !messageViewportReady,
+                                      child: Opacity(
+                                        opacity: messageViewportReady ? 1 : 0,
+                                        child: _buildMessageList(
+                                          messages: messages,
+                                          turnGroups: turnGroups,
+                                          autoApproveEnabled: session != null
+                                              ? _shouldAutoApprove(session)
+                                              : false,
+                                        ),
+                                      ),
                                     ),
                             ),
-                            if (messages.isNotEmpty &&
+                            if (messageViewportReady &&
+                                messages.isNotEmpty &&
                                 _stickyTurnId != null &&
                                 !_collapseAllTurns)
                               Positioned(
+                                key: const ValueKey('session-sticky-turn'),
                                 left: AppTheme.spacingMd,
                                 top: 8,
                                 right: showLiveReplyBadge ? 132 : 16,
@@ -102,12 +111,16 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                               ),
                             if (showLiveReplyBadge)
                               Positioned(
+                                key: const ValueKey('session-thinking-badge'),
                                 top: 8,
                                 right: AppTheme.spacingMd,
                                 child: _buildFloatingThinkingBadge(session!),
                               ),
-                            if (messages.isNotEmpty && _hasUnreadMessages)
+                            if (messageViewportReady &&
+                                messages.isNotEmpty &&
+                                _hasUnreadMessages)
                               Positioned(
+                                key: const ValueKey('session-unread-indicator'),
                                 left: AppTheme.spacingMd,
                                 right: AppTheme.spacingMd,
                                 bottom: 76,
@@ -115,8 +128,9 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                                   child: _buildNewMessageIndicator(),
                                 ),
                               ),
-                            if (messages.isNotEmpty)
+                            if (messageViewportReady && messages.isNotEmpty)
                               Align(
+                                key: const ValueKey('session-scroll-actions'),
                                 alignment: Alignment.bottomRight,
                                 child: Padding(
                                   padding: const EdgeInsets.only(

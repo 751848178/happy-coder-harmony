@@ -1,6 +1,39 @@
 part of 'session_screen.dart';
 
 extension _SessionScreenStateStickyPrompt on _SessionScreenState {
+  Future<void> _scrollToTurnReply(String turnId) async {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    final anchorContext = _turnReplyAnchorKey(turnId).currentContext;
+    final viewportContext = _messageListViewportKey.currentContext;
+    final anchorRender = anchorContext?.findRenderObject();
+    final viewportRender = viewportContext?.findRenderObject();
+    if (anchorRender is! RenderBox || viewportRender is! RenderBox) {
+      return;
+    }
+
+    const replyRevealOffset = 12.0;
+    final viewportTop = viewportRender.localToGlobal(Offset.zero).dy;
+    final anchorTop = anchorRender.localToGlobal(Offset.zero).dy;
+    final delta = anchorTop - (viewportTop + replyRevealOffset);
+    final targetOffset = (_scrollController.offset + delta).clamp(
+      _scrollController.position.minScrollExtent,
+      _scrollController.position.maxScrollExtent,
+    );
+    final target = (targetOffset as num).toDouble();
+    if ((_scrollController.offset - target).abs() < 1) {
+      return;
+    }
+
+    await _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   void _refreshStickyTurnPrompt() {
     if (!mounted || _collapseAllTurns || _visibleTurnGroups.isEmpty) {
       if (_stickyTurnId != null && mounted) {

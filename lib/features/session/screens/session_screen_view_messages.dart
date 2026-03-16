@@ -164,6 +164,4 @@ extension _SessionScreenViewMessages on _SessionScreenState {
       ),
     );
   }
-
-
 }
