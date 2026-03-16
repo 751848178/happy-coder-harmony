@@ -53,12 +53,19 @@ void main() {
     repository.deleteSession(session.id);
     await Future<void>.delayed(const Duration(milliseconds: 10));
 
-    final sessions = notifier.state.whenOrNull(
+    final sessions = notifier.state.when(
+      initial: () => fail(
+        'Expected sessions state to be ready after deleting a session.',
+      ),
+      loading: () => fail(
+        'Expected sessions state to be ready after deleting a session.',
+      ),
       ready: (sessions, _, __) => sessions,
+      error: (_) => fail(
+        'Expected sessions state to be ready after deleting a session.',
+      ),
     );
-
-    expect(sessions, isNotNull);
-    expect(sessions!.containsKey(session.id), isFalse);
+    expect(sessions.containsKey(session.id), isFalse);
 
     notifier.dispose();
     repository.clearAll();

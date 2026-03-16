@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_coder_flutter/app/providers/app_providers.dart';
 import 'package:happy_coder_flutter/features/chat/components/session_list.dart';
 import 'package:happy_coder_flutter/features/session/data/session_repository.dart';
-import 'package:happy_coder_flutter/features/session/domain/session_service.dart';
 
 void main() {
   testWidgets(
