@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-/// Bash Tool Screen
-///
-/// Provides a terminal interface for executing bash commands
+part 'bash_tool_screen_output.dart';
+
 class BashToolScreen extends ConsumerStatefulWidget {
   const BashToolScreen({super.key});
 
@@ -25,12 +24,7 @@ class _BashToolScreenState extends ConsumerState<BashToolScreen> {
   @override
   void initState() {
     super.initState();
-    _commandHistory.add(BashCommand(
-      command: 'pwd',
-      timestamp: DateTime.now(),
-      output: '/home/user/project',
-    ));
-    _outputControllers.add(TextEditingController(text: '/home/user/project'));
+    _addCommandResult('pwd', '/home/user/project');
   }
 
   @override
@@ -44,46 +38,25 @@ class _BashToolScreenState extends ConsumerState<BashToolScreen> {
   }
 
   Future<void> _executeCommand(String command) async {
-    if (_isExecuting) return;
-
+    if (_isExecuting) {
+      return;
+    }
     setState(() => _isExecuting = true);
-
     try {
-      // Simulate command execution (in real app, this would use a terminal backend)
-      await Future.delayed(const Duration(milliseconds: 500));
-
+      await Future<void>.delayed(const Duration(milliseconds: 500));
       final result = await _executeBashCommand(command);
-
-      setState(() {
-        _isExecuting = false;
-        _selectedIndex = _commandHistory.length;
-        _outputControllers.add(TextEditingController(text: result));
-
-        if (_selectedIndex == 0) {
-          // First command - show as current
-          _scrollController.jumpTo(0.0);
-        }
-      });
-
-      _commandHistory.add(BashCommand(
-        command: command,
-        timestamp: DateTime.now(),
-        output: result,
-      ));
-
+      _addCommandResult(command, result);
       _commandController.clear();
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('命令执行完成'),
+            content: const Text('命令执行完成'),
             backgroundColor: AppTheme.successColor,
           ),
         );
       }
     } catch (e) {
       setState(() => _isExecuting = false);
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -96,36 +69,39 @@ class _BashToolScreenState extends ConsumerState<BashToolScreen> {
   }
 
   Future<String> _executeBashCommand(String command) async {
-    // In a real app, this would call the backend API
-    // For now, we'll simulate some responses
+    if (command.startsWith('ls')) return 'file1.txt\nfile2.txt\nfile3.txt';
+    if (command.startsWith('pwd')) return '/home/user/project';
+    if (command.startsWith('cd')) return 'Changed directory';
+    if (command.startsWith('cat')) return 'File content goes here...\n[EOF]';
+    if (command.startsWith('echo')) return command.substring(5);
+    if (command.startsWith('mkdir')) return 'Directory created';
+    if (command.startsWith('rm')) return 'File/Directory removed';
+    if (command.startsWith('clear')) return 'Terminal cleared';
+    if (command.startsWith('whoami')) return 'user@hostname';
+    if (command.startsWith('date')) return DateTime.now().toString();
+    return 'Unknown command: $command';
+  }
 
-    if (command.startsWith('ls')) {
-      return 'file1.txt\nfile2.txt\nfile3.txt';
-    } else if (command.startsWith('pwd')) {
-      return '/home/user/project';
-    } else if (command.startsWith('cd')) {
-      return 'Changed directory';
-    } else if (command.startsWith('cat')) {
-      return 'File content goes here...\n[EOF]';
-    } else if (command.startsWith('echo')) {
-      return command.substring(5);
-    } else if (command.startsWith('mkdir')) {
-      return 'Directory created';
-    } else if (command.startsWith('rm')) {
-      return 'File/Directory removed';
-    } else if (command.startsWith('clear')) {
-      return 'Terminal cleared';
-    } else if (command.startsWith('whoami')) {
-      return 'user@hostname';
-    } else if (command.startsWith('date')) {
-      return DateTime.now().toString();
-    } else {
-      return 'Unknown command: $command';
-    }
+  void _addCommandResult(String command, String result) {
+    setState(() {
+      _isExecuting = false;
+      _selectedIndex = _commandHistory.length;
+      _commandHistory.add(
+        BashCommand(command: command, timestamp: DateTime.now(), output: result),
+      );
+      _outputControllers.add(TextEditingController(text: result));
+      if (_selectedIndex == 0) {
+        _scrollController.jumpTo(0.0);
+      }
+    });
   }
 
   void _clearTerminal() {
     setState(() {
+      for (final controller in _outputControllers) {
+        controller.dispose();
+      }
+      _commandHistory.clear();
       _outputControllers.clear();
       _selectedIndex = -1;
     });
@@ -160,210 +136,10 @@ class _BashToolScreenState extends ConsumerState<BashToolScreen> {
       ),
       body: Column(
         children: [
-          // Terminal output area
-          Expanded(
-            child: _buildTerminalOutput(),
-          ),
-          // Command input area
+          Expanded(child: _buildTerminalOutput()),
           _buildCommandInput(),
         ],
       ),
     );
   }
-
-  Widget _buildTerminalOutput() {
-    if (_outputControllers.isEmpty) {
-      return Container(
-        color: AppTheme.neutral900,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.terminal_outlined,
-                size: 64,
-                color: AppTheme.neutral600,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                '终端输出为空',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.neutral600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '输入命令开始会话',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.neutral400,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      color: AppTheme.neutral900,
-      padding: const EdgeInsets.all(16),
-      child: ListView.builder(
-        controller: _scrollController,
-        itemCount: _outputControllers.length,
-        reverse: true,
-        itemBuilder: (context, index) {
-          final controller = _outputControllers[index];
-          final commandEntry = _commandHistory[_outputControllers.length - 1 - index];
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    // Prompt indicator
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.neutral800,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '\$',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.brandColor,
-                          fontFamily: 'monospace',
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        commandEntry.command,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.neutral400,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Text(
-                      _formatTimestamp(commandEntry.timestamp),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.neutral500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Output
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.neutral100,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.neutral800),
-                  ),
-                  child: SelectableText(
-                    controller.text,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.neutral900,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCommandInput() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        border: const Border(
-          top: BorderSide(color: AppTheme.neutral200, width: 1),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _commandController,
-                decoration: InputDecoration(
-                  hintText: '输入 bash 命令...',
-                  border: InputBorder.none,
-                  filled: true,
-                  fillColor: AppTheme.neutral50,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-                onSubmitted: (value) => _executeCommandFromInput(),
-                autofocus: true,
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.send),
-              onPressed: _isExecuting ? null : _executeCommandFromInput,
-              style: IconButton.styleFrom(
-                backgroundColor: _isExecuting ? AppTheme.neutral300 : AppTheme.brandColor,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _executeCommandFromInput() {
-    final command = _commandController.text.trim();
-    if (command.isNotEmpty) {
-      _executeCommand(command);
-    }
-  }
-
-  String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inMinutes < 1) {
-      return '刚刚';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} 分钟前';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours} 小时前';
-    } else {
-      return '${timestamp.year}/${timestamp.month}/${timestamp.day}';
-    }
-  }
-}
-
-/// Bash command model
-class BashCommand {
-  final String command;
-  final DateTime timestamp;
-  final String output;
-
-  const BashCommand({
-    required this.command,
-    required this.timestamp,
-    required this.output,
-  });
 }

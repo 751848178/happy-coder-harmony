@@ -6,4 +6,5 @@ part 'profile_provider_configs.dart';
 part 'profile_support_models.dart';
 part 'profile_enums.dart';
 part 'ai_profile.dart';
+part 'ai_profile_serialization.dart';
 part 'built_in_profiles.dart';

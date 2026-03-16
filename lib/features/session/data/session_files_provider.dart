@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../domain/session_files_models.dart';
 import 'session_files_repository.dart';
 
 /// Session Files State Provider

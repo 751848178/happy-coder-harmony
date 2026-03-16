@@ -1,0 +1,191 @@
+part of 'new_session_flow_screen.dart';
+
+Widget _buildNewSessionFlowScreen(_NewSessionFlowScreenState state) {
+  state.ref.watch(sessionStateProvider);
+  final sessionNotifier = state.ref.read(sessionStateProvider.notifier);
+  final profileState = state.ref.watch(profileStateProvider);
+  final settings = state.ref.watch(settingsStateProvider);
+  final mediaQuery = MediaQuery.of(state.context);
+  final horizontalPadding = mediaQuery.size.width > 700 ? 16.0 : 8.0;
+
+  final profiles = profileState is ProfileLoaded
+      ? profileState.profiles
+      : profile_models.BuiltInProfiles.all();
+  final machines = _collectSessionFlowMachineOptions(state, sessionNotifier);
+
+  if (!state._seededInitialState) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!state.mounted || state._seededInitialState) {
+        return;
+      }
+      _seedSessionFlowInitialState(
+        state,
+        settings: settings,
+        profiles: profiles,
+        machines: machines,
+        sessions: sessionNotifier.sessions,
+      );
+    });
+  }
+
+  final effectiveMachineId = state._selectedMachineId ??
+      (machines.isNotEmpty ? machines.first.id : null);
+  final selectedMachine = machines
+      .where((item) => item.id == effectiveMachineId)
+      .cast<_MachineOption?>()
+      .firstWhere((item) => item != null, orElse: () => null);
+  final compatibleProfiles = profiles
+      .where((profile) => profile.isCompatibleWith(state._selectedAgent))
+      .toList();
+  final selectedProfile = _resolveSessionFlowProfile(
+    profiles: compatibleProfiles,
+    preferredId: state._selectedProfileId,
+  );
+  final permissionOptions = permissionOptionsForAgent(state._selectedAgent);
+  final modelOptions = modelOptionsForAgent(state._selectedAgent);
+  final selectedPermission = permissionOptions.firstWhere(
+    (option) => option.key == state._permissionMode,
+    orElse: () => permissionOptions.first,
+  );
+  final selectedModel = modelOptions.firstWhere(
+    (option) => option.key == state._modelMode,
+    orElse: () => modelOptions.first,
+  );
+  final effectiveDirectory =
+      _effectiveSessionFlowDirectory(state, selectedMachine);
+  final canCreate = !state._isCreating &&
+      selectedMachine != null &&
+      effectiveDirectory.trim().isNotEmpty;
+
+  return Scaffold(
+    backgroundColor: AppTheme.neutral50,
+    appBar: AppBar(
+      backgroundColor: AppTheme.surface,
+      foregroundColor: AppTheme.textPrimary,
+      elevation: 0,
+      title: const Text('新建会话'),
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: state._closeScreen,
+      ),
+    ),
+    body: SafeArea(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => FocusScope.of(state.context).unfocus(),
+        child: Column(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                        maxWidth: _NewSessionFlowScreenState._maxContentWidth),
+                    child: _buildSessionFlowBody(state,
+                        selectedMachine: selectedMachine),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                  horizontalPadding, 8, horizontalPadding, 12),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                      maxWidth: _NewSessionFlowScreenState._maxContentWidth),
+                  child: _buildSessionFlowComposer(
+                    state,
+                    selectedMachine: selectedMachine,
+                    selectedProfile: selectedProfile,
+                    selectedPermission: selectedPermission,
+                    selectedModel: selectedModel,
+                    canCreate: canCreate,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildSessionFlowBody(
+  _NewSessionFlowScreenState state, {
+  required _MachineOption? selectedMachine,
+}) {
+  final notices = <Widget>[];
+  if (selectedMachine == null) {
+    notices.add(
+      const _NoticeCard(
+        icon: Icons.desktop_windows_outlined,
+        title: '先选择一台电脑',
+        message: '电脑、目录、模板和 Agent 都在底部输入面板里切换。',
+      ),
+    );
+  } else if (!selectedMachine.isOnline) {
+    notices.add(
+      const _NoticeCard(
+        icon: Icons.portable_wifi_off_outlined,
+        title: '当前电脑离线',
+        message: '可以继续配置会话，但服务端恢复在线前不会开始执行。',
+        toneColor: AppTheme.warningColor,
+      ),
+    );
+  }
+
+  if (notices.isEmpty) {
+    return const SizedBox.expand();
+  }
+  return ListView.separated(
+    padding: const EdgeInsets.only(top: 12, bottom: 16),
+    itemBuilder: (context, index) => notices[index],
+    separatorBuilder: (_, __) => const SizedBox(height: 12),
+    itemCount: notices.length,
+  );
+}
+
+Widget _buildSessionFlowComposer(
+  _NewSessionFlowScreenState state, {
+  required _MachineOption? selectedMachine,
+  required profile_models.AIProfile? selectedProfile,
+  required SessionModeOption selectedPermission,
+  required SessionModeOption selectedModel,
+  required bool canCreate,
+}) {
+  final directory = _effectiveSessionFlowDirectory(state, selectedMachine);
+  final connectionColor = selectedMachine == null
+      ? AppTheme.neutral500
+      : selectedMachine.isOnline
+          ? AppTheme.successColor
+          : AppTheme.errorColor;
+  final connectionText = selectedMachine == null
+      ? '未选择电脑'
+      : (selectedMachine.isOnline ? '在线' : '离线');
+
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      _buildSessionFlowComposerHeader(
+        state,
+        selectedPermission: selectedPermission,
+        selectedModel: selectedModel,
+        connectionColor: connectionColor,
+        connectionText: connectionText,
+      ),
+      _buildSessionFlowContextCard(state,
+          selectedMachine: selectedMachine, directory: directory),
+      _buildSessionFlowPromptCard(
+        state,
+        selectedProfile: selectedProfile,
+        canCreate: canCreate,
+        selectedMachine: selectedMachine,
+      ),
+    ],
+  );
+}

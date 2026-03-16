@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+part 'app_theme_builders.dart';
+
 /// 应用主题配置
 ///
 /// 统一管理应用的颜色、字体、样式
@@ -142,165 +144,28 @@ class AppTheme {
 
   // ========== Light Theme ==========
 
-  static ThemeData get lightTheme => ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.light,
-    primaryColor: brandColor,
-    scaffoldBackgroundColor: neutral50,
-    cardColor: Colors.white,
-    fontFamily: fontFamilyPrimary,
-    textTheme: TextTheme(
-      bodyLarge: TextStyle(
-        fontSize: fontSizeMd,
-        color: neutral900,
-        height: 1.5,
-      ),
-      bodyMedium: TextStyle(
-        fontSize: fontSizeSm,
-        color: neutral700,
-        height: 1.5,
-      ),
-      labelLarge: TextStyle(
-        fontSize: fontSizeMd,
-        fontWeight: FontWeight.w600,
-        color: neutral800,
-      ),
-    ),
-    colorScheme: ColorScheme.light(
-      primary: brandColor,
-      secondary: brandLight,
-      surface: Colors.white,
-      error: errorColor,
-      onPrimary: Colors.white,
-      onSurface: neutral900,
-      onError: Colors.white,
-    ),
-    appBarTheme: AppBarTheme(
-      backgroundColor: Colors.white,
-      foregroundColor: neutral900,
-      elevation: 0,
-      centerTitle: true,
-    ),
-    bottomNavigationBarTheme: BottomNavigationBarThemeData(
-      backgroundColor: Colors.white,
-      selectedItemColor: brandColor,
-      unselectedItemColor: neutral500,
-      elevation: 8,
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: neutral50,
-      border: InputBorder.none,
-      contentPadding: EdgeInsets.symmetric(
-        horizontal: spacingMd,
-        vertical: spacingMd,
-      ),
-    ),
-  );
+  static ThemeData get lightTheme => _buildLightTheme();
 
   // ========== Dark Theme ==========
 
-  static ThemeData get darkTheme => ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.dark,
-    primaryColor: brandLight,
-    scaffoldBackgroundColor: neutral900,
-    cardColor: neutral800,
-    fontFamily: fontFamilyPrimary,
-    textTheme: TextTheme(
-      bodyLarge: TextStyle(
-        fontSize: fontSizeMd,
-        color: neutral100,
-        height: 1.5,
-      ),
-      bodyMedium: TextStyle(
-        fontSize: fontSizeSm,
-        color: neutral300,
-        height: 1.5,
-      ),
-      labelLarge: TextStyle(
-        fontSize: fontSizeMd,
-        fontWeight: FontWeight.w600,
-        color: neutral100,
-      ),
-    ),
-    colorScheme: ColorScheme.dark(
-      primary: brandLight,
-      secondary: brandColor,
-      surface: neutral800,
-      error: errorColor,
-      onPrimary: neutral900,
-      onSurface: neutral100,
-      onError: neutral100,
-    ),
-    appBarTheme: AppBarTheme(
-      backgroundColor: neutral800,
-      foregroundColor: neutral100,
-      elevation: 0,
-      centerTitle: true,
-    ),
-    bottomNavigationBarTheme: BottomNavigationBarThemeData(
-      backgroundColor: neutral800,
-      selectedItemColor: brandLight,
-      unselectedItemColor: neutral500,
-      elevation: 8,
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: neutral800,
-      border: InputBorder.none,
-      contentPadding: EdgeInsets.symmetric(
-        horizontal: spacingMd,
-        vertical: spacingMd,
-      ),
-    ),
-  );
+  static ThemeData get darkTheme => _buildDarkTheme();
 
   // ========== Code Theme (Dark) ==========
 
-  static ThemeData get codeThemeDark => darkTheme.copyWith(
-    textTheme: darkTheme.textTheme.copyWith(
-      bodyLarge: TextStyle(
-        fontSize: fontSizeSm,
-        fontFamily: fontFamilyMono,
-        color: codeForegroundDark,
-        height: 1.6,
-      ),
-    ),
-    scaffoldBackgroundColor: codeBackgroundDark,
-  );
+  static ThemeData get codeThemeDark => _buildCodeThemeDark();
 
   // ========== Code Theme (Light) ==========
 
-  static ThemeData get codeThemeLight => lightTheme.copyWith(
-    textTheme: lightTheme.textTheme.copyWith(
-      bodyLarge: TextStyle(
-        fontSize: fontSizeSm,
-        fontFamily: fontFamilyMono,
-        color: codeForegroundLight,
-        height: 1.6,
-      ),
-    ),
-    scaffoldBackgroundColor: codeBackgroundLight,
-  );
+  static ThemeData get codeThemeLight => _buildCodeThemeLight();
 
   // ========== 辅助方法 ==========
 
   /// 检测系统是否为深色模式
-  static bool isDarkMode(BuildContext context) {
-    return MediaQuery.of(context).platformBrightness == Brightness.dark;
-  }
+  static bool isDarkMode(BuildContext context) => _isDarkMode(context);
 
   /// 获取当前主题
-  static ThemeData getTheme(BuildContext context) {
-    // 这里可以从 Riverpod Provider 读取用户选择
-    final isDark = isDarkMode(context);
-    return isDark ? darkTheme : lightTheme;
-  }
+  static ThemeData getTheme(BuildContext context) => _getTheme(context);
 
   /// 获取代码主题
-  static ThemeData getCodeTheme(BuildContext context) {
-    final isDark = isDarkMode(context);
-    return isDark ? codeThemeDark : codeThemeLight;
-  }
+  static ThemeData getCodeTheme(BuildContext context) => _getCodeTheme(context);
 }

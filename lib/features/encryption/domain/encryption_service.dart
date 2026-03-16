@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../shared/utils/extensions.dart';
 import '../data/encryption_repository.dart';
 
 part 'encryption_models.dart';

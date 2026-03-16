@@ -31,6 +31,7 @@ class ApiService {
 
   /// 获取 Dio 实例（用于特殊场景）
   Dio get dio {
+    _dio.options.baseUrl = AppConfig.apiBaseUrl;
     if (!_interceptorsBound) {
       _dio.interceptors.add(
         InterceptorsWrapper(

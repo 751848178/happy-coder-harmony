@@ -10,6 +10,8 @@ import '../../artifacts/data/artifact_provider.dart';
 import '../../artifacts/domain/artifact_display.dart';
 import '../../artifacts/domain/artifact_models.dart';
 
+part 'edit_artifact_screen_content.dart';
+
 /// Upstream-aligned artifact edit flow: title + body only.
 class EditArtifactScreen extends ConsumerStatefulWidget {
   const EditArtifactScreen({
@@ -30,6 +32,10 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
   bool _isSaving = false;
   Artifact? _artifact;
   String? _error;
+
+  void _markDirty() {
+    setState(() {});
+  }
 
   @override
   void initState() {
@@ -100,60 +106,6 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     );
   }
 
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppTheme.brandColor),
-      );
-    }
-
-    if (_error != null || _artifact == null) {
-      return Center(
-        child: Text(
-          _error ?? '工件不存在',
-          style: const TextStyle(color: AppTheme.neutral600),
-        ),
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _InputSection(
-          label: '标题',
-          child: TextField(
-            controller: _titleController,
-            decoration: _inputDecoration('例如：重构后的路由梳理'),
-            onChanged: (_) => setState(() {}),
-          ),
-        ),
-        const SizedBox(height: 20),
-        _InputSection(
-          label: '正文',
-          child: TextField(
-            controller: _bodyController,
-            minLines: 12,
-            maxLines: 20,
-            decoration: _inputDecoration('在这里编辑工件内容'),
-            onChanged: (_) => setState(() {}),
-          ),
-        ),
-      ],
-    );
-  }
-
-  InputDecoration _inputDecoration(String hintText) {
-    return InputDecoration(
-      hintText: hintText,
-      filled: true,
-      fillColor: AppTheme.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        borderSide: BorderSide.none,
-      ),
-    );
-  }
-
   Future<void> _saveArtifact() async {
     if (_artifact == null || _isSaving) {
       return;
@@ -200,34 +152,5 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
       );
       setState(() => _isSaving = false);
     }
-  }
-}
-
-class _InputSection extends StatelessWidget {
-  const _InputSection({
-    required this.label,
-    required this.child,
-  });
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.neutral600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        child,
-      ],
-    );
   }
 }

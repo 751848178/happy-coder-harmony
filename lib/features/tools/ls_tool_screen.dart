@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 
 part 'ls_entry_card.dart';
+part 'ls_entry_card_actions.dart';
 part 'ls_feedback_widgets.dart';
+part 'ls_feedback_widgets_support.dart';
 part 'ls_models.dart';
 part 'ls_notifier.dart';
 part 'ls_path_and_list.dart';

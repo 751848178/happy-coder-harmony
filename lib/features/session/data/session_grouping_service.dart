@@ -2,167 +2,16 @@ import 'dart:convert';
 
 import '../../../shared/platform/platform_storage.dart';
 
+part 'session_grouping_service_models.dart';
+part 'session_grouping_service_storage.dart';
+
 const _legacyUnavailableDefaultGroupLabel = '暂不可对话';
 const _expiredDefaultGroupLabel = '过期会话';
-
-class SessionGroup {
-  const SessionGroup({
-    required this.id,
-    required this.name,
-    required this.sessionIds,
-    this.collapsed = false,
-  });
-
-  final String id;
-  final String name;
-  final List<String> sessionIds;
-  final bool collapsed;
-
-  SessionGroup copyWith({
-    String? id,
-    String? name,
-    List<String>? sessionIds,
-    bool? collapsed,
-  }) {
-    return SessionGroup(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      sessionIds: sessionIds ?? this.sessionIds,
-      collapsed: collapsed ?? this.collapsed,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'sessionIds': sessionIds,
-      'collapsed': collapsed,
-    };
-  }
-
-  factory SessionGroup.fromJson(Map<String, dynamic> json) {
-    final sessionIds = json['sessionIds'] is List
-        ? (json['sessionIds'] as List<dynamic>)
-            .map((value) => value.toString())
-            .toList()
-        : const <String>[];
-    return SessionGroup(
-      id: json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? '未命名分组',
-      sessionIds: sessionIds,
-      collapsed: json['collapsed'] == true,
-    );
-  }
-}
-
-class SessionGroupingState {
-  const SessionGroupingState({
-    this.useCustomGroups = false,
-    this.groups = const <SessionGroup>[],
-    this.ungroupedCollapsed = false,
-    this.collapsedDefaultGroups = const <String>{},
-    this.expandedDefaultGroups = const <String>{},
-  });
-
-  final bool useCustomGroups;
-  final List<SessionGroup> groups;
-  final bool ungroupedCollapsed;
-  final Set<String> collapsedDefaultGroups;
-  final Set<String> expandedDefaultGroups;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'useCustomGroups': useCustomGroups,
-      'groups': groups.map((group) => group.toJson()).toList(),
-      'ungroupedCollapsed': ungroupedCollapsed,
-      'collapsedDefaultGroups': collapsedDefaultGroups.toList(),
-      'expandedDefaultGroups': expandedDefaultGroups.toList(),
-    };
-  }
-
-  factory SessionGroupingState.fromJson(Map<String, dynamic> json) {
-    final rawGroups = json['groups'];
-    final groups = rawGroups is List
-        ? rawGroups
-            .map((value) {
-              if (value is Map<String, dynamic>) {
-                return SessionGroup.fromJson(value);
-              }
-              if (value is Map) {
-                return SessionGroup.fromJson(
-                  value.map(
-                    (key, groupValue) => MapEntry(key.toString(), groupValue),
-                  ),
-                );
-              }
-              return null;
-            })
-            .whereType<SessionGroup>()
-            .toList()
-        : const <SessionGroup>[];
-    final collapsedDefaultGroups = (json['collapsedDefaultGroups'] as List?)
-            ?.map((value) => value.toString())
-            .toSet() ??
-        const <String>{};
-    final expandedDefaultGroups = (json['expandedDefaultGroups'] as List?)
-            ?.map((value) => value.toString())
-            .toSet() ??
-        const <String>{};
-    return SessionGroupingState(
-      useCustomGroups: json['useCustomGroups'] == true,
-      groups: groups,
-      ungroupedCollapsed: json['ungroupedCollapsed'] == true,
-      collapsedDefaultGroups:
-          _normalizeDefaultGroupLabels(collapsedDefaultGroups),
-      expandedDefaultGroups:
-          _normalizeDefaultGroupLabels(expandedDefaultGroups),
-    );
-  }
-
-  SessionGroupingState copyWith({
-    bool? useCustomGroups,
-    List<SessionGroup>? groups,
-    bool? ungroupedCollapsed,
-    Set<String>? collapsedDefaultGroups,
-    Set<String>? expandedDefaultGroups,
-  }) {
-    return SessionGroupingState(
-      useCustomGroups: useCustomGroups ?? this.useCustomGroups,
-      groups: groups ?? this.groups,
-      ungroupedCollapsed: ungroupedCollapsed ?? this.ungroupedCollapsed,
-      collapsedDefaultGroups:
-          collapsedDefaultGroups ?? this.collapsedDefaultGroups,
-      expandedDefaultGroups:
-          expandedDefaultGroups ?? this.expandedDefaultGroups,
-    );
-  }
-}
-
-Set<String> _normalizeDefaultGroupLabels(Set<String> labels) {
-  if (!labels.contains(_legacyUnavailableDefaultGroupLabel)) {
-    return labels;
-  }
-  final normalized = Set<String>.from(labels)
-    ..remove(_legacyUnavailableDefaultGroupLabel)
-    ..add(_expiredDefaultGroupLabel);
-  return normalized;
-}
-
-class SessionGroupNameConflictException implements Exception {
-  const SessionGroupNameConflictException(this.name);
-
-  final String name;
-
-  @override
-  String toString() => '分组名称已存在: $name';
-}
 
 class SessionGroupingService {
   SessionGroupingService._();
 
   static final SessionGroupingService instance = SessionGroupingService._();
-
   static const String _storageKey = 'session_grouping_v1';
 
   final PlatformStorage _storage = PlatformStorage.instance;
@@ -172,13 +21,11 @@ class SessionGroupingService {
     if (_cache != null) {
       return _cache!;
     }
-
     final raw = await _storage.read(_storageKey);
     if (raw == null || raw.trim().isEmpty) {
       _cache = const SessionGroupingState();
       return _cache!;
     }
-
     try {
       final decoded = jsonDecode(raw);
       if (decoded is Map<String, dynamic>) {
@@ -197,8 +44,7 @@ class SessionGroupingService {
   }
 
   Future<SessionGroupingState> setUseCustomGroups(bool value) async {
-    final state = await load();
-    final next = state.copyWith(useCustomGroups: value);
+    final next = (await load()).copyWith(useCustomGroups: value);
     await _persist(next);
     return next;
   }
@@ -209,20 +55,18 @@ class SessionGroupingService {
     if (trimmed.isEmpty) {
       return state;
     }
-    _ensureUniqueName(
-      state.groups,
-      candidate: trimmed,
+    _ensureUniqueName(state.groups, candidate: trimmed);
+    final next = state.copyWith(
+      groups: <SessionGroup>[
+        ...state.groups,
+        SessionGroup(
+          id: 'group_${DateTime.now().microsecondsSinceEpoch}',
+          name: trimmed,
+          sessionIds: const <String>[],
+        ),
+      ],
+      useCustomGroups: true,
     );
-
-    final nextGroups = <SessionGroup>[
-      ...state.groups,
-      SessionGroup(
-        id: 'group_${DateTime.now().microsecondsSinceEpoch}',
-        name: trimmed,
-        sessionIds: const <String>[],
-      ),
-    ];
-    final next = state.copyWith(groups: nextGroups, useCustomGroups: true);
     await _persist(next);
     return next;
   }
@@ -236,17 +80,10 @@ class SessionGroupingService {
     if (trimmed.isEmpty) {
       return state;
     }
-    _ensureUniqueName(
-      state.groups,
-      candidate: trimmed,
-      excludingGroupId: groupId,
-    );
+    _ensureUniqueName(state.groups, candidate: trimmed, excludingGroupId: groupId);
     final next = state.copyWith(
       groups: state.groups
-          .map(
-            (group) =>
-                group.id == groupId ? group.copyWith(name: trimmed) : group,
-          )
+          .map((group) => group.id == groupId ? group.copyWith(name: trimmed) : group)
           .toList(),
     );
     await _persist(next);
@@ -254,9 +91,8 @@ class SessionGroupingService {
   }
 
   Future<SessionGroupingState> deleteGroup(String groupId) async {
-    final state = await load();
-    final next = state.copyWith(
-      groups: state.groups.where((group) => group.id != groupId).toList(),
+    final next = (await load()).copyWith(
+      groups: (await load()).groups.where((group) => group.id != groupId).toList(),
     );
     await _persist(next);
     return next;
@@ -266,11 +102,9 @@ class SessionGroupingService {
     final state = await load();
     final next = state.copyWith(
       groups: state.groups
-          .map(
-            (group) => group.id == groupId
-                ? group.copyWith(collapsed: !group.collapsed)
-                : group,
-          )
+          .map((group) => group.id == groupId
+              ? group.copyWith(collapsed: !group.collapsed)
+              : group)
           .toList(),
     );
     await _persist(next);
@@ -279,9 +113,7 @@ class SessionGroupingService {
 
   Future<SessionGroupingState> toggleUngroupedCollapsed() async {
     final state = await load();
-    final next = state.copyWith(
-      ungroupedCollapsed: !state.ungroupedCollapsed,
-    );
+    final next = state.copyWith(ungroupedCollapsed: !state.ungroupedCollapsed);
     await _persist(next);
     return next;
   }
@@ -294,15 +126,9 @@ class SessionGroupingService {
     final nextCollapsed = Set<String>.from(state.collapsedDefaultGroups);
     final nextExpanded = Set<String>.from(state.expandedDefaultGroups);
     if (defaultCollapsed) {
-      if (nextExpanded.contains(label)) {
-        nextExpanded.remove(label);
-      } else {
-        nextExpanded.add(label);
-      }
-    } else if (nextCollapsed.contains(label)) {
-      nextCollapsed.remove(label);
+      nextExpanded.contains(label) ? nextExpanded.remove(label) : nextExpanded.add(label);
     } else {
-      nextCollapsed.add(label);
+      nextCollapsed.contains(label) ? nextCollapsed.remove(label) : nextCollapsed.add(label);
     }
     final next = state.copyWith(
       collapsedDefaultGroups: nextCollapsed,
@@ -317,56 +143,26 @@ class SessionGroupingService {
     String? groupId,
   }) async {
     final state = await load();
-    final nextGroups = state.groups.map((group) {
-      final nextSessionIds = group.sessionIds
-          .where((existingId) => existingId != sessionId)
-          .toList();
-      if (group.id == groupId && !nextSessionIds.contains(sessionId)) {
-        nextSessionIds.add(sessionId);
-      }
-      return group.copyWith(sessionIds: nextSessionIds);
-    }).toList();
-    final next = state.copyWith(groups: nextGroups);
+    final next = state.copyWith(
+      groups: state.groups.map((group) {
+        final nextSessionIds =
+            group.sessionIds.where((existingId) => existingId != sessionId).toList();
+        if (group.id == groupId && !nextSessionIds.contains(sessionId)) {
+          nextSessionIds.add(sessionId);
+        }
+        return group.copyWith(sessionIds: nextSessionIds);
+      }).toList(),
+    );
     await _persist(next);
     return next;
   }
 
-  String? groupIdForSession(
-    SessionGroupingState state,
-    String sessionId,
-  ) {
+  String? groupIdForSession(SessionGroupingState state, String sessionId) {
     for (final group in state.groups) {
       if (group.sessionIds.contains(sessionId)) {
         return group.id;
       }
     }
     return null;
-  }
-
-  Future<void> _persist(SessionGroupingState state) async {
-    _cache = state;
-    await _storage.write(
-      key: _storageKey,
-      value: jsonEncode(state.toJson()),
-    );
-  }
-
-  void _ensureUniqueName(
-    List<SessionGroup> groups, {
-    required String candidate,
-    String? excludingGroupId,
-  }) {
-    final normalized = candidate.trim().toLowerCase();
-    if (normalized.isEmpty) {
-      return;
-    }
-    final exists = groups.any(
-      (group) =>
-          group.id != excludingGroupId &&
-          group.name.trim().toLowerCase() == normalized,
-    );
-    if (exists) {
-      throw SessionGroupNameConflictException(candidate);
-    }
   }
 }

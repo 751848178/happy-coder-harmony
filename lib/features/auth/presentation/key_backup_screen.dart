@@ -33,7 +33,7 @@ class _KeyBackupScreenState extends State<KeyBackupScreen> {
             Container(
               padding: EdgeInsets.all(AppTheme.spacingMd),
               decoration: BoxDecoration(
-                color: AppTheme.brandColor.withOpacity(0.1),
+                color: AppTheme.brandColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               ),
               child: Padding(

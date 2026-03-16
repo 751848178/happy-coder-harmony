@@ -25,45 +25,61 @@ class VoiceLanguageSettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-              side: BorderSide(color: AppTheme.neutral200),
-            ),
-            child: RadioListTile<String?>(
-              value: null,
-              groupValue: settings.voiceAssistantLanguage,
-              onChanged: notifier.setVoiceAssistantLanguage,
-              title: const Text('自动检测'),
-              subtitle: const Text('跟随设备或当前会话上下文。'),
-            ),
+          _LanguageOptionCard(
+            title: '自动检测',
+            subtitle: '跟随设备或当前会话上下文。',
+            selected: settings.voiceAssistantLanguage == null,
+            onTap: () => notifier.setVoiceAssistantLanguage(null),
           ),
           const SizedBox(height: 12),
           ...AppLanguages.available.map((language) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                  side: BorderSide(
-                    color: settings.voiceAssistantLanguage == language.code
-                        ? AppTheme.brandColor
-                        : AppTheme.neutral200,
-                  ),
-                ),
-                child: RadioListTile<String?>(
-                  value: language.code,
-                  groupValue: settings.voiceAssistantLanguage,
-                  onChanged: notifier.setVoiceAssistantLanguage,
-                  title: Text('${language.flag} ${language.nativeName}'),
-                  subtitle: Text(language.name),
-                ),
+              child: _LanguageOptionCard(
+                title: '${language.flag} ${language.nativeName}',
+                subtitle: language.name,
+                selected: settings.voiceAssistantLanguage == language.code,
+                onTap: () => notifier.setVoiceAssistantLanguage(language.code),
               ),
             );
           }),
         ],
+      ),
+    );
+  }
+}
+
+class _LanguageOptionCard extends StatelessWidget {
+  const _LanguageOptionCard({
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        side: BorderSide(
+          color: selected ? AppTheme.brandColor : AppTheme.neutral200,
+        ),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: Icon(
+          selected ? Icons.radio_button_checked : Icons.radio_button_off,
+          color: selected ? AppTheme.brandColor : AppTheme.neutral400,
+        ),
       ),
     );
   }

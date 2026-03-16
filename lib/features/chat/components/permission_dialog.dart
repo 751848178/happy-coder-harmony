@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/utils/extensions.dart';
 
-import '../../session/domain/reducer.dart';
+part 'permission_dialog_support.dart';
 
-/// 权限请求对话框
-class PermissionRequestDialog extends ConsumerWidget {
+class PermissionRequestDialog extends StatelessWidget {
   const PermissionRequestDialog({
     super.key,
     required this.sessionId,
@@ -24,79 +21,23 @@ class PermissionRequestDialog extends ConsumerWidget {
   final VoidCallback? onReject;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return AlertDialog(
-      title: Row(
-        children: [
-          Icon(
-            Icons.lock_outline,
-            color: Colors.orange,
-            size: 24,
-          ),
-          const SizedBox(width: 12),
-          const Text('权限请求'),
-        ],
-      ),
+      title: const _PermissionDialogTitle(),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Claude 正在请求使用以下工具',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
           ),
           const SizedBox(height: 16),
-          // 工具信息卡片
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.neutral100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '工具',
-                  style: TextStyle(
-                    color: AppTheme.neutral600,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  toolName,
-                  style: TextStyle(
-                    color: AppTheme.brandColor,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '参数',
-                  style: TextStyle(
-                    color: AppTheme.neutral600,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _buildArgumentList(),
-              ],
-            ),
-          ),
+          _PermissionCard(toolName: toolName, arguments: arguments),
           const SizedBox(height: 16),
           Text(
             '是否批准此工具调用？',
-            style: TextStyle(
-              color: AppTheme.neutral600,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: AppTheme.neutral600, fontSize: 14),
           ),
         ],
       ),
@@ -108,9 +49,7 @@ class PermissionRequestDialog extends ConsumerWidget {
           },
           icon: const Icon(Icons.close, color: Colors.red),
           label: const Text('拒绝'),
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.red,
-          ),
+          style: TextButton.styleFrom(foregroundColor: Colors.red),
         ),
         ElevatedButton.icon(
           onPressed: () {
@@ -128,50 +67,6 @@ class PermissionRequestDialog extends ConsumerWidget {
     );
   }
 
-  Widget _buildArgumentList() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: arguments.entries.map((entry) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.neutral200,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  entry.key,
-                  style: TextStyle(
-                    color: AppTheme.neutral600,
-                    fontSize: 11,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  entry.value.toString(),
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 12,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  /// 显示权限请求对话框
   static Future<bool> show(
     BuildContext context, {
     required String sessionId,
@@ -182,21 +77,20 @@ class PermissionRequestDialog extends ConsumerWidget {
   }) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => PermissionRequestDialog(
+      builder: (dialogContext) => PermissionRequestDialog(
         sessionId: sessionId,
         toolName: toolName,
         arguments: arguments,
         onApprove: () {
-          Navigator.pop(context, true);
+          Navigator.pop(dialogContext, true);
           onApprove?.call();
         },
         onReject: () {
-          Navigator.pop(context, false);
+          Navigator.pop(dialogContext, false);
           onReject?.call();
         },
       ),
     );
-
     return result ?? false;
   }
 }

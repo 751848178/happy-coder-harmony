@@ -13,6 +13,30 @@ class ServerConfigService {
   static ServerConfigService get instance =>
       _instance ??= ServerConfigService._();
 
+  static const String defaultServerId = 'default';
+  static const String svtonServerId = 'svton';
+  static const String customServerId = 'custom';
+  static const String defaultServerUrl = String.fromEnvironment(
+    'HAPPY_SERVER_URL',
+    defaultValue: 'https://api.cluster-fluster.com',
+  );
+  static const String svtonServerUrl = 'https://happy.svton.cn';
+  static const List<BuiltInServerOption> builtInServerOptions = [
+    BuiltInServerOption(
+      id: defaultServerId,
+      name: '默认服务器',
+      url: defaultServerUrl,
+      description: '应用原本使用的默认后端地址',
+    ),
+    BuiltInServerOption(
+      id: svtonServerId,
+      name: '内置备用服务器',
+      url: svtonServerUrl,
+      description: '内置可选地址 https://happy.svton.cn',
+    ),
+  ];
+
+  static const String _keySelectedServerId = 'selected_server_id';
   static const String _keyCustomServerUrl = 'custom_server_url';
   static const String _happyWelcomeText = 'Welcome to Happy Server!';
   static final String _probePublicKey =
@@ -20,6 +44,7 @@ class ServerConfigService {
 
   final PlatformStorage _storage = PlatformStorage.instance;
 
+  String _selectedServerId = defaultServerId;
   String? _customServerUrl;
   bool _isInitialized = false;
 
@@ -30,21 +55,49 @@ class ServerConfigService {
 
     Logger.info('ServerConfigService init start');
     try {
+      final storedSelectedServerId = await _storage.read(_keySelectedServerId);
       final storedValue = await _storage.read(_keyCustomServerUrl);
       if (storedValue == null || storedValue.trim().isEmpty) {
         _customServerUrl = null;
       } else {
         _customServerUrl = _normalizeUrl(storedValue.trim());
       }
+      _selectedServerId = _normalizeSelectedServerId(
+        storedSelectedServerId,
+        customServerUrl: _customServerUrl,
+      );
       _isInitialized = true;
       Logger.info(
-        'ServerConfigService init done: customServerUrl=${_customServerUrl ?? 'null'}',
+        'ServerConfigService init done: selectedServerId=$_selectedServerId, customServerUrl=${_customServerUrl ?? 'null'}',
       );
     } catch (error) {
       Logger.error('ServerConfigService init failed: $error');
       rethrow;
     }
   }
+
+  String get selectedServerId => _normalizeSelectedServerId(_selectedServerId,
+      customServerUrl: _customServerUrl);
+
+  String get serverUrl => switch (selectedServerId) {
+        defaultServerId => defaultServerUrl,
+        svtonServerId => svtonServerUrl,
+        customServerId => customServerUrl ?? defaultServerUrl,
+        _ => defaultServerUrl,
+      };
+
+  BuiltInServerOption get selectedBuiltInServerOption =>
+      builtInServerOptions.firstWhere(
+        (option) => option.id == selectedServerId,
+        orElse: () => builtInServerOptions.first,
+      );
+
+  String get selectedServerName => switch (selectedServerId) {
+        defaultServerId => '默认服务器',
+        svtonServerId => '内置备用服务器',
+        customServerId => '自定义服务器',
+        _ => '默认服务器',
+      };
 
   String? get customServerUrl {
     final value = _customServerUrl?.trim();
@@ -54,7 +107,27 @@ class ServerConfigService {
     return _normalizeUrl(value);
   }
 
-  bool get isUsingCustomServer => customServerUrl != null;
+  bool get isUsingCustomServer =>
+      selectedServerId == customServerId && customServerUrl != null;
+
+  bool get isUsingBuiltInServer => selectedServerId != customServerId;
+
+  ServerConfigSnapshot get snapshot => ServerConfigSnapshot(
+        selectedServerId: selectedServerId,
+        customServerUrl: customServerUrl,
+      );
+
+  Future<void> setBuiltInServer(String serverId) async {
+    await init();
+
+    if (!isBuiltInServerId(serverId)) {
+      throw ArgumentError('Use setCustomServerUrl() for custom server.');
+    }
+
+    final normalized = _normalizeSelectedServerId(serverId);
+    await _saveSelectedServerId(normalized);
+    Logger.info('ServerConfigService selected built-in server: $normalized');
+  }
 
   Future<void> setCustomServerUrl(String? value) async {
     await init();
@@ -66,13 +139,41 @@ class ServerConfigService {
     if (normalized == null) {
       await _storage.delete(_keyCustomServerUrl);
       _customServerUrl = null;
+      await _saveSelectedServerId(defaultServerId);
       Logger.info('ServerConfigService cleared custom server URL');
       return;
     }
 
     await _storage.write(key: _keyCustomServerUrl, value: normalized);
     _customServerUrl = normalized;
+    await _saveSelectedServerId(customServerId);
     Logger.info('ServerConfigService saved custom server URL: $normalized');
+  }
+
+  Future<void> restoreSnapshot(ServerConfigSnapshot snapshot) async {
+    await init();
+
+    final normalizedCustomServerUrl = snapshot.customServerUrl == null ||
+            snapshot.customServerUrl!.trim().isEmpty
+        ? null
+        : _normalizeUrl(snapshot.customServerUrl!.trim());
+
+    if (normalizedCustomServerUrl == null) {
+      await _storage.delete(_keyCustomServerUrl);
+      _customServerUrl = null;
+    } else {
+      await _storage.write(
+        key: _keyCustomServerUrl,
+        value: normalizedCustomServerUrl,
+      );
+      _customServerUrl = normalizedCustomServerUrl;
+    }
+
+    final normalizedSelectedServerId = _normalizeSelectedServerId(
+      snapshot.selectedServerId,
+      customServerUrl: _customServerUrl,
+    );
+    await _saveSelectedServerId(normalizedSelectedServerId);
   }
 
   Future<void> restoreCustomServerUrl(String? value) async {
@@ -103,6 +204,32 @@ class ServerConfigService {
     }
 
     return null;
+  }
+
+  static bool isBuiltInServerId(String value) =>
+      value == defaultServerId || value == svtonServerId;
+
+  static String _normalizeSelectedServerId(
+    String? value, {
+    String? customServerUrl,
+  }) {
+    if (value == customServerId) {
+      return customServerUrl == null || customServerUrl.trim().isEmpty
+          ? defaultServerId
+          : customServerId;
+    }
+    if (value == svtonServerId) {
+      return svtonServerId;
+    }
+    return defaultServerId;
+  }
+
+  Future<void> _saveSelectedServerId(String serverId) async {
+    _selectedServerId = _normalizeSelectedServerId(
+      serverId,
+      customServerUrl: _customServerUrl,
+    );
+    await _storage.write(key: _keySelectedServerId, value: _selectedServerId);
   }
 
   Future<ServerProbeResult> probeServer(String inputUrl) async {
@@ -178,4 +305,28 @@ class ServerProbeResult {
   final bool ok;
   final bool supportsTerminalAuth;
   final String? errorMessage;
+}
+
+class BuiltInServerOption {
+  const BuiltInServerOption({
+    required this.id,
+    required this.name,
+    required this.url,
+    required this.description,
+  });
+
+  final String id;
+  final String name;
+  final String url;
+  final String description;
+}
+
+class ServerConfigSnapshot {
+  const ServerConfigSnapshot({
+    required this.selectedServerId,
+    this.customServerUrl,
+  });
+
+  final String selectedServerId;
+  final String? customServerUrl;
 }

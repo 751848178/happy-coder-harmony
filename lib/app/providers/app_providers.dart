@@ -7,7 +7,6 @@ import '../../shared/models/auth_state.dart';
 
 import '../../features/auth/presentation/auth_notifier.dart';
 import '../../features/auth/data/auth_repository.dart';
-import '../../features/auth/data/token_storage_service.dart';
 
 import '../../features/encryption/domain/encryption_service.dart';
 import '../../features/encryption/data/encryption_repository.dart';
@@ -21,12 +20,20 @@ import '../../features/storage/domain/storage_service.dart';
 import '../services/settings_service.dart';
 
 // Re-export session models to avoid conflicts
-export '../../features/session/domain/session_models.dart' show Session, Machine;
-export '../../features/session/domain/reducer.dart' show ReducerMessage, ToolInfo, PermissionRequest, TurnClose, ToolCallStatus;
+export '../../features/session/domain/session_models.dart'
+    show Session, Machine;
+export '../../features/session/domain/reducer.dart'
+    show ReducerMessage, ToolInfo, PermissionRequest, TurnClose, ToolCallStatus;
+export '../../features/session/domain/session_service.dart';
 
 // Storage models
 export '../../features/storage/domain/storage_models.dart'
-    show SessionStorageModel, MessageStorageModel, SearchKeyword, StorageStats, CleanupResult;
+    show
+        SessionStorageModel,
+        MessageStorageModel,
+        SearchKeyword,
+        StorageStats,
+        CleanupResult;
 
 // ========== 全局 Providers ==========
 
@@ -79,7 +86,6 @@ final isAuthenticatedProvider = Provider<bool>((ref) {
 /// 设置服务 Provider
 final settingsServiceProvider = Provider<SettingsService>((ref) {
   final service = SettingsService.instance;
-  // 初始化服务
   WidgetsBinding.instance.addPostFrameCallback((_) {
     service.init();
   });

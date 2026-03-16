@@ -44,83 +44,10 @@ class AIProfile {
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'description': description,
-        'anthropicConfig': anthropicConfig?.toJson(),
-        'openaiConfig': openaiConfig?.toJson(),
-        'azureOpenAIConfig': azureOpenAIConfig?.toJson(),
-        'togetherAIConfig': togetherAIConfig?.toJson(),
-        'tmuxConfig': tmuxConfig?.toJson(),
-        'environmentVariables':
-            environmentVariables.map((value) => value.toJson()).toList(),
-        'defaultSessionType': defaultSessionType?.value,
-        'defaultPermissionMode': defaultPermissionMode?.value,
-        'defaultModelMode': defaultModelMode,
-        'compatibility': compatibility.toJson(),
-        'isBuiltIn': isBuiltIn,
-        'createdAt': createdAt.millisecondsSinceEpoch,
-        'updatedAt': updatedAt.millisecondsSinceEpoch,
-        'version': version,
-      };
+  Map<String, dynamic> toJson() => _aiProfileToJson(this);
 
-  factory AIProfile.fromJson(Map<String, dynamic> json) {
-    final createdAt = json['createdAt'] as int?;
-    final updatedAt = json['updatedAt'] as int?;
-
-    return AIProfile(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      description: json['description'] as String?,
-      anthropicConfig: json['anthropicConfig'] != null
-          ? AnthropicConfig.fromJson(
-              json['anthropicConfig'] as Map<String, dynamic>,
-            )
-          : null,
-      openaiConfig: json['openaiConfig'] != null
-          ? OpenAIConfig.fromJson(json['openaiConfig'] as Map<String, dynamic>)
-          : null,
-      azureOpenAIConfig: json['azureOpenAIConfig'] != null
-          ? AzureOpenAIConfig.fromJson(
-              json['azureOpenAIConfig'] as Map<String, dynamic>,
-            )
-          : null,
-      togetherAIConfig: json['togetherAIConfig'] != null
-          ? TogetherAIConfig.fromJson(
-              json['togetherAIConfig'] as Map<String, dynamic>,
-            )
-          : null,
-      tmuxConfig: json['tmuxConfig'] != null
-          ? TmuxConfig.fromJson(json['tmuxConfig'] as Map<String, dynamic>)
-          : null,
-      environmentVariables: (json['environmentVariables'] as List?)
-              ?.map(
-                (value) =>
-                    EnvironmentVariable.fromJson(value as Map<String, dynamic>),
-              )
-              .toList() ??
-          [],
-      defaultSessionType: json['defaultSessionType'] != null
-          ? SessionType.fromString(json['defaultSessionType'] as String)
-          : null,
-      defaultPermissionMode: json['defaultPermissionMode'] != null
-          ? PermissionMode.fromString(json['defaultPermissionMode'] as String)
-          : null,
-      defaultModelMode: json['defaultModelMode'] as String?,
-      compatibility: json['compatibility'] != null
-          ? ProfileCompatibility.fromJson(
-              json['compatibility'] as Map<String, dynamic>,
-            )
-          : const ProfileCompatibility(),
-      isBuiltIn: json['isBuiltIn'] as bool? ?? false,
-      createdAt:
-          createdAt != null ? DateTime.fromMillisecondsSinceEpoch(createdAt) : null,
-      updatedAt:
-          updatedAt != null ? DateTime.fromMillisecondsSinceEpoch(updatedAt) : null,
-      version: json['version'] as String? ?? '1.0.0',
-    );
-  }
+  factory AIProfile.fromJson(Map<String, dynamic> json) =>
+      _aiProfileFromJson(json);
 
   AIProfile copyWith({
     String? id,

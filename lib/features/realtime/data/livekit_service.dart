@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/utils/extensions.dart';
 import '../../../harmony/harmony_bridge.dart';
+
+part 'livekit_service_state.dart';
 
 /// LiveKit 实时语音服务
 ///
@@ -62,7 +63,7 @@ class LiveKitService {
     } catch (e) {
       Logger.error('Failed to connect to LiveKit: $e');
       _connectionStateController.add(
-          LiveKitConnectionStates.error(e.toString()),
+        LiveKitConnectionStates.error(e.toString()),
       );
       return false;
     }
@@ -158,53 +159,4 @@ class LiveKitService {
     _connectionStateController.close();
     _audioStreamController.close();
   }
-}
-
-/// LiveKit 连接状态
-sealed class LiveKitConnectionState {
-  const LiveKitConnectionState();
-
-  String? get errorMessage {
-    if (this is ErrorState) {
-      return (this as ErrorState).message;
-    }
-    return null;
-  }
-}
-
-class InitialState extends LiveKitConnectionState {
-  const InitialState();
-}
-
-class ConnectingState extends LiveKitConnectionState {
-  const ConnectingState();
-}
-
-class ConnectedState extends LiveKitConnectionState {
-  const ConnectedState();
-}
-
-class DisconnectingState extends LiveKitConnectionState {
-  const DisconnectingState();
-}
-
-class DisconnectedState extends LiveKitConnectionState {
-  const DisconnectedState();
-}
-
-class ErrorState extends LiveKitConnectionState {
-  final String message;
-
-  const ErrorState(this.message);
-}
-
-/// LiveKit 连接状态常量
-class LiveKitConnectionStates {
-  static const LiveKitConnectionState initial = InitialState();
-  static const LiveKitConnectionState connecting = ConnectingState();
-  static const LiveKitConnectionState connected = ConnectedState();
-  static const LiveKitConnectionState disconnecting = DisconnectingState();
-  static const LiveKitConnectionState disconnected = DisconnectedState();
-
-  static LiveKitConnectionState error(String message) => ErrorState(message);
 }

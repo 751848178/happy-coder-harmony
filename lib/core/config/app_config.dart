@@ -7,13 +7,11 @@ class AppConfig {
   AppConfig._();
 
   /// 服务器地址
-  static const String defaultServerUrl = String.fromEnvironment(
-    'HAPPY_SERVER_URL',
-    defaultValue: 'https://api.cluster-fluster.com',
-  );
+  static const String defaultServerUrl = ServerConfigService.defaultServerUrl;
+  static const String builtInSvtonServerUrl =
+      ServerConfigService.svtonServerUrl;
 
-  static String get serverUrl =>
-      ServerConfigService.instance.customServerUrl ?? defaultServerUrl;
+  static String get serverUrl => ServerConfigService.instance.serverUrl;
 
   /// Socket.IO 服务器地址
   static String get socketUrl => serverUrl;

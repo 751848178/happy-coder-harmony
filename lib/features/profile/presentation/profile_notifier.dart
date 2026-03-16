@@ -139,22 +139,23 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       final currentState = state;
       if (currentState is ProfileLoaded) {
         final currentProfileIds = currentState.profiles.map((p) => p.id).toSet();
-        final builtInIds = BuiltInProfiles.all().map((p) => p.id).toSet();
-
-        // Add missing built-in profiles
-        for (final builtIn in BuiltInProfiles.all()) {
-          if (!currentProfileIds.contains(builtIn.id)) {
-            final newProfile = builtIn.copyWith(
-              id: builtIn.id,
-            );
-            await _repository.createProfile(newProfile);
-            if (currentState is ProfileLoaded) {
-              state = currentState.copyWith(
-                profiles: [...currentState.profiles, newProfile],
-              );
-            }
-          }
+        final missingBuiltIns = BuiltInProfiles.all()
+            .where((profile) => !currentProfileIds.contains(profile.id))
+            .toList();
+        if (missingBuiltIns.isEmpty) {
+          return;
         }
+
+        final newProfiles = <AIProfile>[];
+        for (final builtIn in missingBuiltIns) {
+          final newProfile = builtIn.copyWith(id: builtIn.id);
+          await _repository.createProfile(newProfile);
+          newProfiles.add(newProfile);
+        }
+
+        state = currentState.copyWith(
+          profiles: [...currentState.profiles, ...newProfiles],
+        );
       }
     } catch (e) {
       // Silently fail - built-in profiles should be available but not critical

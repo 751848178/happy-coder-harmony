@@ -22,7 +22,7 @@ class KeyPair {
 class EncryptionState {
   const EncryptionState._();
 
-  static const EncryptionState initial = EncryptionState._();
+  static const EncryptionState initial = _InitialEncryptionState();
 
   static EncryptionState hasKeys() => const _HasKeysState();
   static EncryptionState encrypting(bool isOwnKey) => _EncryptingState(isOwnKey);
@@ -33,7 +33,7 @@ class EncryptionState {
       this is _DecryptedState ? (this as _DecryptedState).data : null;
 
   bool get isEncrypting => this is _EncryptingState;
-  bool get isInitial => this is EncryptionState;
+  bool get isInitial => this is _InitialEncryptionState;
   bool get isHasKeys => this is _HasKeysState;
   bool get isDecrypted => this is _DecryptedState;
   bool get isError => this is _EncryptionErrorState;
@@ -41,6 +41,10 @@ class EncryptionState {
       this is _EncryptionErrorState ? (this as _EncryptionErrorState).message : null;
   bool get isOwnKeyEncrypting =>
       this is _EncryptingState ? (this as _EncryptingState).isOwnKey : false;
+}
+
+class _InitialEncryptionState extends EncryptionState {
+  const _InitialEncryptionState() : super._();
 }
 
 class _HasKeysState extends EncryptionState {

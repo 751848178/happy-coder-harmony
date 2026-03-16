@@ -9,6 +9,8 @@ import 'src/livekit_bridge_service.dart';
 import 'src/push_bridge_service.dart';
 import 'src/qr_bridge_service.dart';
 
+part 'harmony_bridge_wrappers.dart';
+
 /// Flutter HarmonyOS Bridge facade.
 ///
 /// 对外保持兼容 API，对内按能力拆分为独立 bridge service，
@@ -52,174 +54,88 @@ class HarmonyBridge {
     _isInitialized = true;
   }
 
-  static Future<bool> connectLiveKit(String token) {
-    return _liveKit.connectSession(token);
-  }
+  static final Future<bool> Function(String) connectLiveKit =
+      _harmonyConnectLiveKit;
+  static final Future<void> Function() disconnectLiveKit =
+      _harmonyDisconnectLiveKit;
+  static final Future<void> Function(Uint8List) sendLiveKitAudio =
+      _harmonySendLiveKitAudio;
+  static final Future<void> Function() toggleLiveKitMute =
+      _harmonyToggleLiveKitMute;
+  static final Future<bool> Function() getLiveKitMuted =
+      _harmonyGetLiveKitMuted;
 
-  static Future<void> disconnectLiveKit() {
-    return _liveKit.disconnect();
-  }
+  static final Future<String?> Function() generateEncryptionKey =
+      _harmonyGenerateEncryptionKey;
+  static final Future<Map<String, String>?> Function() generateKeyPair =
+      _harmonyGenerateKeyPair;
+  static final Future<String?> Function(String, String) encrypt =
+      _harmonyEncrypt;
+  static final Future<String?> Function(String, String) decrypt =
+      _harmonyDecrypt;
+  static final Future<String?> Function(String, String) encryptForPublicKey =
+      _harmonyEncryptForPublicKey;
+  static final Future<String?> Function(String, String) decryptFromPublicKey =
+      _harmonyDecryptFromPublicKey;
+  static final Future<String?> Function(String) hash = _harmonyHash;
+  static final Future<Map<String, String>?> Function(String) authChallenge =
+      _harmonyAuthChallenge;
+  static final Future<String?> Function(String) getPublicKey =
+      _harmonyGetPublicKey;
 
-  static Future<void> sendLiveKitAudio(Uint8List data) {
-    return _liveKit.sendAudio(data);
-  }
+  static final Future<bool> Function(String) initializePush =
+      _harmonyInitializePush;
+  static final Future<bool> Function() requestPushPermissions =
+      _harmonyRequestPushPermissions;
+  static final Future<String?> Function() getInitialNotificationMessage =
+      _harmonyGetInitialNotificationMessage;
+  static final Stream<String> Function() onPushNotification =
+      _harmonyOnPushNotification;
+  static final Future<bool> Function() clearAllNotifications =
+      _harmonyClearAllNotifications;
+  static final Future<bool> Function(String) clearNotification =
+      _harmonyClearNotification;
 
-  static Future<void> toggleLiveKitMute() {
-    return _liveKit.toggleMute();
-  }
+  static final Future<bool> Function() isQRCodeAvailable =
+      _harmonyIsQRCodeAvailable;
+  static final Future<String?> Function(String, {int size}) generateQRCode =
+      _harmonyGenerateQRCode;
+  static final Future<bool> Function() requestQRCodePermission =
+      _harmonyRequestQRCodePermission;
+  static final Future<bool> Function() checkQRCodePermission =
+      _harmonyCheckQRCodePermission;
+  static final Future<bool> Function({
+    List<int> scanTypes,
+    bool supportGallery,
+  }) startQRCodeScan = _harmonyStartQRCodeScan;
+  static final Future<void> Function() stopQRCodeScan =
+      _harmonyStopQRCodeScan;
+  static final Stream<Map<String, dynamic>> Function() qrScanEvents =
+      _harmonyQrScanEvents;
+  static final Stream<String?> Function() scanQRCode = _harmonyScanQRCode;
 
-  static Future<bool> getLiveKitMuted() {
-    return _liveKit.getMuted();
-  }
+  static final Future<List<String>?> Function(List<String>) selectFiles =
+      _harmonySelectFiles;
+  static final Future<String?> Function() selectImage = _harmonySelectImage;
+  static final Future<Map<String, dynamic>?> Function(String) getFileInfo =
+      _harmonyGetFileInfo;
 
-  static Future<String?> generateEncryptionKey() {
-    return _crypto.generateKey();
-  }
-
-  static Future<Map<String, String>?> generateKeyPair() {
-    return _crypto.generateKeyPair();
-  }
-
-  static Future<String?> encrypt(String data, String key) {
-    return _crypto.encrypt(data, key);
-  }
-
-  static Future<String?> decrypt(String encrypted, String key) {
-    return _crypto.decrypt(encrypted, key);
-  }
-
-  static Future<String?> encryptForPublicKey(String data, String publicKey) {
-    return _crypto.encryptForPublicKey(data, publicKey);
-  }
-
-  static Future<String?> decryptFromPublicKey(
-    String encrypted,
-    String secretKey,
-  ) {
-    return _crypto.decryptFromPublicKey(encrypted, secretKey);
-  }
-
-  static Future<String?> hash(String data) {
-    return _crypto.hash(data);
-  }
-
-  static Future<Map<String, String>?> authChallenge(String secretKey) {
-    return _crypto.authChallenge(secretKey);
-  }
-
-  static Future<String?> getPublicKey(String secretKey) {
-    return _crypto.getPublicKey(secretKey);
-  }
-
-  static Future<bool> initializePush(String appId) async {
-    final initialized = await _push.initialize(appId);
-    _isInitialized = _isInitialized || initialized;
-    return initialized;
-  }
-
-  static Future<bool> requestPushPermissions() {
-    return _push.requestPermissions();
-  }
-
-  static Future<String?> getInitialNotificationMessage() {
-    return _push.getInitialMessage();
-  }
-
-  static Stream<String> onPushNotification() {
-    return _push.notifications();
-  }
-
-  static Future<bool> clearAllNotifications() {
-    return _push.clearAll();
-  }
-
-  static Future<bool> clearNotification(String notificationId) {
-    return _push.clear(notificationId);
-  }
-
-  static Future<bool> isQRCodeAvailable() {
-    return _qr.ping();
-  }
-
-  static Future<String?> generateQRCode(String data, {int size = 200}) {
-    return _qr.generate(data, size: size);
-  }
-
-  static Future<bool> requestQRCodePermission() {
-    return _qr.requestCameraPermission();
-  }
-
-  static Future<bool> checkQRCodePermission() {
-    return _qr.checkCameraPermission();
-  }
-
-  static Future<bool> startQRCodeScan({
-    List<int> scanTypes = const <int>[],
-    bool supportGallery = false,
-  }) {
-    return _qr.startScan(
-      scanTypes: scanTypes,
-      supportGallery: supportGallery,
-    );
-  }
-
-  static Future<void> stopQRCodeScan() {
-    return _qr.stopScan();
-  }
-
-  static Stream<Map<String, dynamic>> qrScanEvents() {
-    return _qr.scanEvents();
-  }
-
-  static Stream<String?> scanQRCode() {
-    return _qr.scanResults();
-  }
-
-  static Future<List<String>?> selectFiles(List<String> mimeTypes) {
-    return _file.selectFiles(mimeTypes);
-  }
-
-  static Future<String?> selectImage() {
-    return _file.selectImage();
-  }
-
-  static Future<Map<String, dynamic>?> getFileInfo(String path) {
-    return _file.getInfo(path);
-  }
-
-  static Future<Map<String, dynamic>?> getDeviceInfo() {
-    return _device.getInfo();
-  }
-
-  static Future<String?> getNetworkStatus() {
-    return _device.getNetworkStatus();
-  }
-
-  static Future<Map<String, dynamic>?> getBatteryInfo() {
-    return _device.getBatteryInfo();
-  }
-
-  static Future<bool> requestCameraPermission() {
-    return _device.requestCameraPermission();
-  }
-
-  static Future<bool> requestMicrophonePermission() {
-    return _device.requestMicrophonePermission();
-  }
-
-  static Future<bool> requestStoragePermission() {
-    return _device.requestStoragePermission();
-  }
-
-  static Future<void> openAppSettings() {
-    return _device.openAppSettings();
-  }
-
-  static Future<bool> setClipboardText(String text) {
-    return _device.setClipboardText(text);
-  }
-
-  static Future<String?> getClipboardText() {
-    return _device.getClipboardText();
-  }
+  static final Future<Map<String, dynamic>?> Function() getDeviceInfo =
+      _harmonyGetDeviceInfo;
+  static final Future<String?> Function() getNetworkStatus =
+      _harmonyGetNetworkStatus;
+  static final Future<Map<String, dynamic>?> Function() getBatteryInfo =
+      _harmonyGetBatteryInfo;
+  static final Future<bool> Function() requestCameraPermission =
+      _harmonyRequestCameraPermission;
+  static final Future<bool> Function() requestMicrophonePermission =
+      _harmonyRequestMicrophonePermission;
+  static final Future<bool> Function() requestStoragePermission =
+      _harmonyRequestStoragePermission;
+  static final Future<void> Function() openAppSettings =
+      _harmonyOpenAppSettings;
+  static final Future<bool> Function(String) setClipboardText =
+      _harmonySetClipboardText;
+  static final Future<String?> Function() getClipboardText =
+      _harmonyGetClipboardText;
 }

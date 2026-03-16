@@ -21,9 +21,14 @@ class InboxRepository {
     ),
   );
 
+  Dio get _client {
+    _dio.options.baseUrl = AppConfig.serverUrl;
+    return _dio;
+  }
+
   Future<List<InboxItem>> getFeedItems({String? token}) async {
     try {
-      final response = await _dio.get(
+      final response = await _client.get(
         '/v1/feed',
         options: _options(token),
       );
@@ -70,11 +75,11 @@ class InboxRepository {
 
   Options _options(String? token) {
     if (token == null || token.isEmpty) {
-      return Options(headers: _dio.options.headers);
+      return Options(headers: _client.options.headers);
     }
     return Options(
       headers: {
-        ..._dio.options.headers,
+        ..._client.options.headers,
         'Authorization': 'Bearer $token',
       },
     );
