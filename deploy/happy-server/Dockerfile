@@ -27,6 +27,7 @@ WORKDIR /repo
 
 COPY --from=source /src/package.json /src/yarn.lock ./
 COPY --from=source /src/scripts ./scripts
+COPY --from=source /src/patches ./patches
 
 RUN mkdir -p packages/happy-app packages/happy-server packages/happy-cli packages/happy-agent packages/happy-wire
 
