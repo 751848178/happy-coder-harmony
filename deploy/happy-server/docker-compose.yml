@@ -1,0 +1,54 @@
+services:
+  happy-server:
+    image: happy-server-custom:${HAPPY_UPSTREAM_REF:-local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        HAPPY_REPO: ${HAPPY_UPSTREAM_REPO:-https://github.com/slopus/happy.git}
+        HAPPY_REF: ${HAPPY_UPSTREAM_REF:-d343330c86ab966969aecd82be4aecbad7ec4238}
+    restart: unless-stopped
+    ports:
+      - "${HAPPY_SERVER_PORT:-3005}:3005"
+    environment:
+      PORT: "3005"
+      PUBLIC_URL: ${HAPPY_PUBLIC_URL:?Set HAPPY_PUBLIC_URL in .env}
+      HANDY_MASTER_SECRET: ${HANDY_MASTER_SECRET:?Set HANDY_MASTER_SECRET in .env}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to your existing PostgreSQL database}
+      DATA_DIR: ${DATA_DIR:-/data}
+      PGLITE_DIR: ${PGLITE_DIR:-/data/pglite}
+      REDIS_URL: ${REDIS_URL:-}
+      METRICS_ENABLED: ${METRICS_ENABLED:-false}
+      METRICS_PORT: ${METRICS_PORT:-9090}
+      S3_HOST: ${S3_HOST:-}
+      S3_PORT: ${S3_PORT:-}
+      S3_USE_SSL: ${S3_USE_SSL:-true}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_PRIVATE_KEY: ${GITHUB_PRIVATE_KEY:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_REDIRECT_URI: ${GITHUB_REDIRECT_URI:-}
+      GITHUB_REDIRECT_URL: ${GITHUB_REDIRECT_URL:-}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - happy_server_data:/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3005/health').then((res) => process.exit(res.ok ? 0 : 1)).catch(() => process.exit(1))\"",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  happy_server_data:
