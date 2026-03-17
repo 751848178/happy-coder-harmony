@@ -16,7 +16,7 @@ services:
       HANDY_MASTER_SECRET: ${HANDY_MASTER_SECRET:?Set HANDY_MASTER_SECRET in .env}
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to your existing PostgreSQL database}
       DATA_DIR: ${DATA_DIR:-/data}
-      PGLITE_DIR: ${PGLITE_DIR:-/data/pglite}
+      PGLITE_DIR: ${PGLITE_DIR:-}
       REDIS_URL: ${REDIS_URL:-}
       METRICS_ENABLED: ${METRICS_ENABLED:-false}
       METRICS_PORT: ${METRICS_PORT:-9090}

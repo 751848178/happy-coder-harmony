@@ -24,6 +24,7 @@
 上游单容器镜像里的 `standalone.ts migrate` 主要服务于内置 `PGlite`。当你改用已有 PostgreSQL 时，直接照搬它的默认启动命令会漏掉外部数据库迁移，所以这里在入口脚本里做了分流：
 
 - 设置了 `DATABASE_URL`: 启动前执行 `prisma migrate deploy`
+- 设置了 `DATABASE_URL`: 同时清掉 `PGLITE_DIR`，避免运行时误切回内置 PGlite
 - 没设置 `DATABASE_URL`: 回退到上游默认的 `PGlite` 迁移逻辑
 
 ## 快速开始
