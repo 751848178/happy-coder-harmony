@@ -64,6 +64,18 @@ extract_device_id() {
   return 1
 }
 
+format_epoch_local() {
+  python3 - <<'PY' "$1"
+import datetime
+import sys
+
+if not sys.argv[1]:
+    raise SystemExit(0)
+
+print(datetime.datetime.fromtimestamp(int(sys.argv[1])).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z"))
+PY
+}
+
 preflight_real_device_profile() {
   local device_id="$1"
   shift
@@ -119,31 +131,122 @@ PY
   verify_file="$(mktemp "${TMPDIR:-/tmp}/happy_profile_verify.XXXXXX.json")"
   java -jar "$hap_sign_tool" verify-profile -inFile "$profile_path" -outFile "$verify_file" >/dev/null
 
-  local profile_check
-  profile_check="$(python3 - <<'PY' "$verify_file" "$udid"
+  local bundle_name
+  bundle_name="$(python3 - <<'PY' "$verify_file"
 import json, sys
-verify_path, udid = sys.argv[1], sys.argv[2]
+verify_path = sys.argv[1]
 with open(verify_path, 'r', encoding='utf-8') as handle:
     data = json.load(handle)
 content = data.get('content', {})
-device_ids = content.get('debug-info', {}).get('device-ids', [])
-bundle_name = content.get('bundle-info', {}).get('bundle-name', '')
-if udid in device_ids:
-    print("OK")
-else:
-    print("MISSING")
-    print(bundle_name)
-    for item in device_ids:
-        print(item)
+print(content.get('bundle-info', {}).get('bundle-name', ''))
 PY
 )"
-  rm -f "$verify_file"
 
-  if [[ "${profile_check%%$'\n'*}" != "OK" ]]; then
-    local bundle_name
-    bundle_name="$(printf '%s\n' "$profile_check" | sed -n '2p')"
+  local profile_not_before
+  profile_not_before="$(python3 - <<'PY' "$verify_file"
+import json, sys
+verify_path = sys.argv[1]
+with open(verify_path, 'r', encoding='utf-8') as handle:
+    data = json.load(handle)
+print(data.get('content', {}).get('validity', {}).get('not-before', ''))
+PY
+)"
+
+  local profile_not_after
+  profile_not_after="$(python3 - <<'PY' "$verify_file"
+import json, sys
+verify_path = sys.argv[1]
+with open(verify_path, 'r', encoding='utf-8') as handle:
+    data = json.load(handle)
+print(data.get('content', {}).get('validity', {}).get('not-after', ''))
+PY
+)"
+
+  local profile_devices_file
+  profile_devices_file="$(mktemp "${TMPDIR:-/tmp}/happy_profile_devices.XXXXXX.txt")"
+  python3 - <<'PY' "$verify_file" "$profile_devices_file"
+import json, sys
+verify_path, output_path = sys.argv[1], sys.argv[2]
+with open(verify_path, 'r', encoding='utf-8') as handle:
+    data = json.load(handle)
+device_ids = data.get('content', {}).get('debug-info', {}).get('device-ids', [])
+with open(output_path, 'w', encoding='utf-8') as handle:
+    for item in device_ids:
+        handle.write(f"{item}\n")
+PY
+
+  local dev_cert_file
+  dev_cert_file="$(mktemp "${TMPDIR:-/tmp}/happy_profile_dev_cert.XXXXXX.pem")"
+  python3 - <<'PY' "$verify_file" "$dev_cert_file"
+import json, sys
+verify_path, output_path = sys.argv[1], sys.argv[2]
+with open(verify_path, 'r', encoding='utf-8') as handle:
+    data = json.load(handle)
+cert = data.get('content', {}).get('bundle-info', {}).get('development-certificate', '')
+with open(output_path, 'w', encoding='utf-8') as handle:
+    handle.write(cert)
+PY
+
+  local now_epoch
+  now_epoch="$(date +%s)"
+
+  if [[ -n "$profile_not_before" && "$now_epoch" -lt "$profile_not_before" ]]; then
+    echo "✗ 当前真机无法安装。原因不是代码编译，而是签名 profile 还未生效。"
+    echo "  设备: $device_id ($model)"
+    echo "  profile: $profile_path"
+    if [[ -n "$bundle_name" ]]; then
+      echo "  bundle: $bundle_name"
+    fi
+    echo "  profile 生效时间: $(format_epoch_local "$profile_not_before")"
+    echo ""
+    echo "  处理方式:"
+    echo "  1. 等 profile 生效后再安装"
+    echo "  2. 或在 AppGallery Connect / DevEco Studio 重新生成立即生效的 profile"
+    rm -f "$verify_file" "$profile_devices_file" "$dev_cert_file"
+    exit 1
+  fi
+
+  if [[ -n "$profile_not_after" && "$now_epoch" -gt "$profile_not_after" ]]; then
+    echo "✗ 当前真机无法安装。原因不是代码编译，而是签名 profile 已过期。"
+    echo "  设备: $device_id ($model)"
+    echo "  profile: $profile_path"
+    if [[ -n "$bundle_name" ]]; then
+      echo "  bundle: $bundle_name"
+    fi
+    echo "  profile 到期: $(format_epoch_local "$profile_not_after")"
+    echo ""
+    echo "  处理方式:"
+    echo "  1. 在 AppGallery Connect / DevEco Studio 重新生成新的 debug profile"
+    echo "  2. 用新 profile 覆盖当前 $profile_path"
+    echo "  3. 再执行 ./scripts/run.sh $*"
+    rm -f "$verify_file" "$profile_devices_file" "$dev_cert_file"
+    exit 1
+  fi
+
+  if [[ -s "$dev_cert_file" ]] && ! openssl x509 -in "$dev_cert_file" -checkend 0 -noout >/dev/null 2>&1; then
+    local dev_cert_not_after
+    dev_cert_not_after="$(openssl x509 -in "$dev_cert_file" -noout -enddate 2>/dev/null | cut -d'=' -f2-)"
+    echo "✗ 当前真机无法安装。原因不是代码编译，而是签名证书已过期。"
+    echo "  设备: $device_id ($model)"
+    echo "  profile: $profile_path"
+    if [[ -n "$bundle_name" ]]; then
+      echo "  bundle: $bundle_name"
+    fi
+    if [[ -n "$dev_cert_not_after" ]]; then
+      echo "  证书到期: $dev_cert_not_after"
+    fi
+    echo ""
+    echo "  处理方式:"
+    echo "  1. 在 AppGallery Connect / DevEco Studio 重新生成新的 development certificate"
+    echo "  2. 同步更新 cert、p12、profile 这套签名材料"
+    echo "  3. 再执行 ./scripts/run.sh $*"
+    rm -f "$verify_file" "$profile_devices_file" "$dev_cert_file"
+    exit 1
+  fi
+
+  if ! grep -Fxq "$udid" "$profile_devices_file"; then
     local profile_devices
-    profile_devices="$(printf '%s\n' "$profile_check" | tail -n +3)"
+    profile_devices="$(cat "$profile_devices_file")"
     echo "✗ 当前真机无法安装。原因不是代码编译，而是调试 profile 未授权这台设备。"
     echo "  设备: $device_id ($model)"
     echo "  UDID: $udid"
@@ -162,8 +265,11 @@ PY
     echo "  1. 在 DevEco Studio / AppGallery Connect 重新生成包含该 UDID 的 debug profile"
     echo "  2. 用新 profile 覆盖当前 $profile_path"
     echo "  3. 再执行 ./scripts/run.sh $*"
+    rm -f "$verify_file" "$profile_devices_file" "$dev_cert_file"
     exit 1
   fi
+
+  rm -f "$verify_file" "$profile_devices_file" "$dev_cert_file"
 }
 
 echo "=================================="
