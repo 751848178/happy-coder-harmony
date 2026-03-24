@@ -65,10 +65,10 @@ adb devices
 adb install build/app/outputs/flutter-apk/app-release.apk
 
 # 卸载
-adb uninstall com.happy.coder
+adb uninstall cn.svton.happy
 
 # 启动
-adb shell am start -n com.happy.coder/.MainActivity
+adb shell am start -n cn.svton.happy/.MainActivity
 ```
 
 ### 2. 华为手机特殊设置

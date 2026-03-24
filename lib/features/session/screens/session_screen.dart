@@ -16,8 +16,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../app/services/settings_service.dart' show SettingsState;
 import '../data/session_composer_queue_service.dart';
+import '../data/session_input_template_service.dart';
 import '../domain/session_stats.dart';
 import '../data/session_ui_state_service.dart';
+import '../presentation/session_input_template_catalog.dart';
 import '../presentation/session_turn_status.dart';
 import '../domain/session_creation_options.dart';
 import '../../socketio/domain/socket_service.dart';
@@ -96,6 +98,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   final Map<String, GlobalKey> _turnReplyAnchorKeys = <String, GlobalKey>{};
   final SessionComposerQueueService _composerQueueService =
       SessionComposerQueueService.instance;
+  final SessionInputTemplateService _inputTemplateService =
+      SessionInputTemplateService.instance;
   final SessionUiStateService _uiStateService = SessionUiStateService.instance;
   bool _isSending = false;
   bool _isAutoSendingQueuedMessage = false;
@@ -113,8 +117,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   String? _activeResponseLocalId;
   String? _stickyTurnId;
   List<QueuedComposerMessage> _queuedMessages = const <QueuedComposerMessage>[];
+  List<SessionInputTemplate> _customInputTemplates =
+      const <SessionInputTemplate>[];
   List<_MessageTurnGroup> _visibleTurnGroups = const <_MessageTurnGroup>[];
   StreamSubscription<SocketEvent>? _socketEventSubscription;
+  Timer? _draftPersistDebounce;
   Timer? _messagePollingTimer;
   Timer? _socketRefreshDebounce;
 
@@ -124,6 +131,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     _scrollController.addListener(_handleScrollMetricsChanged);
     _messageController.addListener(_handleComposerChanged);
     _loadQueuedComposerMessages();
+    _loadCustomInputTemplates();
     _loadSessionUiState();
     _loadSessionData();
     _subscribeToSocketEvents();
@@ -135,6 +143,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     _messageFocusNode.dispose();
     _messageController.dispose();
     _scrollController.dispose();
+    _draftPersistDebounce?.cancel();
     _socketEventSubscription?.cancel();
     _messagePollingTimer?.cancel();
     _socketRefreshDebounce?.cancel();

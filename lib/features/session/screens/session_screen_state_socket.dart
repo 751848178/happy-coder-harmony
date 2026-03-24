@@ -62,6 +62,15 @@ extension _SessionScreenStateSocket on _SessionScreenState {
   }
 
   void _handleComposerChanged() {
+    _draftPersistDebounce?.cancel();
+    final draft =
+        _messageController.text.trim().isEmpty ? null : _messageController.text;
+    _draftPersistDebounce = Timer(const Duration(milliseconds: 220), () {
+      ref.read(sessionStateProvider.notifier).updateDraft(
+            widget.sessionId,
+            draft,
+          );
+    });
     if (!mounted) {
       return;
     }

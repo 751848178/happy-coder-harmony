@@ -55,44 +55,6 @@ extension _AccountSettingsScreenActions on AccountSettingsScreen {
     );
   }
 
-  Future<void> _scanDeviceLink(BuildContext context) async {
-    final scannedLink = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => const ScanQrScreen(
-          title: '扫描设备二维码',
-          description: '将摄像头对准 ${AppConfig.appName} 设备或电脑上的二维码，识别后会自动继续。',
-        ),
-      ),
-    );
-    if (!context.mounted || scannedLink == null || scannedLink.trim().isEmpty) {
-      return;
-    }
-
-    final link = scannedLink.trim();
-    final encodedLink = Uri.encodeComponent(link);
-    if (link.startsWith('happy://terminal?')) {
-      context.push('${AppRoutes.terminalConnect}?url=$encodedLink');
-      return;
-    }
-    if (link.startsWith('happy:///account?')) {
-      context.push('${AppRoutes.linkAccount}?url=$encodedLink');
-      return;
-    }
-    if (link.startsWith('happy://') ||
-        link.startsWith('handy://') ||
-        link.startsWith('https://happy.link/')) {
-      context.push('${AppRoutes.restoreManual}?url=$encodedLink');
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('无法识别二维码内容，请确认它来自 ${AppConfig.appName}'),
-        backgroundColor: AppTheme.errorColor,
-      ),
-    );
-  }
-
   void _showClearDataDialog(BuildContext context, WidgetRef ref) {
     showDialog<void>(
       context: context,
@@ -162,13 +124,6 @@ extension _AccountSettingsScreenActions on AccountSettingsScreen {
           ),
         ],
       ),
-    );
-  }
-
-  void _showQRCodeDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => _QRCodeDialogContent(ref: ref),
     );
   }
 }

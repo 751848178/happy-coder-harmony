@@ -132,38 +132,19 @@ const Map<String, String> _slashCommandDescriptions = {
   'cancel': '取消当前任务',
 };
 
-const List<_InputTemplateItem> _defaultInputTemplates = [
-  _InputTemplateItem(
-    label: '解释这段代码',
-    content: '请解释这段代码的功能和实现方式。',
-    icon: Icons.lightbulb_outline_rounded,
-  ),
-  _InputTemplateItem(
-    label: '添加注释',
-    content: '请为这段代码添加清晰、简洁的注释。',
-    icon: Icons.comment_outlined,
-  ),
-  _InputTemplateItem(
-    label: '查找 Bug',
-    content: '请帮我排查这段代码中可能存在的问题，并给出修复建议。',
-    icon: Icons.bug_report_outlined,
-  ),
-  _InputTemplateItem(
-    label: '性能优化',
-    content: '请分析这段代码的性能瓶颈，并给出可落地的优化方案。',
-    icon: Icons.speed_rounded,
-  ),
-  _InputTemplateItem(
-    label: 'Code Review',
-    content: '请帮我做一次代码审查，重点关注潜在 Bug、性能问题和可维护性。',
-    icon: Icons.rate_review_outlined,
-  ),
-  _InputTemplateItem(
-    label: '编写测试',
-    content: '请为这段代码编写测试，覆盖主要场景和边界情况。',
-    icon: Icons.science_outlined,
-  ),
-];
+final List<_InputTemplateItem> _defaultInputTemplates =
+    List<_InputTemplateItem>.unmodifiable(
+  defaultSessionInputTemplatePresets
+      .map(
+        (preset) => _InputTemplateItem(
+          id: preset.id,
+          label: preset.label,
+          content: preset.content,
+          icon: preset.icon,
+        ),
+      )
+      .toList(growable: false),
+);
 
 class _SlashCommandItem {
   const _SlashCommandItem({
@@ -177,12 +158,38 @@ class _SlashCommandItem {
 
 class _InputTemplateItem {
   const _InputTemplateItem({
+    required this.id,
     required this.label,
     required this.content,
     required this.icon,
+    this.isCustom = false,
   });
 
+  factory _InputTemplateItem.fromCustom(SessionInputTemplate template) {
+    return _InputTemplateItem(
+      id: template.id,
+      label: template.label,
+      content: template.content,
+      icon: Icons.edit_note_rounded,
+      isCustom: true,
+    );
+  }
+
+  final String id;
   final String label;
   final String content;
   final IconData icon;
+  final bool isCustom;
+}
+
+class _ComposerTriggerMatch {
+  const _ComposerTriggerMatch({
+    required this.start,
+    required this.end,
+    required this.query,
+  });
+
+  final int start;
+  final int end;
+  final String query;
 }

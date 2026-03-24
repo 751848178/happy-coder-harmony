@@ -3,19 +3,6 @@ part of 'app_router.dart';
 List<RouteBase> _buildProfileAndFriendRoutes() {
   return [
     GoRoute(
-      path: AppRoutes.profiles,
-      name: AppRoutes.profilesName,
-      builder: (context, state) => const ProfileListScreen(),
-    ),
-    GoRoute(
-      path: AppRoutes.profileDetail,
-      name: AppRoutes.profileDetailName,
-      builder: (context, state) => _buildRequiredPathWidget(
-        state.uri.queryParameters['id'],
-        (id) => ProfileDetailScreen(profileId: id),
-      ),
-    ),
-    GoRoute(
       path: AppRoutes.friends,
       name: AppRoutes.friendsName,
       builder: (context, state) => const FriendsListScreen(),

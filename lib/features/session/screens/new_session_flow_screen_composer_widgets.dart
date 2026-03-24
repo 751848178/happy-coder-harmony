@@ -3,7 +3,6 @@ part of 'new_session_flow_screen.dart';
 Widget _buildSessionFlowComposerHeader(
   _NewSessionFlowScreenState state, {
   required SessionModeOption selectedPermission,
-  required SessionModeOption selectedModel,
   required Color connectionColor,
   required String connectionText,
 }) {
@@ -38,11 +37,6 @@ Widget _buildSessionFlowComposerHeader(
                 color: _sessionFlowModeTint(
                     state._selectedAgent, state._permissionMode),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              selectedModel.label,
-              style: const TextStyle(fontSize: 11, color: AppTheme.neutral600),
             ),
           ],
         ),
@@ -87,7 +81,6 @@ Widget _buildSessionFlowContextCard(
 
 Widget _buildSessionFlowPromptCard(
   _NewSessionFlowScreenState state, {
-  required profile_models.AIProfile? selectedProfile,
   required bool canCreate,
   required _MachineOption? selectedMachine,
 }) {
@@ -123,18 +116,8 @@ Widget _buildSessionFlowPromptCard(
                   children: [
                     _IconActionButton(
                       icon: Icons.settings_outlined,
-                      tooltip: '权限和模型',
+                      tooltip: '权限设置',
                       onTap: state._showSettingsSheet,
-                    ),
-                    const SizedBox(width: 8),
-                    _ActionPill(
-                      icon: Icons.person_outline_rounded,
-                      label: selectedProfile?.name ?? '选择模板',
-                      onTap: state._pickProfile,
-                      onLongPress: selectedProfile == null
-                          ? null
-                          : () => state._updateView(
-                              () => state._selectedProfileId = null),
                     ),
                     const SizedBox(width: 8),
                     _ActionPill(

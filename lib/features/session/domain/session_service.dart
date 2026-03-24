@@ -154,6 +154,7 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
       permissionMode:
           _normalizeOptionalValue(localState?['permissionMode']?.toString()),
       modelMode: _normalizeOptionalValue(localState?['modelMode']?.toString()),
+      draft: _normalizeOptionalValue(localState?['draft']?.toString()),
     );
   }
 

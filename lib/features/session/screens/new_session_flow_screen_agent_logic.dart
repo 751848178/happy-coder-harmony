@@ -6,30 +6,18 @@ void _selectSessionFlowAgent(_NewSessionFlowScreenState state, String agent) {
     return;
   }
 
-  final profileState = state.ref.read(profileStateProvider);
-  final profiles = profileState is ProfileLoaded
-      ? profileState.profiles
-      : profile_models.BuiltInProfiles.all();
-  final currentProfile =
-      _findSessionFlowProfileById(profiles, state._selectedProfileId);
-  final nextProfile =
-      currentProfile != null && currentProfile.isCompatibleWith(normalized)
-          ? currentProfile
-          : null;
+  final permissionOptions = permissionOptionsForAgent(normalized);
+  final currentPermission = permissionOptions
+      .where((option) => option.key == state._permissionMode)
+      .cast<SessionModeOption?>()
+      .firstWhere((option) => option != null, orElse: () => null);
 
   state._updateView(() {
     state._selectedAgent = normalized;
-    state._selectedProfileId = nextProfile?.id;
     state._permissionMode = resolveModeSelection(
-      preferred:
-          nextProfile?.defaultPermissionMode?.value ?? state._permissionMode,
-      options: permissionOptionsForAgent(normalized),
+      preferred: currentPermission?.key,
+      options: permissionOptions,
       fallback: defaultPermissionModeForAgent(normalized),
-    );
-    state._modelMode = resolveModeSelection(
-      preferred: nextProfile?.defaultModelMode ?? state._modelMode,
-      options: modelOptionsForAgent(normalized),
-      fallback: defaultModelModeForAgent(normalized),
     );
   });
 }

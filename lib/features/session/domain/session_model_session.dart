@@ -63,9 +63,9 @@ class Session {
     String? path,
     Map<String, dynamic>? metadata,
     int? metadataVersion,
-    String? permissionMode,
-    String? modelMode,
-    String? draft,
+    Object? permissionMode = _sessionFieldUnset,
+    Object? modelMode = _sessionFieldUnset,
+    Object? draft = _sessionFieldUnset,
     Map<String, dynamic>? agentState,
     int? agentStateVersion,
     List<Todo>? todos,
@@ -89,9 +89,14 @@ class Session {
       path: path ?? this.path,
       metadata: metadata ?? this.metadata,
       metadataVersion: metadataVersion ?? this.metadataVersion,
-      permissionMode: permissionMode ?? this.permissionMode,
-      modelMode: modelMode ?? this.modelMode,
-      draft: draft ?? this.draft,
+      permissionMode: identical(permissionMode, _sessionFieldUnset)
+          ? this.permissionMode
+          : permissionMode as String?,
+      modelMode: identical(modelMode, _sessionFieldUnset)
+          ? this.modelMode
+          : modelMode as String?,
+      draft:
+          identical(draft, _sessionFieldUnset) ? this.draft : draft as String?,
       agentState: agentState ?? this.agentState,
       agentStateVersion: agentStateVersion ?? this.agentStateVersion,
       todos: todos ?? this.todos,

@@ -7,6 +7,29 @@ class _DailyUsageSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (dailyUsage.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionTitle('每日使用'),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: AppTheme.neutral200),
+            ),
+            child: const Text(
+              '暂无可展示的每日使用数据',
+              style: TextStyle(fontSize: 13, color: AppTheme.neutral600),
+            ),
+          ),
+        ],
+      );
+    }
+
     final maxMessages =
         dailyUsage.map((d) => d.messages).reduce((a, b) => a > b ? a : b);
     return Column(

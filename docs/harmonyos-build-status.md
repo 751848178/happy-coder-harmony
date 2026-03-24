@@ -57,7 +57,7 @@ export HOS_SDK_HOME=~/Library/OpenHarmony/Sdk
 | 创建 `ohos/` 目录 | ✅ 完成 | HarmonyOS 原生代码目录 |
 | 配置 `ohos/oh-package.json5` | ✅ 完成 | 已添加 `harmony_native` 依赖 |
 | 配置 `entry/oh-package.json5` | ✅ 完成 | 已添加 `harmony_native` 依赖 |
-| 配置 `app.json5` | ✅ 完成 | 包名 `com.happy.coder` |
+| 配置 `app.json5` | ✅ 完成 | 包名 `cn.svton.happy` |
 | 配置 `module.json5` | ✅ 完成 | 已添加所有必需权限 |
 | 设备类型 | ✅ 完成 | 支持 phone 和 tablet |
 
@@ -71,7 +71,7 @@ export HOS_SDK_HOME=~/Library/OpenHarmony/Sdk
 | 创建 `ohos/` 目录 | ✅ 完成 | HarmonyOS 原生代码目录 |
 | 配置 `ohos/oh-package.json5` | ✅ 完成 | 已添加 `harmony_native` 依赖 |
 | 配置 `entry/oh-package.json5` | ✅ 完成 | 已添加 `harmony_native` 依赖 |
-| 配置 `app.json5` | ✅ 完成 | 包名 `com.happy.coder` |
+| 配置 `app.json5` | ✅ 完成 | 包名 `cn.svton.happy` |
 | 配置 `module.json5` | ✅ 完成 | 已添加所有必需权限 |
 | 设备类型 | ✅ 完成 | 支持 phone 和 tablet |
 

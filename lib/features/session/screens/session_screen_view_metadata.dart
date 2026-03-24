@@ -68,9 +68,10 @@ extension _SessionScreenViewMetadata on _SessionScreenState {
 
   _ModeOption _resolveCurrentPermissionOption(Session session) {
     final options = _permissionOptionsFor(session);
-    final currentKey = session.permissionMode ??
+    final currentKey =
         session.metadata?['currentOperatingModeCode']?.toString() ??
-        'default';
+            session.permissionMode ??
+            'default';
     return options.firstWhere(
       (option) => option.key == currentKey,
       orElse: () => options.first,
@@ -80,8 +81,8 @@ extension _SessionScreenViewMetadata on _SessionScreenState {
   _ModeOption _resolveCurrentModelOption(Session session) {
     final options = _modelOptionsFor(session);
     final metadata = session.metadata ?? const <String, dynamic>{};
-    final currentKey = session.modelMode ??
-        metadata['currentModelCode']?.toString() ??
+    final currentKey = metadata['currentModelCode']?.toString() ??
+        session.modelMode ??
         options.first.key;
     return options.firstWhere(
       (option) => option.key == currentKey,
@@ -105,6 +106,4 @@ extension _SessionScreenViewMetadata on _SessionScreenState {
       },
     );
   }
-
-
 }

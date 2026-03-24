@@ -70,7 +70,6 @@ Widget _buildHomeScreen(_HomeScreenState state) {
                 selectedMachineId: selectedMachineId,
                 selectedMachineName: selectedMachine?.label,
               ),
-              const InboxScreen(showAppBar: false),
               const SettingsScreen(showAppBar: false),
             ],
           ),
@@ -79,7 +78,6 @@ Widget _buildHomeScreen(_HomeScreenState state) {
     ),
     bottomNavigationBar: _HomeTabBar(
       activeTab: state._activeTab,
-      inboxBadgeCount: state._inboxUnreadCount,
       onTabSelected: state._handleTabSelected,
     ),
   );

@@ -8,17 +8,20 @@ mixin _AuthRepositoryAccountAuthMixin on _AuthRepositoryBase {
   }) async {
     try {
       Logger.info('Approving account auth for: $publicKey');
-      final apiResponse = await dioClient.post(
+      final apiResponse = await postAuthorized(
         '/v1/auth/account/response',
-        options: authorizedOptions(credentials.token),
         data: {
           'publicKey': publicKey,
           'response': response,
         },
+        token: credentials.token,
+        retryReason: 'account auth approval',
       );
       return apiResponse.statusCode == 200;
     } on DioException catch (error) {
-      Logger.error('Approve account auth failed: ${error.message}');
+      Logger.error(
+        'Approve account auth failed: status=${error.response?.statusCode}, data=${error.response?.data}, message=${error.message}',
+      );
       return false;
     }
   }

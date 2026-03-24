@@ -6,9 +6,6 @@ import '../../../app/providers/app_providers.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../app/services/settings_service.dart' show SettingsState;
 import '../../../core/theme/app_theme.dart';
-import '../../profile/domain/profile_models.dart' as profile_models;
-import '../../profile/domain/profile_state.dart';
-import '../../profile/screens/profile_list_screen.dart';
 import '../domain/session_creation_options.dart';
 
 part 'new_session_flow_screen_content.dart';
@@ -28,7 +25,6 @@ class NewSessionFlowScreen extends ConsumerStatefulWidget {
     super.key,
     this.initialMachineId,
     this.initialPath,
-    this.initialProfileId,
     this.initialAgent,
     this.initialPermissionMode,
     this.initialModelMode,
@@ -36,7 +32,6 @@ class NewSessionFlowScreen extends ConsumerStatefulWidget {
 
   final String? initialMachineId;
   final String? initialPath;
-  final String? initialProfileId;
   final String? initialAgent;
   final String? initialPermissionMode;
   final String? initialModelMode;
@@ -53,10 +48,8 @@ class _NewSessionFlowScreenState extends ConsumerState<NewSessionFlowScreen> {
   final TextEditingController _pathController = TextEditingController();
 
   String? _selectedMachineId;
-  String? _selectedProfileId;
   String _selectedAgent = 'claude';
   String _permissionMode = defaultPermissionModeForAgent('claude');
-  String _modelMode = defaultModelModeForAgent('claude');
   bool _isCreating = false;
   bool _seededInitialState = false;
 
@@ -64,14 +57,12 @@ class _NewSessionFlowScreenState extends ConsumerState<NewSessionFlowScreen> {
   void initState() {
     super.initState();
     _selectedMachineId = widget.initialMachineId;
-    _selectedProfileId = widget.initialProfileId;
     if (widget.initialPath != null && widget.initialPath!.trim().isNotEmpty) {
       _pathController.text = widget.initialPath!.trim();
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(sessionStateProvider.notifier).loadSessions();
-      ref.read(profileStateProvider.notifier).loadProfiles();
     });
   }
 
@@ -94,8 +85,6 @@ class _NewSessionFlowScreenState extends ConsumerState<NewSessionFlowScreen> {
   Future<void> _pickMachine() => _pickSessionFlowMachine(this);
 
   Future<void> _pickPath() => _pickSessionFlowPath(this);
-
-  Future<void> _pickProfile() => _pickSessionFlowProfile(this);
 
   Future<void> _showSettingsSheet() => _showSessionFlowSettingsSheet(this);
 

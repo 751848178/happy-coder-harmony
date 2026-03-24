@@ -1,6 +1,31 @@
 part of 'session_screen.dart';
 
 extension _SessionScreenStateLoad on _SessionScreenState {
+  Future<void> _loadCustomInputTemplates() async {
+    final templates = await _inputTemplateService.loadTemplates();
+    if (!mounted) {
+      return;
+    }
+    _updateState(() {
+      _customInputTemplates =
+          List<SessionInputTemplate>.unmodifiable(templates);
+    });
+  }
+
+  void _restoreComposerDraft(
+    Session? session, {
+    bool force = false,
+  }) {
+    final draft = session?.draft ?? '';
+    if (!force && _messageController.text.isNotEmpty) {
+      return;
+    }
+    if (_messageController.text == draft) {
+      return;
+    }
+    _setComposerText(draft);
+  }
+
   Future<void> _loadSessionUiState() async {
     final state = await _uiStateService.get(widget.sessionId);
     if (!mounted) {
@@ -59,6 +84,8 @@ extension _SessionScreenStateLoad on _SessionScreenState {
 
   Future<void> _loadSessionData() async {
     final sessionNotifier = ref.read(sessionStateProvider.notifier);
+    _restoreComposerDraft(sessionNotifier.getSession(widget.sessionId),
+        force: true);
     if (mounted) {
       _updateState(() {
         _isRefreshingSessionState = true;
@@ -66,11 +93,17 @@ extension _SessionScreenStateLoad on _SessionScreenState {
     }
     try {
       await sessionNotifier.loadSessions(force: true);
-      if (sessionNotifier.getSession(widget.sessionId) == null) {
+      final loadedSession = sessionNotifier.getSession(widget.sessionId);
+      _restoreComposerDraft(loadedSession, force: true);
+      if (loadedSession == null) {
         return;
       }
       await sessionNotifier.loadSessionMessages(
         widget.sessionId,
+        force: true,
+      );
+      _restoreComposerDraft(
+        sessionNotifier.getSession(widget.sessionId),
         force: true,
       );
       await _maybeAutoApprovePendingTools();
@@ -89,6 +122,4 @@ extension _SessionScreenStateLoad on _SessionScreenState {
       }
     }
   }
-
-
 }

@@ -40,9 +40,7 @@ Future<void> _createSessionFlowSession(
 
     final settingsNotifier = state.ref.read(settingsStateProvider.notifier);
     settingsNotifier.setLastUsedAgent(state._selectedAgent);
-    settingsNotifier.setLastUsedProfile(state._selectedProfileId);
     settingsNotifier.setLastUsedPermissionMode(state._permissionMode);
-    settingsNotifier.setLastUsedModelMode(state._modelMode);
 
     final prompt = state._promptController.text.trim();
     Object? messageError;
@@ -88,28 +86,13 @@ Future<String?> _spawnSessionFlowSessionWithApproval(
   required _MachineOption machine,
   required String directory,
 }) async {
-  final profileState = state.ref.read(profileStateProvider);
-  final profiles = profileState is ProfileLoaded
-      ? profileState.profiles
-      : profile_models.BuiltInProfiles.all();
-  final selectedProfile =
-      _findSessionFlowProfileById(profiles, state._selectedProfileId);
-  final environmentVariables = selectedProfile == null
-      ? null
-      : buildProfileEnvironmentVariables(selectedProfile);
-
   final notifier = state.ref.read(sessionStateProvider.notifier);
   var result = await notifier.spawnSession(
     machineId: machine.id,
     directory: directory,
     agent: state._selectedAgent,
     approvedNewDirectoryCreation: false,
-    environmentVariables:
-        environmentVariables == null || environmentVariables.isEmpty
-            ? null
-            : environmentVariables,
     permissionMode: state._permissionMode,
-    modelMode: state._modelMode,
   );
 
   if (result.requiresDirectoryApproval) {
@@ -125,12 +108,7 @@ Future<String?> _spawnSessionFlowSessionWithApproval(
       directory: directory,
       agent: state._selectedAgent,
       approvedNewDirectoryCreation: true,
-      environmentVariables:
-          environmentVariables == null || environmentVariables.isEmpty
-              ? null
-              : environmentVariables,
       permissionMode: state._permissionMode,
-      modelMode: state._modelMode,
     );
   }
 

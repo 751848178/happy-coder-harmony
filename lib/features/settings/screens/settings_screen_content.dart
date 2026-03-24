@@ -3,7 +3,6 @@ part of 'settings_screen.dart';
 Widget _buildSettingsScaffold(_SettingsScreenState state) {
   state.ref.watch(sessionStateProvider);
   final sessionNotifier = state.ref.read(sessionStateProvider.notifier);
-  final settings = state.ref.watch(settingsStateProvider);
   final machines = state._collectMachines(
     sessionNotifier.machines,
     sessionNotifier.sessions,
@@ -29,19 +28,6 @@ Widget _buildSettingsScaffold(_SettingsScreenState state) {
               ),
             ],
           ),
-          _SettingsGroup(
-            title: '已连接账户',
-            children: [
-              _SettingsItem(
-                icon: Icons.smart_toy_outlined,
-                color: const Color(0xFFD97757),
-                title: 'Claude Code',
-                subtitle: '通过终端完成 Claude 授权',
-                onTap: () =>
-                    state.context.push(AppRoutes.settingsConnectClaude),
-              ),
-            ],
-          ),
           if (machines.isNotEmpty)
             _SettingsGroup(
               title: '机器',
@@ -60,17 +46,10 @@ Widget _buildSettingsScaffold(_SettingsScreenState state) {
                   )
                   .toList(),
             ),
-          _buildSettingsFeaturesGroup(state, settings.experiments),
+          _buildSettingsFeaturesGroup(state),
           _SettingsGroup(
             title: '关于',
             children: [
-              _SettingsItem(
-                icon: Icons.auto_awesome_outlined,
-                color: const Color(0xFFFF9500),
-                title: '更新日志',
-                subtitle: '查看最近功能变更',
-                onTap: () => state.context.push(AppRoutes.changelog),
-              ),
               _SettingsItem(
                 icon: Icons.info_outline,
                 color: AppTheme.neutral600,

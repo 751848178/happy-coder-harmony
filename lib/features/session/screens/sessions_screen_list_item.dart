@@ -116,7 +116,7 @@ class _SessionListItemState extends State<_SessionListItem> {
             ),
           ),
           GestureDetector(
-            behavior: HitTestBehavior.opaque,
+            behavior: HitTestBehavior.deferToChild,
             onHorizontalDragUpdate: _handleHorizontalDragUpdate,
             onHorizontalDragEnd: _handleHorizontalDragEnd,
             child: Transform.translate(

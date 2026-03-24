@@ -7,8 +7,6 @@ import '../../../app/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/extensions.dart';
 import '../../auth/presentation/qr_login_screen.dart';
-import '../../friends/data/inbox_repository.dart';
-import '../../friends/screens/inbox_screen.dart';
 import '../../session/data/session_list_preferences_service.dart';
 import '../../session/screens/sessions_screen.dart';
 import '../../settings/screens/settings_screen.dart';
@@ -48,7 +46,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String? _selectedMachineId;
   bool _isRefreshingSessionsStatus = false;
   HomeTab _activeTab = HomeTab.sessions;
-  int _inboxUnreadCount = 0;
 
   @override
   void initState() {
@@ -75,9 +72,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }) {
     _ensureHomeConnectedServices(this, token: token, machineId: machineId);
   }
-
-  Future<void> _refreshInboxBadge(String token) =>
-      _refreshHomeInboxBadge(this, token);
 
   void _openSessionsTab() => _handleTabSelected(HomeTab.sessions);
 

@@ -1,6 +1,6 @@
 name: happy_coder_flutter
 description: Mobile and Web Client for Claude Code & Codex - Flutter version
-version: 1.0.0
+version: 2.0.0+2
 publish_to: 'none'
 
 environment:

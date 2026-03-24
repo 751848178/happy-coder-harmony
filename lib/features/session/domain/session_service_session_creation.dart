@@ -59,7 +59,6 @@ extension SessionServiceSessionCreation on SessionServiceNotifier {
     required String directory,
     required String agent,
     bool approvedNewDirectoryCreation = false,
-    Map<String, String>? environmentVariables,
     String? permissionMode,
     String? modelMode,
   }) async {
@@ -74,8 +73,6 @@ extension SessionServiceSessionCreation on SessionServiceNotifier {
           'directory': directory,
           'approvedNewDirectoryCreation': approvedNewDirectoryCreation,
           'agent': normalizedAgent,
-          if (environmentVariables != null && environmentVariables.isNotEmpty)
-            'environmentVariables': environmentVariables,
         },
         dataEncryptionKey: _machineDataKeys[machineId],
         accountSecret: _accountSecret,

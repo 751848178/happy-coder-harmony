@@ -7,22 +7,19 @@ mixin _AuthRepositoryTerminalMixin on _AuthRepositoryBase {
   }) async {
     try {
       Logger.info('Approving terminal auth for: $publicKey');
-      final credentials = await getCredentials();
-      if (credentials == null) {
-        throw Exception('Not authenticated');
-      }
-
-      final apiResponse = await dioClient.post(
+      final apiResponse = await postAuthorized(
         '/v1/auth/response',
-        options: authorizedOptions(credentials.token),
         data: {
           'publicKey': publicKey,
           'response': response,
         },
+        retryReason: 'terminal auth approval',
       );
       return apiResponse.statusCode == 200;
     } on DioException catch (error) {
-      Logger.error('Approve terminal auth failed: ${error.message}');
+      Logger.error(
+        'Approve terminal auth failed: status=${error.response?.statusCode}, data=${error.response?.data}, message=${error.message}',
+      );
       return false;
     }
   }

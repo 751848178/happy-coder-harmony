@@ -3,44 +3,20 @@ part of 'new_session_flow_screen.dart';
 void _seedSessionFlowInitialState(
   _NewSessionFlowScreenState state, {
   required SettingsState settings,
-  required List<profile_models.AIProfile> profiles,
   required List<_MachineOption> machines,
   required List<Session> sessions,
 }) {
-  final requestedProfileId =
-      state.widget.initialProfileId ?? settings.lastUsedProfile;
-  final requestedProfile =
-      _findSessionFlowProfileById(profiles, requestedProfileId);
   final explicitAgent = state.widget.initialAgent != null &&
           state.widget.initialAgent!.trim().isNotEmpty
       ? normalizeSessionAgent(state.widget.initialAgent!)
       : null;
-  final initialAgent = explicitAgent ??
-      (requestedProfile != null
-          ? resolvePreferredAgentForProfile(
-              requestedProfile,
-              fallback: settings.lastUsedAgent,
-            )
-          : normalizeSessionAgent(settings.lastUsedAgent));
-  final compatibleProfile = _resolveSessionFlowProfile(
-    profiles: profiles
-        .where((profile) => profile.isCompatibleWith(initialAgent))
-        .toList(),
-    preferredId: requestedProfile?.id,
-  );
+  final initialAgent =
+      explicitAgent ?? normalizeSessionAgent(settings.lastUsedAgent);
   final initialPermission = resolveModeSelection(
-    preferred: state.widget.initialPermissionMode ??
-        settings.lastUsedPermissionMode ??
-        compatibleProfile?.defaultPermissionMode?.value,
+    preferred:
+        state.widget.initialPermissionMode ?? settings.lastUsedPermissionMode,
     options: permissionOptionsForAgent(initialAgent),
     fallback: defaultPermissionModeForAgent(initialAgent),
-  );
-  final initialModel = resolveModeSelection(
-    preferred: state.widget.initialModelMode ??
-        settings.lastUsedModelMode ??
-        compatibleProfile?.defaultModelMode,
-    options: modelOptionsForAgent(initialAgent),
-    fallback: defaultModelModeForAgent(initialAgent),
   );
   final initialMachineId = state._selectedMachineId ??
       (machines.isNotEmpty ? machines.first.id : null);
@@ -48,8 +24,6 @@ void _seedSessionFlowInitialState(
   state._updateView(() {
     state._selectedAgent = initialAgent;
     state._permissionMode = initialPermission;
-    state._modelMode = initialModel;
-    state._selectedProfileId = compatibleProfile?.id;
     state._selectedMachineId = initialMachineId;
     if (state._pathController.text.trim().isEmpty && initialMachineId != null) {
       state._pathController.text = _defaultSessionFlowPathForMachine(

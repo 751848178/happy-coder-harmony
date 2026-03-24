@@ -4,13 +4,10 @@ Future<void> _scanTerminalQrCodeAction(_SettingsScreenState state) async {
   if (state._isConnectingTerminal) {
     return;
   }
-  final scannedLink = await Navigator.of(state.context).push<String>(
-    MaterialPageRoute(
-      builder: (_) => const ScanQrScreen(
-        title: '扫描电脑端二维码',
-        description: '将摄像头对准电脑上显示的授权二维码，识别后会自动连接。',
-      ),
-    ),
+  final scannedLink = await showQrScanner(
+    state.context,
+    title: '扫描电脑端二维码',
+    description: '将摄像头对准电脑上显示的授权二维码，识别后会自动连接。',
   );
   if (!state.mounted || scannedLink == null || scannedLink.trim().isEmpty) {
     return;
@@ -87,4 +84,9 @@ Future<void> _prepareConnectedSettingsState(_SettingsScreenState state) async {
       token: credentials.token,
     ),
   ]);
+  final remoteSessionIds = sessionNotifier.sessions
+      .where((session) => sessionNotifier.hasRemoteSession(session.id))
+      .map((session) => session.id)
+      .toList(growable: false);
+  await sessionNotifier.refreshSessionMessageSnapshots(remoteSessionIds);
 }

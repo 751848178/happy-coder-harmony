@@ -27,6 +27,8 @@
 - 设置了 `DATABASE_URL`: 同时清掉 `PGLITE_DIR`，避免运行时误切回内置 PGlite
 - 没设置 `DATABASE_URL`: 回退到上游默认的 `PGlite` 迁移逻辑
 
+另外，这里的源码阶段现在会优先下载 GitHub 的源码压缩包，而不是在容器里直接 `git fetch` 某个 commit SHA。这样在网络较慢、代理较严格，或 Docker 内 `git` 对 commit ref 支持不稳定的环境里更稳。
+
 ## 快速开始
 
 1. 复制环境变量模板。
@@ -48,6 +50,14 @@ cp .env.example .env
 docker compose build --pull
 docker compose up -d
 ```
+
+如果默认的 GitHub 源地址太慢，或者你想走镜像源，也可以在 `.env` 里额外设置：
+
+```bash
+HAPPY_UPSTREAM_ARCHIVE_URL=https://your-mirror.example.com/happy.tar.gz
+```
+
+不设置时，会自动按 `HAPPY_UPSTREAM_REPO + HAPPY_UPSTREAM_REF` 推导 GitHub archive 地址。
 
 4. 查看启动日志，确认迁移完成并成功监听 `3005`。
 

@@ -32,7 +32,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       agentInputEnterToSend: _service.agentInputEnterToSend,
       voiceAssistantLanguage: _service.voiceAssistantLanguage,
       lastUsedAgent: _service.lastUsedAgent,
-      lastUsedProfile: _service.lastUsedProfile,
       lastUsedPermissionMode: _service.lastUsedPermissionMode,
       lastUsedModelMode: _service.lastUsedModelMode,
     );
@@ -142,11 +141,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   void setLastUsedAgent(String? value) {
     _service.setLastUsedAgent(value);
     state = state.copyWith(lastUsedAgent: value);
-  }
-
-  void setLastUsedProfile(String? value) {
-    _service.setLastUsedProfile(value);
-    state = state.copyWith(lastUsedProfile: value);
   }
 
   void setLastUsedPermissionMode(String? value) {

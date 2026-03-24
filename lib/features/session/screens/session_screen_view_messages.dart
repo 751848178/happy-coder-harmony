@@ -14,7 +14,7 @@ extension _SessionScreenViewMessages on _SessionScreenState {
           AppTheme.spacingMd,
           12,
           AppTheme.spacingMd,
-          12,
+          116,
         ),
         itemCount: turnGroups.length,
         itemBuilder: (context, index) {
@@ -35,7 +35,7 @@ extension _SessionScreenViewMessages on _SessionScreenState {
         AppTheme.spacingMd,
         12,
         AppTheme.spacingMd,
-        12,
+        116,
       ),
       children: [
         for (final group in turnGroups)

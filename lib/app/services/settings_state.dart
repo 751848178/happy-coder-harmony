@@ -24,7 +24,6 @@ class SettingsState {
     this.agentInputEnterToSend = false,
     this.voiceAssistantLanguage,
     this.lastUsedAgent,
-    this.lastUsedProfile,
     this.lastUsedPermissionMode,
     this.lastUsedModelMode,
   });
@@ -51,7 +50,6 @@ class SettingsState {
   final bool agentInputEnterToSend;
   final String? voiceAssistantLanguage;
   final String? lastUsedAgent;
-  final String? lastUsedProfile;
   final String? lastUsedPermissionMode;
   final String? lastUsedModelMode;
 
@@ -78,7 +76,6 @@ class SettingsState {
     bool? agentInputEnterToSend,
     Object? voiceAssistantLanguage = _settingsSentinel,
     Object? lastUsedAgent = _settingsSentinel,
-    Object? lastUsedProfile = _settingsSentinel,
     Object? lastUsedPermissionMode = _settingsSentinel,
     Object? lastUsedModelMode = _settingsSentinel,
   }) {
@@ -115,9 +112,6 @@ class SettingsState {
       lastUsedAgent: lastUsedAgent == _settingsSentinel
           ? this.lastUsedAgent
           : lastUsedAgent as String?,
-      lastUsedProfile: lastUsedProfile == _settingsSentinel
-          ? this.lastUsedProfile
-          : lastUsedProfile as String?,
       lastUsedPermissionMode: lastUsedPermissionMode == _settingsSentinel
           ? this.lastUsedPermissionMode
           : lastUsedPermissionMode as String?,

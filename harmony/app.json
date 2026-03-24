@@ -2,8 +2,8 @@
   "name": "Hapmony",
   "short_name": "Hapmony",
   "description": "Mobile and Web Client for Claude Code & Codex",
-  "version": "1.0.0",
-  "build_number": "1",
-  "package": "com.happy.coder",
+  "version": "2.0.0",
+  "build_number": "2",
+  "package": "cn.svton.hapmony",
   "vendor": "Happy Coder Team"
 }

@@ -41,23 +41,3 @@ String? _mostRecentSessionFlowPathForMachine(
   }
   return null;
 }
-
-profile_models.AIProfile? _resolveSessionFlowProfile({
-  required List<profile_models.AIProfile> profiles,
-  required String? preferredId,
-}) {
-  return _findSessionFlowProfileById(profiles, preferredId);
-}
-
-profile_models.AIProfile? _findSessionFlowProfileById(
-  List<profile_models.AIProfile> profiles,
-  String? profileId,
-) {
-  if (profileId == null || profileId.isEmpty) {
-    return null;
-  }
-  return profiles
-      .where((profile) => profile.id == profileId)
-      .cast<profile_models.AIProfile?>()
-      .firstWhere((profile) => profile != null, orElse: () => null);
-}

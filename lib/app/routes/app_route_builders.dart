@@ -20,7 +20,6 @@ String sessionMessage(String sessionId, String messageId) =>
 String machine(String machineId) => '/machine/$machineId';
 String userProfileDetail(String userId) => '/user/$userId';
 String userProfileDetailLegacy(String userId) => '/user/profile?id=$userId';
-String profileDetailWithId(String profileId) => '/profile/detail?id=$profileId';
 String artifact(String artifactId) => '/artifacts/$artifactId';
 String editArtifactWithId(String artifactId) => '/artifacts/edit/$artifactId';
 
@@ -31,17 +30,9 @@ String newPathPicker({String? machineId, String? path}) {
   ).toString();
 }
 
-String newProfilePicker({String? profileId, String? agent}) {
-  return Uri(
-    path: '/new/pick/profile-edit',
-    queryParameters: _cleanQuery({'profileId': profileId, 'agent': agent}),
-  ).toString();
-}
-
 String newClonedSession({
   String? machineId,
   String? path,
-  String? profileId,
   String? agent,
   String? permissionMode,
   String? modelMode,
@@ -51,7 +42,6 @@ String newClonedSession({
     queryParameters: _cleanQuery({
       'machineId': machineId,
       'path': path,
-      'profileId': profileId,
       'agent': agent,
       'permissionMode': permissionMode,
       'modelMode': modelMode,

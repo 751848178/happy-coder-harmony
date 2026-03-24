@@ -17,10 +17,6 @@
       "value": "Camera access is required to take photos and videos for your coding projects."
     },
     {
-      "name": "microphone_permission_reason",
-      "value": "Microphone access is required for voice input and audio recording features."
-    },
-    {
       "name": "read_imagevideo_permission_reason",
       "value": "Access to read images and videos is required to manage your media files."
     },

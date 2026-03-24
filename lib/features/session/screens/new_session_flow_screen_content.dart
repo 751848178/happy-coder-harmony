@@ -3,14 +3,10 @@ part of 'new_session_flow_screen.dart';
 Widget _buildNewSessionFlowScreen(_NewSessionFlowScreenState state) {
   state.ref.watch(sessionStateProvider);
   final sessionNotifier = state.ref.read(sessionStateProvider.notifier);
-  final profileState = state.ref.watch(profileStateProvider);
   final settings = state.ref.watch(settingsStateProvider);
   final mediaQuery = MediaQuery.of(state.context);
   final horizontalPadding = mediaQuery.size.width > 700 ? 16.0 : 8.0;
 
-  final profiles = profileState is ProfileLoaded
-      ? profileState.profiles
-      : profile_models.BuiltInProfiles.all();
   final machines = _collectSessionFlowMachineOptions(state, sessionNotifier);
 
   if (!state._seededInitialState) {
@@ -21,7 +17,6 @@ Widget _buildNewSessionFlowScreen(_NewSessionFlowScreenState state) {
       _seedSessionFlowInitialState(
         state,
         settings: settings,
-        profiles: profiles,
         machines: machines,
         sessions: sessionNotifier.sessions,
       );
@@ -34,22 +29,10 @@ Widget _buildNewSessionFlowScreen(_NewSessionFlowScreenState state) {
       .where((item) => item.id == effectiveMachineId)
       .cast<_MachineOption?>()
       .firstWhere((item) => item != null, orElse: () => null);
-  final compatibleProfiles = profiles
-      .where((profile) => profile.isCompatibleWith(state._selectedAgent))
-      .toList();
-  final selectedProfile = _resolveSessionFlowProfile(
-    profiles: compatibleProfiles,
-    preferredId: state._selectedProfileId,
-  );
   final permissionOptions = permissionOptionsForAgent(state._selectedAgent);
-  final modelOptions = modelOptionsForAgent(state._selectedAgent);
   final selectedPermission = permissionOptions.firstWhere(
     (option) => option.key == state._permissionMode,
     orElse: () => permissionOptions.first,
-  );
-  final selectedModel = modelOptions.firstWhere(
-    (option) => option.key == state._modelMode,
-    orElse: () => modelOptions.first,
   );
   final effectiveDirectory =
       _effectiveSessionFlowDirectory(state, selectedMachine);
@@ -100,9 +83,7 @@ Widget _buildNewSessionFlowScreen(_NewSessionFlowScreenState state) {
                   child: _buildSessionFlowComposer(
                     state,
                     selectedMachine: selectedMachine,
-                    selectedProfile: selectedProfile,
                     selectedPermission: selectedPermission,
-                    selectedModel: selectedModel,
                     canCreate: canCreate,
                   ),
                 ),
@@ -153,9 +134,7 @@ Widget _buildSessionFlowBody(
 Widget _buildSessionFlowComposer(
   _NewSessionFlowScreenState state, {
   required _MachineOption? selectedMachine,
-  required profile_models.AIProfile? selectedProfile,
   required SessionModeOption selectedPermission,
-  required SessionModeOption selectedModel,
   required bool canCreate,
 }) {
   final directory = _effectiveSessionFlowDirectory(state, selectedMachine);
@@ -174,7 +153,6 @@ Widget _buildSessionFlowComposer(
       _buildSessionFlowComposerHeader(
         state,
         selectedPermission: selectedPermission,
-        selectedModel: selectedModel,
         connectionColor: connectionColor,
         connectionText: connectionText,
       ),
@@ -182,7 +160,6 @@ Widget _buildSessionFlowComposer(
           selectedMachine: selectedMachine, directory: directory),
       _buildSessionFlowPromptCard(
         state,
-        selectedProfile: selectedProfile,
         canCreate: canCreate,
         selectedMachine: selectedMachine,
       ),

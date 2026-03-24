@@ -104,11 +104,6 @@ extension SettingsServiceAccessors on SettingsService {
   Future<void> setLastUsedAgent(String? value) =>
       _setNullableString(SettingsService._keyLastUsedAgent, value);
 
-  String? get lastUsedProfile =>
-      _getNullableString(SettingsService._keyLastUsedProfile);
-  Future<void> setLastUsedProfile(String? value) =>
-      _setNullableString(SettingsService._keyLastUsedProfile, value);
-
   String? get lastUsedPermissionMode =>
       _getNullableString(SettingsService._keyLastUsedPermissionMode);
   Future<void> setLastUsedPermissionMode(String? value) =>

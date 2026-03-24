@@ -25,6 +25,19 @@ class _InlineCodePanelState extends State<_InlineCodePanel>
   bool get wantKeepAlive => _expanded;
 
   @override
+  void didUpdateWidget(covariant _InlineCodePanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final changed = oldWidget.code != widget.code ||
+        oldWidget.language != widget.language ||
+        oldWidget.collapsedLines != widget.collapsedLines;
+    if (!changed) {
+      return;
+    }
+    _expanded = false;
+    updateKeepAlive();
+  }
+
+  @override
   Widget build(BuildContext context) {
     super.build(context);
     final normalizedCode = widget.code.trimRight();
@@ -187,5 +200,4 @@ class _InlineCodePanelState extends State<_InlineCodePanel>
       ),
     );
   }
-
 }

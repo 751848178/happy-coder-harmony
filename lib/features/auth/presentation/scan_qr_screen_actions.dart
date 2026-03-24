@@ -1,5 +1,106 @@
 part of 'scan_qr_screen.dart';
 
+const String _qrScanFallbackToken = '__fallback__';
+
+bool _isQrScanCanceledMessage(String? message) {
+  final normalized = message?.trim().toLowerCase();
+  if (normalized == null || normalized.isEmpty) {
+    return false;
+  }
+  return normalized.contains('cancel') ||
+      normalized.contains('canceled') ||
+      normalized.contains('cancelled') ||
+      normalized.contains('user canceled') ||
+      normalized.contains('用户取消');
+}
+
+void _showQrScanErrorSnackBar(BuildContext context, String message) {
+  if (!context.mounted) {
+    return;
+  }
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      backgroundColor: AppTheme.errorColor,
+    ),
+  );
+}
+
+Future<String?> _startHarmonySystemQrScan(BuildContext context) async {
+  try {
+    final available = await HarmonyBridge.isQRCodeAvailable();
+    if (!available) {
+      return _qrScanFallbackToken;
+    }
+
+    final hasPermission = await HarmonyBridge.checkQRCodePermission() ||
+        await HarmonyBridge.requestQRCodePermission();
+    if (!hasPermission) {
+      if (context.mounted) {
+        _showQrScanErrorSnackBar(context, '没有获得相机权限，请在系统设置中允许相机后重试。');
+      }
+      return null;
+    }
+
+    final completer = Completer<String?>();
+    late final StreamSubscription<Map<String, dynamic>> subscription;
+    subscription = HarmonyBridge.qrScanEvents().listen(
+      (event) {
+        if (completer.isCompleted) {
+          return;
+        }
+        switch (event['type']?.toString()) {
+          case 'scan_success':
+            final data = event['data'];
+            final scanned =
+                data is Map ? data['content']?.toString().trim() : null;
+            completer.complete(
+              scanned == null || scanned.isEmpty ? null : scanned,
+            );
+            break;
+          case 'camera_permission_denied':
+            completer.complete(null);
+            break;
+          case 'scan_error':
+            final message = event['error']?.toString();
+            if (!_isQrScanCanceledMessage(message) && context.mounted) {
+              _showQrScanErrorSnackBar(
+                context,
+                message ?? '扫码失败，请重试或改用手动输入链接。',
+              );
+            }
+            completer.complete(null);
+            break;
+          case 'camera_stopped':
+            completer.complete(null);
+            break;
+        }
+      },
+      onError: (_) {
+        if (!completer.isCompleted) {
+          if (context.mounted) {
+            _showQrScanErrorSnackBar(context, '扫码失败，请重试或改用手动输入链接。');
+          }
+          completer.complete(null);
+        }
+      },
+    );
+
+    final started = await HarmonyBridge.startQRCodeScan(supportGallery: false);
+    if (!started) {
+      await subscription.cancel();
+      return _qrScanFallbackToken;
+    }
+
+    final result = await completer.future;
+    await subscription.cancel();
+    await HarmonyBridge.stopQRCodeScan();
+    return result;
+  } on PlatformException {
+    return _qrScanFallbackToken;
+  }
+}
+
 Future<void> _prepareQrScanner(_ScanQrScreenState state) async {
   if (!HarmonyBridge.isHarmonyOS) {
     state._updateView(() => state._isCheckingScanner = false);
@@ -84,9 +185,15 @@ void _handleHarmonyQrEvent(
       });
       return;
     case 'scan_error':
+      final message = event['error']?.toString();
+      if (_isQrScanCanceledMessage(message)) {
+        if (!state._handled && state.mounted) {
+          Navigator.of(state.context).pop();
+        }
+        return;
+      }
       state._updateView(() {
-        state._scannerMessage =
-            event['error']?.toString() ?? '扫码失败，请重试或直接粘贴链接。';
+        state._scannerMessage = message ?? '扫码失败，请重试或直接粘贴链接。';
       });
       return;
     case 'camera_stopped':

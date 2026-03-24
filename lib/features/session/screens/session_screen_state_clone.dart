@@ -10,9 +10,9 @@ extension _SessionScreenStateClone on _SessionScreenState {
       machineId: metadata['machineId']?.toString(),
       path: session.path ?? metadata['path']?.toString(),
       agent: metadata['flavor']?.toString(),
-      permissionMode: session.permissionMode ??
-          metadata['currentOperatingModeCode']?.toString(),
-      modelMode: session.modelMode ?? metadata['currentModelCode']?.toString(),
+      permissionMode: metadata['currentOperatingModeCode']?.toString() ??
+          session.permissionMode,
+      modelMode: metadata['currentModelCode']?.toString() ?? session.modelMode,
     );
     context.push(uri);
   }

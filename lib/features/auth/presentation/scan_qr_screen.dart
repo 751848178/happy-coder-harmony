@@ -11,6 +11,32 @@ part 'scan_qr_screen_actions.dart';
 part 'scan_qr_screen_views.dart';
 part 'scan_qr_screen_widgets.dart';
 
+Future<String?> showQrScanner(
+  BuildContext context, {
+  required String title,
+  required String description,
+}) async {
+  if (HarmonyBridge.isHarmonyOS) {
+    final directResult = await _startHarmonySystemQrScan(context);
+    if (directResult != _qrScanFallbackToken) {
+      return directResult;
+    }
+  }
+
+  if (!context.mounted) {
+    return null;
+  }
+
+  return Navigator.of(context).push<String>(
+    MaterialPageRoute(
+      builder: (_) => ScanQrScreen(
+        title: title,
+        description: description,
+      ),
+    ),
+  );
+}
+
 class ScanQrScreen extends StatefulWidget {
   const ScanQrScreen({
     super.key,

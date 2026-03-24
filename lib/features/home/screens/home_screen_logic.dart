@@ -50,15 +50,6 @@ void _ensureHomeConnectedServices(
     if (state._activeTab == HomeTab.sessions) {
       await state._refreshVisibleSessionSnapshots(sessionNotifier);
     }
-    await state._refreshInboxBadge(token);
-  });
-}
-
-Future<void> _refreshHomeInboxBadge(
-    _HomeScreenState state, String token) async {
-  final count = await InboxRepository.instance.getUnreadCount(token: token);
-  state._updateView(() {
-    state._inboxUnreadCount = count;
   });
 }
 
@@ -111,13 +102,6 @@ void _handleHomeTabSelected(_HomeScreenState state, HomeTab tab) {
   state._updateView(() {
     state._activeTab = tab;
   });
-
-  if (tab == HomeTab.inbox) {
-    final token = state.ref.read(authStateProvider).credentials?.token;
-    if (token != null && token.isNotEmpty) {
-      state._refreshInboxBadge(token);
-    }
-  }
 }
 
 void _handleHomeLeadingAction(_HomeScreenState state) {
@@ -145,9 +129,6 @@ void _handleHomePrimaryAction(
           queryParameters: {'machineId': selectedMachineId},
         ).toString(),
       );
-      return;
-    case HomeTab.inbox:
-      state.context.push(AppRoutes.friendsSearch);
       return;
     case HomeTab.settings:
       return;

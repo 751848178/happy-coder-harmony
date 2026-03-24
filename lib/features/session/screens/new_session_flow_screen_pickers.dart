@@ -44,51 +44,10 @@ Future<void> _pickSessionFlowPath(_NewSessionFlowScreenState state) async {
   });
 }
 
-Future<void> _pickSessionFlowProfile(_NewSessionFlowScreenState state) async {
-  final result = await state.context.push<String>(
-    AppRoutes.newProfilePicker(
-      profileId: state._selectedProfileId,
-      agent: state._selectedAgent,
-    ),
-  );
-  if (!state.mounted || result == null || result.isEmpty) {
-    return;
-  }
-
-  final profileState = state.ref.read(profileStateProvider);
-  final profiles = profileState is ProfileLoaded
-      ? profileState.profiles
-      : profile_models.BuiltInProfiles.all();
-  final profile = _findSessionFlowProfileById(profiles, result);
-  if (profile == null) {
-    return;
-  }
-
-  final nextAgent = resolvePreferredAgentForProfile(
-    profile,
-    fallback: state._selectedAgent,
-  );
-  state._updateView(() {
-    state._selectedAgent = nextAgent;
-    state._selectedProfileId = profile.id;
-    state._permissionMode = resolveModeSelection(
-      preferred: profile.defaultPermissionMode?.value,
-      options: permissionOptionsForAgent(nextAgent),
-      fallback: defaultPermissionModeForAgent(nextAgent),
-    );
-    state._modelMode = resolveModeSelection(
-      preferred: profile.defaultModelMode,
-      options: modelOptionsForAgent(nextAgent),
-      fallback: defaultModelModeForAgent(nextAgent),
-    );
-  });
-}
-
 Future<void> _showSessionFlowSettingsSheet(
   _NewSessionFlowScreenState state,
 ) async {
   final permissionOptions = permissionOptionsForAgent(state._selectedAgent);
-  final modelOptions = modelOptionsForAgent(state._selectedAgent);
 
   await showModalBottomSheet<void>(
     context: state.context,
@@ -99,13 +58,10 @@ Future<void> _showSessionFlowSettingsSheet(
     ),
     builder: (context) {
       var localPermission = state._permissionMode;
-      var localModel = state._modelMode;
       return StatefulBuilder(
         builder: (context, setModalState) {
           final mediaHeight = MediaQuery.sizeOf(context).height;
-          final sheetHeight = (160.0 +
-                  (permissionOptions.length * 58.0) +
-                  (modelOptions.length * 58.0))
+          final sheetHeight = (148.0 + (permissionOptions.length * 58.0))
               .clamp(320.0, mediaHeight * 0.78)
               .toDouble();
           return SafeArea(
@@ -143,26 +99,6 @@ Future<void> _showSessionFlowSettingsSheet(
                                       );
                                       setModalState(
                                           () => localPermission = option.key);
-                                    },
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                          const SizedBox(height: 12),
-                          _SheetSection(
-                            title: '模型',
-                            children: modelOptions
-                                .map(
-                                  (option) => _SheetOptionTile(
-                                    title: option.label,
-                                    subtitle: option.description,
-                                    selected: localModel == option.key,
-                                    onTap: () {
-                                      state._updateView(
-                                        () => state._modelMode = option.key,
-                                      );
-                                      setModalState(
-                                          () => localModel = option.key);
                                     },
                                   ),
                                 )

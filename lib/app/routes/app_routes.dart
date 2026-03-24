@@ -50,8 +50,6 @@ class AppRoutes {
       newPickMachineName = 'new-pick-machine';
   static const String newPickPath = '/new/pick/path',
       newPickPathName = 'new-pick-path';
-  static const String newPickProfileEdit = '/new/pick/profile-edit',
-      newPickProfileEditName = 'new-pick-profile-edit';
   static const String sessionFiles = '/session/files',
       sessionFilesName = 'session-files';
   static const String sessionFilesById = '/session/:id/files',
@@ -108,12 +106,8 @@ class AppRoutes {
       settingsConnectClaudeName = 'settings-connect-claude';
   static const String settingsServer = '/settings/server',
       settingsServerName = 'settings-server';
-  static const String settingsProfiles = '/settings/profiles',
-      settingsProfilesName = 'settings-profiles';
-
-  static const String profiles = '/profiles', profilesName = 'profiles';
-  static const String profileDetail = '/profile/detail',
-      profileDetailName = 'profile-detail';
+  static const String settingsInputTemplates = '/settings/input-templates',
+      settingsInputTemplatesName = 'settings-input-templates';
 
   static const String bashTool = '/tools/bash',
       bashToolName = 'bash-tool',
@@ -159,19 +153,14 @@ class AppRoutes {
       builders.userProfileDetail;
   static final String Function(String) userProfileDetailLegacy =
       builders.userProfileDetailLegacy;
-  static final String Function(String) profileDetailWithId =
-      builders.profileDetailWithId;
   static final String Function(String) artifact = builders.artifact;
   static final String Function(String) editArtifactWithId =
       builders.editArtifactWithId;
   static final String Function({String? machineId, String? path})
       newPathPicker = builders.newPathPicker;
-  static final String Function({String? profileId, String? agent})
-      newProfilePicker = builders.newProfilePicker;
   static final String Function({
     String? machineId,
     String? path,
-    String? profileId,
     String? agent,
     String? permissionMode,
     String? modelMode,

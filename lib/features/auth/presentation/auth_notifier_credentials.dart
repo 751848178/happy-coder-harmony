@@ -19,7 +19,9 @@ Future<void> _completeAuthorizedAccountAuth(
 }) async {
   _stopAccountPolling(notifier);
   await _saveCredentials(notifier, _loginResponseFromAccountAuth(response));
-  final savedCredentials = await notifier._authRepository.getCredentials();
+  final savedCredentials = await _restoreStoredAuthenticatedCredentials(
+    notifier,
+  );
   notifier._updateState(AuthState.authenticated(
     credentials: savedCredentials ?? _credentialsFromAccountAuth(response),
   ));
@@ -43,6 +45,18 @@ Future<void> _saveCredentials(
     await notifier._storage.saveMachineKey(credentials.machineKey!);
   }
   Logger.info('Credentials saved successfully');
+}
+
+Future<Credentials?> _restoreStoredAuthenticatedCredentials(
+  AuthNotifier notifier,
+) async {
+  final savedCredentials = await notifier._authRepository.getCredentials();
+  if (savedCredentials != null) {
+    notifier._updateState(
+      AuthState.authenticated(credentials: savedCredentials),
+    );
+  }
+  return savedCredentials;
 }
 
 Credentials _credentialsFromLoginResponse(

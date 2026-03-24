@@ -48,7 +48,6 @@ class SettingsService {
   static const String _keyAgentInputEnterToSend = 'agent_input_enter_to_send';
   static const String _keyVoiceAssistantLanguage = 'voice_assistant_language';
   static const String _keyLastUsedAgent = 'last_used_agent';
-  static const String _keyLastUsedProfile = 'last_used_profile';
   static const String _keyLastUsedPermissionMode = 'last_used_permission_mode';
   static const String _keyLastUsedModelMode = 'last_used_model_mode';
 
@@ -86,7 +85,6 @@ class SettingsService {
     await setAgentInputEnterToSend(false);
     await setVoiceAssistantLanguage(null);
     await setLastUsedAgent(null);
-    await setLastUsedProfile(null);
     await setLastUsedPermissionMode(null);
     await setLastUsedModelMode(null);
   }

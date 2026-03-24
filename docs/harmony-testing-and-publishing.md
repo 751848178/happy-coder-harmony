@@ -257,7 +257,7 @@ harmony/entry/build/default/outputs/default/
 
 ```bash
 # 检查包信息
-hdc shell bm dump -n com.happy.coder.harmony
+hdc shell bm dump -n cn.svton.happy
 
 # 安装测试
 hdc install entry-default-signed.hap

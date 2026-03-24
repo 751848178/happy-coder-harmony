@@ -5,13 +5,10 @@ Future<void> _startQrScanLogin(_QRLoginScreenState state) async {
     return;
   }
   state._updateView(() => state._isScanning = true);
-  final link = await Navigator.of(state.context).push<String>(
-    MaterialPageRoute(
-      builder: (_) => const ScanQrScreen(
-        title: '扫描登录二维码',
-        description: '将摄像头对准 ${AppConfig.appName} 生成的二维码，识别后会自动继续。',
-      ),
-    ),
+  final link = await showQrScanner(
+    state.context,
+    title: '扫描登录二维码',
+    description: '将摄像头对准 ${AppConfig.appName} 生成的二维码，识别后会自动继续。',
   );
   if (!state.mounted) {
     return;

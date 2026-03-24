@@ -45,6 +45,7 @@ Future<bool> _connectTerminal(AuthNotifier notifier, String authUrl) async {
   if (!success) {
     throw Exception('终端连接失败');
   }
+  await _restoreStoredAuthenticatedCredentials(notifier);
   return true;
 }
 
@@ -83,9 +84,13 @@ Future<bool> _linkAccount(AuthNotifier notifier, String authUrlOrKey) async {
       response: encryptedResponse,
       credentials: credentials,
     );
+    final syncedCredentials =
+        success ? await _restoreStoredAuthenticatedCredentials(notifier) : null;
     notifier._updateState(
       success
-          ? AuthState.authenticated(credentials: credentials)
+          ? AuthState.authenticated(
+              credentials: syncedCredentials ?? credentials,
+            )
           : AuthState.error('Failed to link account'),
     );
     if (success) {

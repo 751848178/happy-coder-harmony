@@ -1,6 +1,41 @@
 part of 'session_screen.dart';
 
 extension _SessionScreenViewCommandLogic on _SessionScreenState {
+  List<_InputTemplateItem> _allInputTemplates() {
+    return [
+      ..._defaultInputTemplates,
+      ..._customInputTemplates.map(_InputTemplateItem.fromCustom),
+    ];
+  }
+
+  _ComposerTriggerMatch? _findComposerTrigger(String trigger) {
+    final value = _messageController.value;
+    final text = value.text;
+    final selection = value.selection;
+    final cursor = selection.isValid ? selection.end : text.length;
+    if (cursor < 0 || cursor > text.length) {
+      return null;
+    }
+    final prefix = text.substring(0, cursor);
+    final triggerIndex = prefix.lastIndexOf(trigger);
+    if (triggerIndex < 0) {
+      return null;
+    }
+    final rawQuery = prefix.substring(triggerIndex + trigger.length);
+    if (rawQuery.contains(RegExp(r'\s'))) {
+      return null;
+    }
+    return _ComposerTriggerMatch(
+      start: triggerIndex,
+      end: cursor,
+      query: rawQuery.trim().toLowerCase(),
+    );
+  }
+
+  _ComposerTriggerMatch? _findInputTemplateTrigger() {
+    return _findComposerTrigger('^');
+  }
+
   void _showModeSheet({
     required String title,
     required List<_ModeOption> options,
@@ -135,19 +170,16 @@ extension _SessionScreenViewCommandLogic on _SessionScreenState {
   }
 
   List<_InputTemplateItem> _visibleInputTemplates() {
-    final text = _messageController.text.trimLeft();
-    if (!text.startsWith('^')) {
+    final triggerMatch = _findInputTemplateTrigger();
+    if (triggerMatch == null) {
       return const <_InputTemplateItem>[];
     }
-    final rawQuery = text.substring(1);
-    if (rawQuery.contains(' ')) {
-      return const <_InputTemplateItem>[];
-    }
-    final query = rawQuery.trim().toLowerCase();
+    final query = triggerMatch.query;
+    final templates = _allInputTemplates();
     if (query.isEmpty) {
-      return _defaultInputTemplates;
+      return templates;
     }
-    return _defaultInputTemplates
+    return templates
         .where(
           (item) =>
               item.label.toLowerCase().contains(query) ||
@@ -157,9 +189,6 @@ extension _SessionScreenViewCommandLogic on _SessionScreenState {
   }
 
   bool _shouldShowInputTemplates(List<_InputTemplateItem> templates) {
-    return _messageController.text.trimLeft().startsWith('^') &&
-        templates.isNotEmpty;
+    return _findInputTemplateTrigger() != null && templates.isNotEmpty;
   }
-
-
 }

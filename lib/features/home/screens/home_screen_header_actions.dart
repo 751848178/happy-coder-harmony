@@ -55,13 +55,6 @@ class _HeaderActionButton extends StatelessWidget {
           onPressed: onPressed,
           tooltip: '新建会话',
         );
-      case HomeTab.inbox:
-        return IconButton(
-          icon: const Icon(Icons.person_add_alt_1_rounded),
-          color: AppTheme.textPrimary,
-          onPressed: onPressed,
-          tooltip: '添加好友',
-        );
       case HomeTab.settings:
         return const SizedBox(width: 40, height: 40);
     }

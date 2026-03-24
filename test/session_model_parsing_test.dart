@@ -59,4 +59,20 @@ void main() {
     expect(session.latestUsage?.messageCount, 5);
     expect(session.latestUsage?.tokenCount, 11);
   });
+
+  test('Session.copyWith can clear draft explicitly', () {
+    final session = Session(
+      id: 'session-draft-1',
+      title: 'Draft Session',
+      messages: const [],
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+      active: true,
+      draft: 'pending input',
+    );
+
+    final cleared = session.copyWith(draft: null);
+
+    expect(cleared.draft, isNull);
+  });
 }

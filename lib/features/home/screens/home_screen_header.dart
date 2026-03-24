@@ -157,8 +157,6 @@ String _titleForTab(HomeTab tab) {
   switch (tab) {
     case HomeTab.sessions:
       return '会话';
-    case HomeTab.inbox:
-      return '收件箱';
     case HomeTab.settings:
       return '设置';
   }

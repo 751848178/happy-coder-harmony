@@ -123,7 +123,7 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                                 key: const ValueKey('session-unread-indicator'),
                                 left: AppTheme.spacingMd,
                                 right: AppTheme.spacingMd,
-                                bottom: 76,
+                                bottom: 112,
                                 child: Center(
                                   child: _buildNewMessageIndicator(),
                                 ),
@@ -135,7 +135,7 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                                 child: Padding(
                                   padding: const EdgeInsets.only(
                                     right: AppTheme.spacingMd,
-                                    bottom: 12,
+                                    bottom: 20,
                                   ),
                                   child: _buildScrollActions(),
                                 ),

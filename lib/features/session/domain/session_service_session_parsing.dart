@@ -99,6 +99,7 @@ extension SessionServiceSessionParsing on SessionServiceNotifier {
       secretKey: secretKey,
     );
     final parsedSession = Session.fromJson(sessionJson);
+    final existingSession = _repository.getSession(parsedSession.id);
     final nextMetadata = metadata ?? parsedSession.metadata;
     final summary = _asStringMap(nextMetadata?['summary']);
     final resolvedPath =
@@ -124,6 +125,10 @@ extension SessionServiceSessionParsing on SessionServiceNotifier {
         preferred: preferences?.modelMode,
         explicit: parsedSession.modelMode,
         metadataValue: nextMetadata?['currentModelCode']?.toString(),
+      ),
+      draft: _resolveSessionDraft(
+        remoteDraft: parsedSession.draft,
+        cachedDraft: existingSession?.draft,
       ),
     );
     _sessionDataKeys[session.id] = dataKey;

@@ -34,7 +34,7 @@
 |------|----------|----------|------|
 | 应用名称 | Happy Coder | ✅ 已配置 | 可在 `harmony/app.json` 中查看 |
 | 短名称 | Happy | ✅ 已配置 | 显示在桌面图标下方 |
-| 包名 | com.happy.coder.harmony | ✅ 已配置 | 需要唯一 |
+| 包名 | cn.svton.happy | ✅ 已配置 | 需要唯一 |
 | 版本号 | 1.0.0 | ✅ 已配置 | 遵循 semver 规范 |
 | 开发者名称 | Happy Coder Team | ✅ 已配置 | 需要真实团队/公司名 |
 

@@ -41,7 +41,9 @@ class _MessageBubbleState extends State<_MessageBubble>
   @override
   void didUpdateWidget(covariant _MessageBubble oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.message.id != widget.message.id) {
+    final contentChanged =
+        jsonEncode(oldWidget.message.toJson()) != jsonEncode(message.toJson());
+    if (oldWidget.message.id != widget.message.id || contentChanged) {
       _collapsed = _shouldStartCollapsed(message);
       updateKeepAlive();
     }
@@ -151,5 +153,4 @@ class _MessageBubbleState extends State<_MessageBubble>
       return _buildDefaultMessage();
     }
   }
-
 }

@@ -70,13 +70,10 @@ Future<void> _startScanImpl(_TerminalConnectScreenState state) async {
     state._errorMessage = null;
   });
 
-  final data = await Navigator.of(state.context).push<String>(
-    MaterialPageRoute(
-      builder: (_) => const ScanQrScreen(
-        title: '扫描电脑端二维码',
-        description: '将摄像头对准电脑上显示的授权二维码，识别后会自动返回。',
-      ),
-    ),
+  final data = await showQrScanner(
+    state.context,
+    title: '扫描电脑端二维码',
+    description: '将摄像头对准电脑上显示的授权二维码，识别后会自动返回。',
   );
 
   if (!state.mounted) {
@@ -126,20 +123,26 @@ Future<void> _prepareConnectedStateImpl(
   _TerminalConnectScreenState state,
 ) async {
   final authState = state.ref.read(authStateProvider);
-  final futures = <Future<void>>[
-    state.ref.read(sessionStateProvider.notifier).loadSessions(),
-  ];
-  if (authState.isAuthenticated) {
-    final credentials = authState.credentials!;
-    final socketState = state.ref.read(socketStateProvider);
-    if (!socketState.isConnected) {
-      futures.add(
-        state.ref.read(socketStateProvider.notifier).initialize(
-              machineId: credentials.machineId,
-              token: credentials.token,
-            ),
-      );
-    }
+  if (!authState.isAuthenticated) {
+    return;
   }
-  await Future.wait(futures);
+
+  final credentials = authState.credentials!;
+  final sessionNotifier = state.ref.read(sessionStateProvider.notifier);
+  final socketNotifier = state.ref.read(socketStateProvider.notifier);
+
+  await Future.wait([
+    sessionNotifier.loadSessions(force: true),
+    sessionNotifier.loadMachines(force: true, allowFailure: true),
+    socketNotifier.initialize(
+      machineId: credentials.machineId,
+      token: credentials.token,
+    ),
+  ]);
+
+  final remoteSessionIds = sessionNotifier.sessions
+      .where((session) => sessionNotifier.hasRemoteSession(session.id))
+      .map((session) => session.id)
+      .toList(growable: false);
+  await sessionNotifier.refreshSessionMessageSnapshots(remoteSessionIds);
 }

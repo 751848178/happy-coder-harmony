@@ -27,7 +27,7 @@ extension SessionServiceMetadata on SessionServiceNotifier {
     required String? explicit,
     required String? metadataValue,
   }) {
-    for (final candidate in [preferred, explicit, metadataValue]) {
+    for (final candidate in [metadataValue, explicit, preferred]) {
       final normalized = _normalizeOptionalValue(candidate);
       if (normalized != null) {
         return normalized;
@@ -65,18 +65,33 @@ extension SessionServiceMetadata on SessionServiceNotifier {
 
   (String, String?) _resolveMessageModeMeta(Session session) {
     final sandbox = _asStringMap(session.metadata?['sandbox']);
+    final metadata = session.metadata ?? const <String, dynamic>{};
     final sandboxEnabled = sandbox?['enabled'] == true;
-    final permissionMode = session.permissionMode != null &&
-            session.permissionMode!.isNotEmpty &&
-            session.permissionMode != 'default'
-        ? session.permissionMode!
-        : (sandboxEnabled ? 'bypassPermissions' : 'default');
-    final modelMode = session.modelMode != null &&
-            session.modelMode!.isNotEmpty &&
-            session.modelMode != 'default'
-        ? session.modelMode
-        : null;
+    final resolvedPermissionMode = _normalizeOptionalValue(
+          metadata['currentOperatingModeCode']?.toString(),
+        ) ??
+        _normalizeOptionalValue(session.permissionMode);
+    final permissionMode =
+        resolvedPermissionMode != null && resolvedPermissionMode != 'default'
+            ? resolvedPermissionMode
+            : (sandboxEnabled ? 'bypassPermissions' : 'default');
+    final resolvedModelMode = _normalizeOptionalValue(
+          metadata['currentModelCode']?.toString(),
+        ) ??
+        _normalizeOptionalValue(session.modelMode);
+    final modelMode =
+        resolvedModelMode != null && resolvedModelMode != 'default'
+            ? resolvedModelMode
+            : null;
     return (permissionMode, modelMode);
+  }
+
+  String? _resolveSessionDraft({
+    required String? remoteDraft,
+    required String? cachedDraft,
+  }) {
+    return _normalizeOptionalValue(remoteDraft) ??
+        _normalizeOptionalValue(cachedDraft);
   }
 
   String _resolveSentFrom() {

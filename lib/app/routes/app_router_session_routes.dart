@@ -131,14 +131,6 @@ List<RouteBase> _buildSessionRoutes() {
       ),
     ),
     GoRoute(
-      path: AppRoutes.newPickProfileEdit,
-      name: AppRoutes.newPickProfileEditName,
-      builder: (context, state) => SessionProfileEditScreen(
-        selectedProfileId: state.uri.queryParameters['profileId'],
-        agent: state.uri.queryParameters['agent'],
-      ),
-    ),
-    GoRoute(
       path: AppRoutes.machineDetail,
       name: AppRoutes.machineDetailName,
       builder: (context, state) => _buildRequiredPathWidget(

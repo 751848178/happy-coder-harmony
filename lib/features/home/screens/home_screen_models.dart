@@ -2,13 +2,10 @@ part of 'home_screen.dart';
 
 enum HomeTab {
   sessions,
-  inbox,
   settings;
 
   static HomeTab fromRouteValue(String? value) {
     switch (value) {
-      case 'inbox':
-        return HomeTab.inbox;
       case 'settings':
         return HomeTab.settings;
       case 'sessions':

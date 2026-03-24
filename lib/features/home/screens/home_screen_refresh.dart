@@ -26,7 +26,6 @@ Future<void> _refreshHomeSessionsAndConnection(_HomeScreenState state) async {
       ),
     ]);
     await state._refreshVisibleSessionSnapshots(sessionNotifier);
-    await state._refreshInboxBadge(credentials.token);
   } catch (error) {
     if (!state.mounted) {
       return;

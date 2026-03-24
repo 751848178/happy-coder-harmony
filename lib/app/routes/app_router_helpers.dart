@@ -37,7 +37,6 @@ Widget _buildAlignedNewFlowRoute(GoRouterState state) {
   return NewSessionFlowScreen(
     initialMachineId: state.uri.queryParameters['machineId'],
     initialPath: state.uri.queryParameters['path'],
-    initialProfileId: state.uri.queryParameters['profileId'],
     initialAgent: state.uri.queryParameters['agent'],
     initialPermissionMode: state.uri.queryParameters['permissionMode'],
     initialModelMode: state.uri.queryParameters['modelMode'],

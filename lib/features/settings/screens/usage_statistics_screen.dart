@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/utils/extensions.dart';
+import '../../session/domain/session_stats.dart';
 import '../domain/usage_models.dart';
 
 part 'usage_statistics_screen_breakdowns.dart';
 part 'usage_statistics_screen_chart.dart';
 part 'usage_statistics_screen_content.dart';
+part 'usage_statistics_screen_data.dart';
 part 'usage_statistics_screen_info.dart';
-part 'usage_statistics_screen_mock_data.dart';
 part 'usage_statistics_screen_summary.dart';
 
 /// Usage Statistics Screen
@@ -33,12 +36,24 @@ class _UsageStatisticsScreenState extends ConsumerState<UsageStatisticsScreen> {
     _loadStatistics();
   }
 
-  Future<void> _loadStatistics() async {
+  Future<void> _loadStatistics({bool force = true}) async {
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 500));
+
+    final sessionNotifier = ref.read(sessionStateProvider.notifier);
+    try {
+      await sessionNotifier.loadSessions(force: force);
+    } catch (error) {
+      Logger.warning(
+          'Usage statistics reload failed, using cached sessions: $error');
+    }
+
+    final statistics = _buildStatisticsFromSessions(sessionNotifier);
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _isLoading = false;
-      _statistics = _buildMockStatistics();
+      _statistics = statistics;
     });
   }
 
@@ -58,7 +73,7 @@ class _UsageStatisticsScreenState extends ConsumerState<UsageStatisticsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadStatistics,
+            onPressed: () => _loadStatistics(force: true),
             tooltip: '刷新',
           ),
         ],

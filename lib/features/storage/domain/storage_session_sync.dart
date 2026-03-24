@@ -44,6 +44,8 @@ extension StorageSessionSync on StorageService {
         if (session.permissionMode != null)
           'permissionMode': session.permissionMode,
         if (session.modelMode != null) 'modelMode': session.modelMode,
+        if (session.draft != null && session.draft!.trim().isNotEmpty)
+          'draft': session.draft,
       };
 
       final storageModel = SessionStorageModel(

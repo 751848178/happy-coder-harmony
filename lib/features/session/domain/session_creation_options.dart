@@ -1,7 +1,6 @@
 import '../../profile/domain/profile_models.dart' as profile_models;
 
 part 'session_creation_options_agents.dart';
-part 'session_creation_options_env.dart';
 part 'session_creation_options_modes.dart';
 
 class SessionModeOption {

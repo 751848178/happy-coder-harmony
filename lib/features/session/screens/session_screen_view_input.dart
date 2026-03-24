@@ -10,10 +10,14 @@ extension _SessionScreenViewInput on _SessionScreenState {
     required List<_SlashCommandItem> visibleSlashCommands,
     required List<_InputTemplateItem> visibleInputTemplates,
   }) {
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     final flavor =
         _resolveFlavorLabel(session?.metadata?['flavor']?.toString());
     final hasComposerText = _messageController.text.trim().isNotEmpty;
     final sendTooltip = conversationBusy ? '加入待发送队列' : '发送消息';
+    final showingSuggestionPanel = (settings.commandPaletteEnabled &&
+            _shouldShowSlashCommands(visibleSlashCommands)) ||
+        _shouldShowInputTemplates(visibleInputTemplates);
     return Container(
       padding: const EdgeInsets.fromLTRB(
         AppTheme.spacingMd,
@@ -112,30 +116,29 @@ extension _SessionScreenViewInput on _SessionScreenState {
               ],
             ),
             if ((settings.commandPaletteEnabled && slashCommands.isNotEmpty) ||
-                _defaultInputTemplates.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    [
-                      if (settings.commandPaletteEnabled &&
-                          slashCommands.isNotEmpty)
-                        '输入 `/` 查看 ${slashCommands.length} 个可用指令',
-                      if (_defaultInputTemplates.isNotEmpty) '输入 `^` 快速插入模板',
-                    ].join(' · '),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.neutral600,
+                _allInputTemplates().isNotEmpty)
+              if (!(keyboardVisible && showingSuggestionPanel))
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      [
+                        if (settings.commandPaletteEnabled &&
+                            slashCommands.isNotEmpty)
+                          '输入 `/` 查看 ${slashCommands.length} 个可用指令',
+                        if (_allInputTemplates().isNotEmpty) '输入 `^` 快速插入模板',
+                      ].join(' · '),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.neutral600,
+                      ),
                     ),
                   ),
                 ),
-              ),
           ],
         ),
       ),
     );
   }
-
-
 }

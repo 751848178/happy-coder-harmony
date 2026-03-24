@@ -3,12 +3,10 @@ part of 'home_screen.dart';
 class _HomeTabBar extends StatelessWidget {
   const _HomeTabBar({
     required this.activeTab,
-    required this.inboxBadgeCount,
     required this.onTabSelected,
   });
 
   final HomeTab activeTab;
-  final int inboxBadgeCount;
   final ValueChanged<HomeTab> onTabSelected;
 
   @override
@@ -24,16 +22,6 @@ class _HomeTabBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Expanded(
-                child: _TabBarItem(
-                  label: '收件箱',
-                  icon: Icons.inbox_outlined,
-                  activeIcon: Icons.inbox_rounded,
-                  selected: activeTab == HomeTab.inbox,
-                  badgeCount: inboxBadgeCount,
-                  onTap: () => onTabSelected(HomeTab.inbox),
-                ),
-              ),
               Expanded(
                 child: _TabBarItem(
                   label: '会话',

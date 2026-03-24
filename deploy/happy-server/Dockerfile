@@ -1,21 +1,38 @@
 # Build a runnable Happy Server image directly from the upstream repository.
 # Default ref is pinned for reproducibility and can be overridden in .env.
+# For public GitHub repos we prefer the archive download because fetching a
+# detached commit SHA over git is flaky in some Docker/network environments.
 
 FROM node:20 AS source
 
 ARG HAPPY_REPO=https://github.com/slopus/happy.git
 ARG HAPPY_REF=d343330c86ab966969aecd82be4aecbad7ec4238
+ARG HAPPY_ARCHIVE_URL=
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates git \
+  && apt-get install -y --no-install-recommends ca-certificates curl git \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 
-RUN git init \
-  && git remote add origin "${HAPPY_REPO}" \
-  && git fetch --depth 1 origin "${HAPPY_REF}" \
-  && git checkout --detach FETCH_HEAD
+RUN set -eux; \
+  repo_url="${HAPPY_REPO%/}"; \
+  repo_base="${repo_url%.git}"; \
+  archive_url=""; \
+  if [ -n "${HAPPY_ARCHIVE_URL}" ]; then \
+    archive_url="${HAPPY_ARCHIVE_URL}"; \
+  elif [ "${repo_base#https://github.com/}" != "${repo_base}" ] || [ "${repo_base#http://github.com/}" != "${repo_base}" ]; then \
+    archive_url="${repo_base}/archive/${HAPPY_REF}.tar.gz"; \
+  fi; \
+  if [ -n "${archive_url}" ]; then \
+    curl -fsSL --retry 5 --retry-all-errors --connect-timeout 15 "${archive_url}" \
+      | tar -xzf - --strip-components=1 -C /src; \
+  else \
+    git init; \
+    git remote add origin "${HAPPY_REPO}"; \
+    git fetch --depth 1 origin "${HAPPY_REF}"; \
+    git checkout --detach FETCH_HEAD; \
+  fi
 
 FROM node:20 AS deps
 
