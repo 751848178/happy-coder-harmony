@@ -36,6 +36,7 @@ import '../../features/session/screens/session_recent_screen.dart';
 import '../../features/session/screens/session_screen.dart';
 import '../../features/settings/screens/about_screen.dart';
 import '../../features/settings/screens/account_settings_screen.dart';
+import '../../features/settings/screens/features_settings_screen.dart';
 import '../../features/settings/screens/input_templates_settings_screen.dart';
 import '../../features/settings/screens/server_settings_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';

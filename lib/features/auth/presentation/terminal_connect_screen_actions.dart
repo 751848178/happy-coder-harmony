@@ -144,5 +144,8 @@ Future<void> _prepareConnectedStateImpl(
       .where((session) => sessionNotifier.hasRemoteSession(session.id))
       .map((session) => session.id)
       .toList(growable: false);
-  await sessionNotifier.refreshSessionMessageSnapshots(remoteSessionIds);
+  await sessionNotifier.refreshSessionMessageSnapshots(
+    remoteSessionIds,
+    maxPagesPerSession: 2,
+  );
 }

@@ -21,6 +21,7 @@ class SettingsState {
     this.hideInactiveSessions = false,
     this.commandPaletteEnabled = true,
     this.markdownCopyV2 = false,
+    this.enableBackgroundSessionRefresh = false,
     this.agentInputEnterToSend = false,
     this.voiceAssistantLanguage,
     this.lastUsedAgent,
@@ -47,6 +48,7 @@ class SettingsState {
   final bool hideInactiveSessions;
   final bool commandPaletteEnabled;
   final bool markdownCopyV2;
+  final bool enableBackgroundSessionRefresh;
   final bool agentInputEnterToSend;
   final String? voiceAssistantLanguage;
   final String? lastUsedAgent;
@@ -73,6 +75,7 @@ class SettingsState {
     bool? hideInactiveSessions,
     bool? commandPaletteEnabled,
     bool? markdownCopyV2,
+    bool? enableBackgroundSessionRefresh,
     bool? agentInputEnterToSend,
     Object? voiceAssistantLanguage = _settingsSentinel,
     Object? lastUsedAgent = _settingsSentinel,
@@ -104,6 +107,9 @@ class SettingsState {
       commandPaletteEnabled:
           commandPaletteEnabled ?? this.commandPaletteEnabled,
       markdownCopyV2: markdownCopyV2 ?? this.markdownCopyV2,
+      enableBackgroundSessionRefresh:
+          enableBackgroundSessionRefresh ??
+              this.enableBackgroundSessionRefresh,
       agentInputEnterToSend:
           agentInputEnterToSend ?? this.agentInputEnterToSend,
       voiceAssistantLanguage: voiceAssistantLanguage == _settingsSentinel

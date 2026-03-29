@@ -29,6 +29,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       hideInactiveSessions: _service.hideInactiveSessions,
       commandPaletteEnabled: _service.commandPaletteEnabled,
       markdownCopyV2: _service.markdownCopyV2,
+      enableBackgroundSessionRefresh: _service.enableBackgroundSessionRefresh,
       agentInputEnterToSend: _service.agentInputEnterToSend,
       voiceAssistantLanguage: _service.voiceAssistantLanguage,
       lastUsedAgent: _service.lastUsedAgent,
@@ -126,6 +127,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   void setMarkdownCopyV2(bool value) {
     _service.setMarkdownCopyV2(value);
     state = state.copyWith(markdownCopyV2: value);
+  }
+
+  void setEnableBackgroundSessionRefresh(bool value) {
+    _service.setEnableBackgroundSessionRefresh(value);
+    state = state.copyWith(enableBackgroundSessionRefresh: value);
   }
 
   void setAgentInputEnterToSend(bool value) {

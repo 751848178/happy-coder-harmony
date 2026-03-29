@@ -89,6 +89,11 @@ extension SettingsServiceAccessors on SettingsService {
   Future<void> setMarkdownCopyV2(bool value) =>
       _setBool(SettingsService._keyMarkdownCopyV2, value);
 
+  bool get enableBackgroundSessionRefresh =>
+      _getBool(SettingsService._keyEnableBackgroundSessionRefresh, false);
+  Future<void> setEnableBackgroundSessionRefresh(bool value) =>
+      _setBool(SettingsService._keyEnableBackgroundSessionRefresh, value);
+
   bool get agentInputEnterToSend =>
       _getBool(SettingsService._keyAgentInputEnterToSend, false);
   Future<void> setAgentInputEnterToSend(bool value) =>

@@ -3,14 +3,45 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../features/session/domain/session_list_preview.dart';
+import '../../../features/session/domain/session_recency.dart';
+import '../../../features/session/presentation/session_agent_avatar.dart';
+import '../../../features/session/presentation/session_list_status_chip.dart';
+import '../../../features/session/presentation/session_turn_status.dart';
 import '../../../shared/utils/extensions.dart';
-import '../../session/domain/session_stats.dart';
 
 part 'session_list_item_body.dart';
 part 'session_list_item_helpers.dart';
 part 'session_list_item_menu.dart';
 part 'sessions_list_content.dart';
 part 'sessions_list_feedback.dart';
+
+class _SessionListItemSelection {
+  const _SessionListItemSelection({
+    required this.session,
+    required this.messages,
+    required this.hasLoadedMessages,
+    required this.isThinking,
+  });
+
+  final Session session;
+  final List<ReducerMessage>? messages;
+  final bool hasLoadedMessages;
+  final bool isThinking;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _SessionListItemSelection &&
+        identical(session, other.session) &&
+        identical(messages, other.messages) &&
+        hasLoadedMessages == other.hasLoadedMessages &&
+        isThinking == other.isThinking;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(session, messages, hasLoadedMessages, isThinking);
+}
 
 /// 会话列表项
 class SessionListItem extends ConsumerWidget {
@@ -29,17 +60,43 @@ class SessionListItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sessionMessages = ref.watch(
+    final selection = ref.watch(
       sessionStateProvider.select(
-        (state) => state.whenOrNull(
-          ready: (_, sessionMessages, __) =>
-              sessionMessages[session.id]?.messages,
+        (state) => state.when(
+          initial: () => _SessionListItemSelection(
+            session: session,
+            messages: null,
+            hasLoadedMessages: false,
+            isThinking: false,
+          ),
+          loading: () => _SessionListItemSelection(
+            session: session,
+            messages: null,
+            hasLoadedMessages: false,
+            isThinking: false,
+          ),
+          ready: (sessions, sessionMessages, __) {
+            final current = sessions[session.id] ?? session;
+            final currentMessages = sessionMessages[session.id];
+            final reducerMessages = currentMessages?.messages;
+            return _SessionListItemSelection(
+              session: current,
+              messages: reducerMessages,
+              hasLoadedMessages: currentMessages?.isLoaded == true,
+              isThinking: sessionTurnIsThinkingStillBlocking(
+                session: current,
+                messages: reducerMessages ?? const <ReducerMessage>[],
+              ),
+            );
+          },
+          error: (_) => _SessionListItemSelection(
+            session: session,
+            messages: null,
+            hasLoadedMessages: false,
+            isThinking: false,
+          ),
         ),
       ),
-    );
-    final stats = SessionStatsCalculator.fromSession(
-      session: session,
-      messages: sessionMessages,
     );
 
     return InkWell(
@@ -57,11 +114,20 @@ class SessionListItem extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            _SessionItemIcon(session: session),
+            _SessionItemIcon(
+              session: selection.session,
+              isThinking: selection.isThinking,
+            ),
             const SizedBox(width: 12),
             Expanded(
-                child: _SessionListItemBody(session: session, stats: stats)),
-            _SessionListMenuButton(session: session),
+              child: _SessionListItemBody(
+                session: selection.session,
+                messages: selection.messages,
+                hasLoadedMessages: selection.hasLoadedMessages,
+                isThinking: selection.isThinking,
+              ),
+            ),
+            _SessionListMenuButton(session: selection.session),
           ],
         ),
       ),
@@ -84,30 +150,57 @@ class SessionsList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sessionState = ref.watch(sessionStateProvider);
-    return sessionState.when(
-      initial: () => const _SessionsListLoadingView(),
-      loading: () => const _SessionsListLoadingView(),
-      ready: (sessions, sessionMessages, machines) {
-        final sessionList = showActiveOnly
-            ? sessions.values.where((s) => s.active).toList()
-            : sessions.values.toList()
-          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final isLoading = ref.watch(
+      sessionStateProvider.select(
+        (state) => state.when(
+          initial: () => true,
+          loading: () => true,
+          ready: (_, __, ___) => false,
+          error: (_) => false,
+        ),
+      ),
+    );
+    if (isLoading) {
+      return const _SessionsListLoadingView();
+    }
 
-        if (sessionList.isEmpty) {
-          return _SessionsListEmptyView(
-            showActiveOnly: showActiveOnly,
-            onNewSessionTap: onNewSessionTap,
-          );
-        }
+    final String? errorMessage = ref.watch(
+      sessionStateProvider.select<String?>(
+        (state) => state.whenOrNull(error: (message) => message),
+      ),
+    );
+    if (errorMessage != null) {
+      return _SessionsListErrorView(message: errorMessage);
+    }
 
-        return _SessionsListContent(
-          sessions: sessionList,
-          onSessionTap: onSessionTap,
-          onNewSessionTap: onNewSessionTap,
-        );
-      },
-      error: (message) => _SessionsListErrorView(message: message),
+    final sessionList = ref.watch(
+      sessionStateProvider.select(
+        (state) => state.when(
+          initial: () => const <Session>[],
+          loading: () => const <Session>[],
+          ready: (sessions, _, __) {
+            final items = (showActiveOnly
+                ? sessions.values.where((session) => session.active).toList()
+                : sessions.values.toList())
+              ..sort(compareSessionsByStableListOrder);
+            return items;
+          },
+          error: (_) => const <Session>[],
+        ),
+      ),
+    );
+
+    if (sessionList.isEmpty) {
+      return _SessionsListEmptyView(
+        showActiveOnly: showActiveOnly,
+        onNewSessionTap: onNewSessionTap,
+      );
+    }
+
+    return _SessionsListContent(
+      sessions: sessionList,
+      onSessionTap: onSessionTap,
+      onNewSessionTap: onNewSessionTap,
     );
   }
 }

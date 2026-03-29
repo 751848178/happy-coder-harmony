@@ -26,5 +26,10 @@ List<RouteBase> _buildSettingsRoutes() {
       name: AppRoutes.settingsInputTemplatesName,
       builder: (context, state) => const InputTemplatesSettingsScreen(),
     ),
+    GoRoute(
+      path: AppRoutes.settingsFeatures,
+      name: AppRoutes.settingsFeaturesName,
+      builder: (context, state) => const FeaturesSettingsScreen(),
+    ),
   ];
 }

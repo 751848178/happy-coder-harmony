@@ -28,7 +28,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
         children: [
           _SectionCard(
             title: '实验功能',
-            subtitle: '控制增强新建会话、会话列表过滤和 Markdown 复制行为。',
+            subtitle: '控制增强新建会话、会话同步和 Markdown 复制行为。',
             children: [
               SwitchListTile.adaptive(
                 value: settings.experiments,
@@ -47,6 +47,14 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 onChanged: notifier.setMarkdownCopyV2,
                 title: const Text('增强 Markdown 复制'),
                 subtitle: const Text('长按消息时优先保留原始 Markdown。'),
+              ),
+              SwitchListTile.adaptive(
+                value: settings.enableBackgroundSessionRefresh,
+                onChanged: notifier.setEnableBackgroundSessionRefresh,
+                title: const Text('后台持续更新消息'),
+                subtitle: const Text(
+                  '开启后会在应用进入后台后继续尽力刷新会话和消息；普通 HarmonyOS UIAbility 在锁屏后可能被系统回收，无法保证长期驻留，会增加电量和网络消耗。',
+                ),
               ),
             ],
           ),

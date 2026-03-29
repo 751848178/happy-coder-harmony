@@ -67,5 +67,8 @@ Future<void> _refreshHomeVisibleSessionSnapshots(
   Logger.info(
     'Home refresh will reload message snapshots for ${visibleSessionIds.length} sessions',
   );
-  await sessionNotifier.refreshSessionMessageSnapshots(visibleSessionIds);
+  await sessionNotifier.refreshSessionMessageSnapshots(
+    visibleSessionIds,
+    maxPagesPerSession: 2,
+  );
 }

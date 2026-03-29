@@ -21,6 +21,13 @@ Widget _buildSettingsFeaturesGroup(
         title: '会话',
         children: [
           _SettingsItem(
+            icon: Icons.tune_rounded,
+            color: const Color(0xFF16A085),
+            title: '功能设置',
+            subtitle: '实验功能、后台持续更新与交互偏好',
+            onTap: () => state.context.push(AppRoutes.settingsFeatures),
+          ),
+          _SettingsItem(
             icon: Icons.auto_awesome_rounded,
             color: AppTheme.brandColor,
             title: '快捷模板',

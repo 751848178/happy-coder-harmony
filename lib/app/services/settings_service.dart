@@ -45,6 +45,8 @@ class SettingsService {
   static const String _keyHideInactiveSessions = 'hide_inactive_sessions',
       _keyCommandPaletteEnabled = 'command_palette_enabled',
       _keyMarkdownCopyV2 = 'markdown_copy_v2';
+  static const String _keyEnableBackgroundSessionRefresh =
+      'enable_background_session_refresh';
   static const String _keyAgentInputEnterToSend = 'agent_input_enter_to_send';
   static const String _keyVoiceAssistantLanguage = 'voice_assistant_language';
   static const String _keyLastUsedAgent = 'last_used_agent';
@@ -82,6 +84,7 @@ class SettingsService {
     await setHideInactiveSessions(false);
     await setCommandPaletteEnabled(true);
     await setMarkdownCopyV2(false);
+    await setEnableBackgroundSessionRefresh(false);
     await setAgentInputEnterToSend(false);
     await setVoiceAssistantLanguage(null);
     await setLastUsedAgent(null);
