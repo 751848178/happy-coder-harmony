@@ -1,0 +1,4 @@
+interface:
+  display_name: "OHOS Release Install (Debug Profile)"
+  short_description: "Build release with debug profile and install to real OHOS device"
+  default_prompt: "Build latest code into an OHOS release package using the existing debug signing profile by bypassing scripts/run.sh, then install to a real device via hdc and report diagnostics."
