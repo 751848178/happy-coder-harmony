@@ -147,12 +147,11 @@ extension _SessionScreenViewQueuePanel on _SessionScreenState {
   }
 
   bool _shouldAutoApprove(Session session) {
-    final normalized =
-        (session.metadata?['currentOperatingModeCode']?.toString() ??
-                session.permissionMode ??
-                '')
-            .replaceAll(RegExp(r'[\s_\-]'), '')
-            .toLowerCase();
+    final normalized = (session.permissionMode ??
+            session.metadata?['currentOperatingModeCode']?.toString() ??
+            '')
+        .replaceAll(RegExp(r'[\s_\-]'), '')
+        .toLowerCase();
     if (normalized.isEmpty) {
       return false;
     }

@@ -4,13 +4,12 @@ extension on _SessionsScreenState {
   Widget _buildDefaultGroupedList({
     required List<Session> sessions,
     required Map<String, SessionStats> statsBySessionId,
+    required Map<String, bool> thinkingBySessionId,
   }) {
-    final availableSessions = sessions
-        .where((session) => !_isSessionUnavailable(session))
-        .toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    final unavailableSessions = sessions.where(_isSessionUnavailable).toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final availableSessions =
+        sessions.where((session) => !_isSessionUnavailable(session)).toList();
+    final unavailableSessions =
+        sessions.where(_isSessionUnavailable).toList(growable: false);
     final sessionMap = {for (final session in sessions) session.id: session};
     final groups = DateGrouper.groupByDate(
       availableSessions
@@ -20,7 +19,7 @@ extension on _SessionsScreenState {
               title: session.title.isEmpty ? '未命名会话' : session.title,
               subtitle:
                   session.path ?? session.metadata?['description']?.toString(),
-              createdAt: session.activeAt ?? session.updatedAt,
+              createdAt: session.updatedAt,
               lastModified: session.updatedAt,
               type: session.tag,
               messageCount: statsBySessionId[session.id]?.messageCount,
@@ -54,6 +53,8 @@ extension on _SessionsScreenState {
                   child: _SessionListItem(
                     session: sessionMap[item.id]!,
                     stats: statsBySessionId[item.id]!,
+                    isThinking: thinkingBySessionId[item.id] ??
+                        sessionMap[item.id]!.thinking == true,
                     groupName: _groupNameForSession(item.id),
                     onTap: () => _openSession(sessionMap[item.id]!),
                     onDelete: () => _deleteSession(sessionMap[item.id]!),
@@ -66,43 +67,47 @@ extension on _SessionsScreenState {
           ),
         if (unavailableSessions.isNotEmpty)
           _buildUnavailableSessionSection(
-            sessions: unavailableSessions,
+            unavailableSessions: unavailableSessions,
             statsBySessionId: statsBySessionId,
+            thinkingBySessionId: thinkingBySessionId,
           ),
       ],
     );
   }
 
   Widget _buildUnavailableSessionSection({
-    required List<Session> sessions,
+    required List<Session> unavailableSessions,
     required Map<String, SessionStats> statsBySessionId,
+    required Map<String, bool> thinkingBySessionId,
   }) {
-    final collapsed = _isDefaultGroupCollapsed(
-      SessionsScreen.unavailableGroupLabel,
-      defaultCollapsed: true,
-    );
     return _SessionsGroupSection(
       header: _SessionSectionHeader(
         title: SessionsScreen.unavailableGroupLabel,
-        count: sessions.length,
-        collapsed: collapsed,
-        subtle: true,
-        onTap: () {
-          _toggleDefaultGroup(
-            SessionsScreen.unavailableGroupLabel,
-            defaultCollapsed: true,
-          );
-        },
+        count: unavailableSessions.length,
+        collapsed: _isDefaultGroupCollapsed(
+          SessionsScreen.unavailableGroupLabel,
+          defaultCollapsed: true,
+        ),
+        onTap: () => _toggleDefaultGroup(
+          SessionsScreen.unavailableGroupLabel,
+          defaultCollapsed: true,
+        ),
       ),
-      collapsed: collapsed,
+      collapsed: _isDefaultGroupCollapsed(
+        SessionsScreen.unavailableGroupLabel,
+        defaultCollapsed: true,
+      ),
       children: [
-        for (final session in sessions)
+        for (final session in unavailableSessions)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: _SessionListItem(
               session: session,
               stats: statsBySessionId[session.id]!,
-              groupName: _groupNameForSession(session.id),
+              isThinking:
+                  thinkingBySessionId[session.id] ?? session.thinking == true,
+              groupName: _groupNameForSession(session.id) ??
+                  SessionsScreen.unavailableGroupLabel,
               onTap: () => _openSession(session),
               onDelete: () => _deleteSession(session),
               onMove: () => _showMoveSessionSheet(session),

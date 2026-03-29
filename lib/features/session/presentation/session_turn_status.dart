@@ -1,6 +1,13 @@
 import '../domain/reducer.dart';
 import '../domain/session_models.dart';
 
+bool sessionMessageIsUserAuthored(ReducerMessage message) {
+  final metadata = message.metadata;
+  final role = metadata?['role']?.toString();
+  final sourceRole = metadata?['sourceRole']?.toString();
+  return role == 'user' || sourceRole == 'user';
+}
+
 bool sessionTurnHasCompletionSignal(Iterable<ReducerMessage> messages) {
   for (final message in messages) {
     if (message.isTurnClose) {
@@ -11,6 +18,7 @@ bool sessionTurnHasCompletionSignal(Iterable<ReducerMessage> messages) {
     }
     final eventType = message.metadata?['eventType']?.toString();
     if (eventType == 'stop' ||
+        eventType == 'ready' ||
         eventType == 'task_complete' ||
         eventType == 'turn_aborted') {
       return true;
@@ -39,9 +47,8 @@ bool sessionTurnHasRenderableAgentOutput(Iterable<ReducerMessage> messages) {
     if (!message.isText) {
       continue;
     }
-    final role = message.metadata?['role']?.toString();
     final outputType = message.metadata?['outputType']?.toString();
-    if (role != 'user' &&
+    if (!sessionMessageIsUserAuthored(message) &&
         outputType != 'thinking' &&
         (message.text?.trim().isNotEmpty ?? false)) {
       return true;
@@ -50,22 +57,48 @@ bool sessionTurnHasRenderableAgentOutput(Iterable<ReducerMessage> messages) {
   return false;
 }
 
+/// 判断思考状态是否超时（用于检测会话中断的情况）
+/// 如果会话思考时间超过阈值，认为可能已中断
+bool _isThinkingTimedOut(Session? session) {
+  if (session == null) {
+    return false;
+  }
+  final thinking = session.thinking;
+  final thinkingAt = session.thinkingAt;
+  if (thinking != true || thinkingAt == null) {
+    return false;
+  }
+  // 如果思考时间超过 2 分钟，认为可能已中断
+  const timeoutDuration = Duration(minutes: 2);
+  final elapsed = DateTime.now().difference(thinkingAt);
+  return elapsed >= timeoutDuration;
+}
+
 bool sessionTurnIsThinkingStillBlocking({
   required Session? session,
   required Iterable<ReducerMessage> messages,
+  bool? manualThinkingOverride,
 }) {
+  if (manualThinkingOverride != null) {
+    return manualThinkingOverride;
+  }
   final allMessages = List<ReducerMessage>.from(messages, growable: false);
   if (sessionTurnHasCompletionSignal(allMessages)) {
     return false;
   }
   if (session?.thinking == true) {
+    // 修复会话中断后思考状态无法清除的问题：
+    // 如果会话思考时间超过阈值（如 2 分钟），认为可能已中断，不应阻塞新消息
+    if (_isThinkingTimedOut(session)) {
+      return false;
+    }
     return true;
   }
   for (final message in allMessages.reversed) {
     if (!message.isText) {
       continue;
     }
-    if (message.metadata?['role']?.toString() == 'user') {
+    if (sessionMessageIsUserAuthored(message)) {
       continue;
     }
     return message.metadata?['outputType']?.toString() == 'thinking';
@@ -110,9 +143,13 @@ bool sessionConversationIsBusy({
   required bool isSending,
   required bool isAutoSendingQueuedMessage,
   required String? activeResponseLocalId,
+  bool? manualThinkingOverride,
 }) {
   if (isSending || isAutoSendingQueuedMessage) {
     return true;
+  }
+  if (manualThinkingOverride == false) {
+    return false;
   }
   if (activeResponseLocalId != null) {
     return true;
@@ -120,6 +157,7 @@ bool sessionConversationIsBusy({
   if (sessionTurnIsThinkingStillBlocking(
     session: session,
     messages: latestTurnMessages,
+    manualThinkingOverride: manualThinkingOverride,
   )) {
     return true;
   }

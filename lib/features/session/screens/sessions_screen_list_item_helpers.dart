@@ -21,18 +21,3 @@ String _formatSessionUpdatedAt(DateTime dateTime) {
   }
   return '${dateTime.year}年${dateTime.month}月${dateTime.day}日';
 }
-
-String? _directoryBadgeLabel(Session session) {
-  final path =
-      session.path?.trim() ?? session.metadata?['path']?.toString().trim();
-  if (path == null || path.isEmpty) {
-    final fallbackTag = session.tag?.trim();
-    return fallbackTag == null || fallbackTag.isEmpty ? null : fallbackTag;
-  }
-  final normalized = path.replaceAll('\\', '/');
-  final parts = normalized.split('/').where((part) => part.isNotEmpty).toList();
-  if (parts.isEmpty) {
-    return null;
-  }
-  return parts.last;
-}

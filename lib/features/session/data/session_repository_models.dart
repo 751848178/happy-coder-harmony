@@ -1,6 +1,29 @@
 part of 'session_repository.dart';
 
 extension SessionRepositoryStateMutations on SessionRepository {
+  void _syncSessionLatestUsageWithLoadedCount(
+    String sessionId,
+    int loadedMessageCount,
+  ) {
+    final existingSession = _sessions[sessionId];
+    if (existingSession == null) {
+      return;
+    }
+    final nextLatestUsage = resolvePersistedSessionLatestUsage(
+      session: existingSession,
+      loadedMessageCount: loadedMessageCount,
+    );
+    if (_sessionRepositoryDeepEquality.equals(
+      existingSession.latestUsage?.toJson(),
+      nextLatestUsage?.toJson(),
+    )) {
+      return;
+    }
+    _sessions[sessionId] = existingSession.copyWith(
+      latestUsage: nextLatestUsage,
+    );
+  }
+
   void applyAgentState(String sessionId, Map<String, dynamic>? agentState) {
     final existing = _sessionMessages[sessionId];
     if (existing == null) {
@@ -110,6 +133,7 @@ extension SessionRepositoryStateMutations on SessionRepository {
       reducerState: existing.reducerState,
       isLoaded: existing.isLoaded,
     );
+    _syncSessionLatestUsageWithLoadedCount(sessionId, 0);
     _stateController.add(
       SessionStateChange(
         type: SessionChangeType.messagesUpdated,
@@ -147,6 +171,7 @@ extension SessionRepositoryStateMutations on SessionRepository {
       reducerState: existing.reducerState,
       isLoaded: existing.isLoaded,
     );
+    _syncSessionLatestUsageWithLoadedCount(sessionId, nextMessages.length);
     _stateController.add(
       SessionStateChange(
         type: SessionChangeType.messagesUpdated,

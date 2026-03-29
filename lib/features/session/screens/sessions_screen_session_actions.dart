@@ -13,28 +13,12 @@ extension on _SessionsScreenState {
     _setRefreshingSessions(true);
 
     try {
-      final notifier = ref.read(sessionStateProvider.notifier);
       await Future.wait([
-        notifier.loadSessions(force: true),
-        notifier.loadMachines(force: true, allowFailure: true),
+        _runSessionListAutoSync(forceSessions: true),
+        ref
+            .read(sessionStateProvider.notifier)
+            .loadMachines(force: true, allowFailure: true),
       ]);
-      final settings = ref.read(settingsStateProvider);
-      final hideInactiveByDefault =
-          widget.showAppBar && settings.hideInactiveSessions;
-      final visibleSessionIds = notifier.sessions
-          .where(
-            (session) => _matchesSessionFilters(
-              session,
-              selectedMachineId: widget.selectedMachineId,
-              hideInactiveByDefault: hideInactiveByDefault,
-            ),
-          )
-          .map((session) => session.id)
-          .toList(growable: false);
-      Logger.info(
-        'Sessions list refresh will reload message snapshots for ${visibleSessionIds.length} sessions',
-      );
-      await notifier.refreshSessionMessageSnapshots(visibleSessionIds);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

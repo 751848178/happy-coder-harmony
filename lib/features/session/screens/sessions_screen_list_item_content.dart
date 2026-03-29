@@ -4,8 +4,9 @@ class _SessionListItemContent extends StatelessWidget {
   const _SessionListItemContent({
     required this.dragExtent,
     required this.session,
-    required this.stats,
-    required this.groupName,
+    required this.titleText,
+    required this.activitySnapshot,
+    required this.statusSnapshot,
     required this.onTap,
     required this.onLongPress,
     required this.onCloseActions,
@@ -13,24 +14,15 @@ class _SessionListItemContent extends StatelessWidget {
 
   final double dragExtent;
   final Session session;
-  final SessionStats stats;
-  final String? groupName;
+  final String titleText;
+  final SessionListActivitySnapshot activitySnapshot;
+  final SessionListStatusSnapshot? statusSnapshot;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   final VoidCallback onCloseActions;
 
   @override
   Widget build(BuildContext context) {
-    final directoryLabel = _directoryBadgeLabel(session);
-    final statusBadge = session.thinking == true
-        ? _SessionThinkingBadge(since: session.thinkingAt)
-        : session.active
-            ? const _SessionStatusBadge(
-                label: '活跃',
-                color: AppTheme.successColor,
-              )
-            : null;
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -52,134 +44,172 @@ class _SessionListItemContent extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.only(
-                      right: statusBadge == null
-                          ? 0
-                          : session.thinking == true
-                              ? 112
-                              : 72,
+              Padding(
+                padding: const EdgeInsets.only(right: 24),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SessionLeadingIcon(
+                      session: session,
+                      isActive: session.active,
+                      isThinking: statusSnapshot?.isThinking == true,
                     ),
-                    child: Row(
-                      children: [
-                        _SessionLeadingIcon(
-                          isActive: session.active,
-                          isThinking: session.thinking == true,
-                        ),
-                        const SizedBox(width: AppTheme.spacingSm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(width: AppTheme.spacingSm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Text(
-                                session.title.isNotEmpty
-                                    ? session.title
-                                    : '未命名会话',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: session.active
-                                      ? AppTheme.neutral900
-                                      : AppTheme.neutral600,
+                              Expanded(
+                                child: Text(
+                                  titleText,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: session.active
+                                        ? AppTheme.neutral900
+                                        : AppTheme.neutral600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                              if ((groupName != null &&
-                                      groupName!.isNotEmpty) ||
-                                  directoryLabel != null) ...[
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 6,
-                                  children: [
-                                    if (groupName != null &&
-                                        groupName!.isNotEmpty)
-                                      _SessionBadge(
-                                        icon: Icons.folder_open_outlined,
-                                        label: groupName!,
-                                        color: AppTheme.brandColor,
-                                      ),
-                                    if (directoryLabel != null)
-                                      _SessionBadge(
-                                        icon: Icons.folder_open_outlined,
-                                        label: directoryLabel,
-                                        color: AppTheme.brandColor,
-                                      ),
-                                  ],
+                              const SizedBox(width: AppTheme.spacingSm),
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 180),
+                                switchInCurve: Curves.easeOutCubic,
+                                switchOutCurve: Curves.easeInCubic,
+                                child: _SessionListTimeView(
+                                  key: ValueKey<String>(
+                                    activitySnapshot.isSyncing
+                                        ? 'syncing'
+                                        : activitySnapshot.lastMessageAt
+                                                ?.millisecondsSinceEpoch
+                                                .toString() ??
+                                            'empty',
+                                  ),
+                                  activitySnapshot: activitySnapshot,
                                 ),
-                              ],
+                              ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingSm),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 26),
-                    child: Row(
-                      children: [
-                        Icon(Icons.access_time,
-                            size: 13, color: AppTheme.neutral500),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatSessionUpdatedAt(session.updatedAt),
-                          style: TextStyle(
-                              fontSize: 12, color: AppTheme.neutral600),
-                        ),
-                        const SizedBox(width: AppTheme.spacingMd),
-                        Icon(
-                          Icons.message_outlined,
-                          size: 13,
-                          color: AppTheme.neutral500,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${stats.messageCount} 条消息',
-                          style: TextStyle(
-                              fontSize: 12, color: AppTheme.neutral600),
-                        ),
-                        if (stats.hasChanges) ...[
-                          const SizedBox(width: AppTheme.spacingMd),
-                          Icon(
-                            Icons.edit_note_rounded,
-                            size: 13,
-                            color: AppTheme.neutral500,
-                          ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              '${stats.changedLineCount} 行改动',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.neutral600,
+                          const SizedBox(height: 6),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            child: _SessionListPreviewView(
+                              key: ValueKey<String>(
+                                '${statusSnapshot?.kind.name ?? "none"}:'
+                                '${activitySnapshot.phase.name}:'
+                                '${activitySnapshot.previewText}',
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              activitySnapshot: activitySnapshot,
+                              statusSnapshot: statusSnapshot,
                             ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              if (statusBadge != null)
-                Positioned(top: 0, right: 0, child: statusBadge),
               const Positioned(
                 right: 0,
                 bottom: 0,
-                child: Icon(Icons.chevron_right,
-                    size: 20, color: AppTheme.neutral400),
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: AppTheme.neutral400,
+                ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SessionListTimeView extends StatelessWidget {
+  const _SessionListTimeView({
+    super.key,
+    required this.activitySnapshot,
+  });
+
+  final SessionListActivitySnapshot activitySnapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    if (activitySnapshot.isSyncing) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppTheme.infoColor.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: const Text(
+          '待同步',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.infoColor,
+          ),
+        ),
+      );
+    }
+
+    final lastActivityAt = activitySnapshot.lastMessageAt;
+    if (lastActivityAt == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Text(
+      _formatSessionUpdatedAt(lastActivityAt),
+      style: const TextStyle(
+        fontSize: 12,
+        color: AppTheme.neutral500,
+      ),
+    );
+  }
+}
+
+class _SessionListPreviewView extends StatelessWidget {
+  const _SessionListPreviewView({
+    super.key,
+    required this.activitySnapshot,
+    required this.statusSnapshot,
+  });
+
+  final SessionListActivitySnapshot activitySnapshot;
+  final SessionListStatusSnapshot? statusSnapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final previewText = Text(
+      activitySnapshot.previewText,
+      style: TextStyle(
+        fontSize: 12,
+        color: activitySnapshot.isSyncing
+            ? AppTheme.neutral500
+            : AppTheme.neutral600,
+        height: 1.4,
+      ),
+      maxLines: activitySnapshot.isSyncing ? 1 : 2,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    if (statusSnapshot == null) {
+      return previewText;
+    }
+
+    return Row(
+      children: [
+        SessionListStatusChip(status: statusSnapshot!),
+        const SizedBox(width: 8),
+        Expanded(child: previewText),
+      ],
     );
   }
 }

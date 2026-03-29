@@ -56,7 +56,7 @@ extension SessionServiceMessageParser on SessionServiceNotifier {
     final createdAt = messageJson['createdAt'] != null
         ? _parseMessageDateTime(messageJson['createdAt']) ?? DateTime.now()
         : DateTime.now();
-    final messageId = messageJson['id'] as String? ?? '';
+    final messageId = messageJson['id']?.toString() ?? '';
     final localId = messageJson['localId']?.toString();
     final content = _asStringMap(messageJson['content']);
     final payload = content?['c'];
@@ -81,6 +81,9 @@ extension SessionServiceMessageParser on SessionServiceNotifier {
       }
 
       if (contentType == 'encrypted' && _looksLikeBase64(payload)) {
+        return const <ReducerMessage>[];
+      }
+      if (_isBlankReducerText(payload)) {
         return const <ReducerMessage>[];
       }
       return <ReducerMessage>[
@@ -113,14 +116,14 @@ extension SessionServiceMessageParser on SessionServiceNotifier {
     switch (role) {
       case 'user':
         final text = content?['text']?.toString();
-        if (text == null || text.isEmpty) {
+        if (_isBlankReducerText(text)) {
           return const <ReducerMessage>[];
         }
         return <ReducerMessage>[
           _buildTextReducerMessage(
             id: id,
             createdAt: createdAt,
-            text: text,
+            text: text!,
             metadata: {
               ...?meta,
               'role': 'user',
@@ -138,6 +141,15 @@ extension SessionServiceMessageParser on SessionServiceNotifier {
         );
       case 'agent':
         final contentType = content?['type']?.toString();
+        if (contentType == 'event') {
+          return _reduceAgentEventMessages(
+            eventData: _asStringMap(content?['data']),
+            id: id,
+            createdAt: createdAt,
+            localId: localId,
+            meta: meta,
+          );
+        }
         if (contentType == 'codex') {
           return _reduceCodexMessages(
             codexData: _asStringMap(content?['data']),

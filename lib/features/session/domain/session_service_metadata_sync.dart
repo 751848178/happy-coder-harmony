@@ -104,6 +104,26 @@ extension SessionServiceMetadataSync on SessionServiceNotifier {
     }
 
     final nextVersion = _parseSeq(response['version']) ?? expectedVersion + 1;
+    final resolvedPermissionMode = _resolveLocalSessionMode(
+      preferred: !identical(
+        permissionMode,
+        SessionServiceNotifier._sessionOverrideSentinel,
+      )
+          ? permissionMode as String?
+          : session.permissionMode,
+      explicit: session.permissionMode,
+      metadataValue: nextMetadata['currentOperatingModeCode']?.toString(),
+    );
+    final resolvedModelMode = _resolveLocalSessionMode(
+      preferred: !identical(
+        modelMode,
+        SessionServiceNotifier._sessionOverrideSentinel,
+      )
+          ? modelMode as String?
+          : session.modelMode,
+      explicit: session.modelMode,
+      metadataValue: nextMetadata['currentModelCode']?.toString(),
+    );
     _repository.applySessions([
       session.copyWith(
         title: _resolveSessionTitle(
@@ -115,24 +135,8 @@ extension SessionServiceMetadataSync on SessionServiceNotifier {
         ),
         metadata: nextMetadata,
         metadataVersion: nextVersion,
-        permissionMode: _resolveLocalSessionMode(
-          preferred: !identical(
-            permissionMode,
-            SessionServiceNotifier._sessionOverrideSentinel,
-          )
-              ? permissionMode as String?
-              : session.permissionMode,
-          explicit: session.permissionMode,
-          metadataValue: nextMetadata['currentOperatingModeCode']?.toString(),
-        ),
-        modelMode: _resolveLocalSessionMode(
-          preferred: !identical(
-                  modelMode, SessionServiceNotifier._sessionOverrideSentinel)
-              ? modelMode as String?
-              : session.modelMode,
-          explicit: session.modelMode,
-          metadataValue: nextMetadata['currentModelCode']?.toString(),
-        ),
+        permissionMode: resolvedPermissionMode,
+        modelMode: resolvedModelMode,
       ),
     ]);
   }

@@ -1,17 +1,55 @@
 part of 'session_screen.dart';
 
+final RegExp _markdownHeadingPattern = RegExp(r'(^|\n)\s{0,3}#{1,6}\s');
+final RegExp _markdownBulletPattern = RegExp(r'(^|\n)\s*[-*+]\s+');
+final RegExp _markdownOrderedPattern = RegExp(r'(^|\n)\s*\d+\.\s+');
+final RegExp _markdownTablePattern = RegExp(r'(^|\n)\s*\|.+\|');
+final RegExp _markdownLinkPattern = RegExp(r'\[[^\]]+\]\([^)]+\)');
+final RegExp _markdownQuotePattern = RegExp(r'(^|\n)>\s+');
+final RegExp _diffHeaderPattern = RegExp(r'(^|\n)[+-]{3}\s');
+final RegExp _dockerfilePattern = RegExp(
+  r'(^|\n)\s*(FROM|RUN|COPY|ADD|WORKDIR|ENV|CMD|ENTRYPOINT|EXPOSE|ARG)\b',
+  caseSensitive: false,
+);
+final RegExp _yamlKeyPattern = RegExp("^\\s*[\\w\\-./\"']+\\s*:\\s*.*\$");
+final RegExp _envFilePattern = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*=');
+final RegExp _nginxPattern = RegExp(
+  r'(^|\n)\s*(server|location|upstream)\s*\{|(^|\n)\s*listen\s+\d+',
+  caseSensitive: false,
+);
+final RegExp _shellPattern = RegExp(
+  r'(^|\n)\s*(npm|pnpm|yarn|git|docker|cd|ls|cat|echo|export|curl|chmod|./)',
+  caseSensitive: false,
+);
+final RegExp _sqlPattern = RegExp(
+  r'(^|\n)\s*(select|insert|update|delete|create|alter|drop)\b',
+  caseSensitive: false,
+);
+final RegExp _xmlPattern = RegExp(r'<[A-Za-z][^>]*>');
+final RegExp _iniPattern = RegExp(r'(^|\n)\s*\[[^\]]+\]\s*$');
+final RegExp _indentedCodePattern = RegExp(r'^\s{2,}\S');
+final Map<String, bool> _markdownContentCache = <String, bool>{};
+final Map<String, String> _structuredLanguageCache = <String, String>{};
+const int _contentDetectionCacheLimit = 120;
+
 bool _looksLikeMarkdownContentValue(String content) {
   final normalized = content.trim();
   if (normalized.isEmpty) {
     return false;
   }
-  return normalized.contains('```') ||
-      RegExp(r'(^|\n)\s{0,3}#{1,6}\s').hasMatch(normalized) ||
-      RegExp(r'(^|\n)\s*[-*+]\s+').hasMatch(normalized) ||
-      RegExp(r'(^|\n)\s*\d+\.\s+').hasMatch(normalized) ||
-      RegExp(r'(^|\n)\s*\|.+\|').hasMatch(normalized) ||
-      RegExp(r'\[[^\]]+\]\([^)]+\)').hasMatch(normalized) ||
-      RegExp(r'(^|\n)>\s+').hasMatch(normalized);
+  final cached = _markdownContentCache[normalized];
+  if (cached != null) {
+    return cached;
+  }
+  final result = normalized.contains('```') ||
+      _markdownHeadingPattern.hasMatch(normalized) ||
+      _markdownBulletPattern.hasMatch(normalized) ||
+      _markdownOrderedPattern.hasMatch(normalized) ||
+      _markdownTablePattern.hasMatch(normalized) ||
+      _markdownLinkPattern.hasMatch(normalized) ||
+      _markdownQuotePattern.hasMatch(normalized);
+  _storeContentDetectionCache(_markdownContentCache, normalized, result);
+  return result;
 }
 
 String _detectStructuredLanguage(String content) {
@@ -19,42 +57,38 @@ String _detectStructuredLanguage(String content) {
   if (normalized.isEmpty) {
     return '';
   }
+  final cached = _structuredLanguageCache[normalized];
+  if (cached != null) {
+    return cached;
+  }
 
+  String detected = '';
   if ((normalized.startsWith('{') || normalized.startsWith('[')) &&
       _canDecodeJson(normalized)) {
-    return 'json';
+    detected = 'json';
+  } else if (_looksLikeDiff(normalized)) {
+    detected = 'diff';
+  } else if (_looksLikeDockerfile(normalized)) {
+    detected = 'dockerfile';
+  } else if (_looksLikeYaml(normalized)) {
+    detected = 'yaml';
+  } else if (_looksLikeEnvFile(normalized)) {
+    detected = 'bash';
+  } else if (_looksLikeNginx(normalized)) {
+    detected = 'nginx';
+  } else if (_looksLikeShell(normalized)) {
+    detected = 'bash';
+  } else if (_looksLikeSql(normalized)) {
+    detected = 'sql';
+  } else if (_looksLikeXml(normalized)) {
+    detected = 'xml';
+  } else if (_looksLikeIni(normalized)) {
+    detected = 'ini';
+  } else if (_looksLikeCodeLikeBlock(normalized)) {
+    detected = 'text';
   }
-  if (_looksLikeDiff(normalized)) {
-    return 'diff';
-  }
-  if (_looksLikeDockerfile(normalized)) {
-    return 'dockerfile';
-  }
-  if (_looksLikeYaml(normalized)) {
-    return 'yaml';
-  }
-  if (_looksLikeEnvFile(normalized)) {
-    return 'bash';
-  }
-  if (_looksLikeNginx(normalized)) {
-    return 'nginx';
-  }
-  if (_looksLikeShell(normalized)) {
-    return 'bash';
-  }
-  if (_looksLikeSql(normalized)) {
-    return 'sql';
-  }
-  if (_looksLikeXml(normalized)) {
-    return 'xml';
-  }
-  if (_looksLikeIni(normalized)) {
-    return 'ini';
-  }
-  if (_looksLikeCodeLikeBlock(normalized)) {
-    return 'text';
-  }
-  return '';
+  _storeContentDetectionCache(_structuredLanguageCache, normalized, detected);
+  return detected;
 }
 
 bool _canDecodeJson(String value) {
@@ -70,12 +104,9 @@ bool _looksLikeDiff(String value) =>
     value.contains('diff --git') ||
     value.contains('*** Begin Patch') ||
     value.contains('\n@@') ||
-    RegExp(r'(^|\n)[+-]{3}\s').hasMatch(value);
+    _diffHeaderPattern.hasMatch(value);
 
-bool _looksLikeDockerfile(String value) => RegExp(
-      r'(^|\n)\s*(FROM|RUN|COPY|ADD|WORKDIR|ENV|CMD|ENTRYPOINT|EXPOSE|ARG)\b',
-      caseSensitive: false,
-    ).hasMatch(value);
+bool _looksLikeDockerfile(String value) => _dockerfilePattern.hasMatch(value);
 
 bool _looksLikeYaml(String value) {
   final lines =
@@ -83,9 +114,7 @@ bool _looksLikeYaml(String value) {
   if (lines.length < 2) {
     return false;
   }
-  final keyedLines = lines.where(
-    (line) => RegExp("^\\s*[\\w\\-./\"']+\\s*:\\s*.*\$").hasMatch(line),
-  );
+  final keyedLines = lines.where((line) => _yamlKeyPattern.hasMatch(line));
   return keyedLines.length >= 2;
 }
 
@@ -96,31 +125,21 @@ bool _looksLikeEnvFile(String value) {
     return false;
   }
   final matched = lines.where(
-    (line) => RegExp(r'^[A-Za-z_][A-Za-z0-9_]*=').hasMatch(line.trim()),
+    (line) => _envFilePattern.hasMatch(line.trim()),
   );
   return matched.length >= 2;
 }
 
-bool _looksLikeNginx(String value) => RegExp(
-      r'(^|\n)\s*(server|location|upstream)\s*\{|(^|\n)\s*listen\s+\d+',
-      caseSensitive: false,
-    ).hasMatch(value);
+bool _looksLikeNginx(String value) => _nginxPattern.hasMatch(value);
 
-bool _looksLikeShell(String value) => RegExp(
-      r'(^|\n)\s*(npm|pnpm|yarn|git|docker|cd|ls|cat|echo|export|curl|chmod|./)',
-      caseSensitive: false,
-    ).hasMatch(value);
+bool _looksLikeShell(String value) => _shellPattern.hasMatch(value);
 
-bool _looksLikeSql(String value) => RegExp(
-      r'(^|\n)\s*(select|insert|update|delete|create|alter|drop)\b',
-      caseSensitive: false,
-    ).hasMatch(value);
+bool _looksLikeSql(String value) => _sqlPattern.hasMatch(value);
 
 bool _looksLikeXml(String value) =>
-    value.startsWith('<') && RegExp(r'<[A-Za-z][^>]*>').hasMatch(value);
+    value.startsWith('<') && _xmlPattern.hasMatch(value);
 
-bool _looksLikeIni(String value) =>
-    RegExp(r'(^|\n)\s*\[[^\]]+\]\s*$').hasMatch(value);
+bool _looksLikeIni(String value) => _iniPattern.hasMatch(value);
 
 bool _looksLikeCodeLikeBlock(String value) {
   final lines = value
@@ -149,7 +168,7 @@ bool _looksLikeCodeLikeBlock(String value) {
         trimmed.contains(';')) {
       scored++;
     }
-    if (RegExp(r'^\s{2,}\S').hasMatch(line)) {
+    if (_indentedCodePattern.hasMatch(line)) {
       scored++;
     }
   }
@@ -157,3 +176,13 @@ bool _looksLikeCodeLikeBlock(String value) {
   return scored >= lines.length;
 }
 
+void _storeContentDetectionCache<T>(
+  Map<String, T> cache,
+  String key,
+  T value,
+) {
+  if (cache.length >= _contentDetectionCacheLimit) {
+    cache.remove(cache.keys.first);
+  }
+  cache[key] = value;
+}

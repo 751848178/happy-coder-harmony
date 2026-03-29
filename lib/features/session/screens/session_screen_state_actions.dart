@@ -125,6 +125,7 @@ extension _SessionScreenStateActions on _SessionScreenState {
     _updateState(() {
       _isSending = true;
       _activeResponseLocalId = localId;
+      _manualThinkingOverride = null;
     });
 
     try {
@@ -162,6 +163,4 @@ extension _SessionScreenStateActions on _SessionScreenState {
       }
     }
   }
-
-
 }

@@ -1,6 +1,8 @@
 part of 'session_service.dart';
 
 extension SessionServiceSessionLoaders on SessionServiceNotifier {
+  static const Duration _sessionListAutoSyncMinAge = Duration(seconds: 12);
+
   Future<void> loadSessions({bool force = false}) async {
     if (_loadSessionsInFlight != null) {
       Logger.info('Sessions load already in flight, joining existing request');
@@ -42,8 +44,8 @@ extension SessionServiceSessionLoaders on SessionServiceNotifier {
         responseRecognized: remoteLoad.responseRecognized,
         rawCount: remoteLoad.sessionItems.length,
       );
-      await machinesFuture;
       _emitReadyState();
+      await machinesFuture;
       unawaited(_warmSessionPreviewData(parsed.sessionsMap.values.toList()));
       _logSessionParseFailures(parsed);
       Logger.info(
@@ -65,11 +67,19 @@ extension SessionServiceSessionLoaders on SessionServiceNotifier {
     if (_repository.sessionsMap.isNotEmpty) {
       return true;
     }
-    final restoredSessions = await _restoreCachedSessions();
-    if (restoredSessions.isEmpty) {
+    final restored = await _restoreCachedSessions();
+    if (restored.isEmpty) {
       return false;
     }
-    _repository.applySessions(restoredSessions);
+    _repository.applySessions(restored.sessions);
+    for (final entry in restored.sessionMessagesById.entries) {
+      _repository.replaceMessages(
+        entry.key,
+        entry.value.messages,
+        preserveOptimisticMessages: false,
+      );
+    }
+    _sessionLastSeq.addAll(restored.lastSeqBySessionId);
     _emitReadyState();
     return true;
   }
@@ -83,6 +93,23 @@ extension SessionServiceSessionLoaders on SessionServiceNotifier {
         _lastSessionsLoadedAt != null &&
         DateTime.now().difference(_lastSessionsLoadedAt!) <
             const Duration(seconds: 2);
+  }
+
+  Future<void> syncSessionsIfStale({
+    Duration minAge = _sessionListAutoSyncMinAge,
+  }) async {
+    if (_loadSessionsInFlight != null) {
+      return _loadSessionsInFlight!;
+    }
+    if (_repository.sessionsMap.isEmpty || _lastRemoteSessionIds.isEmpty) {
+      return loadSessions(force: true);
+    }
+
+    final lastLoadedAt = _lastSessionsLoadedAt;
+    if (lastLoadedAt == null ||
+        DateTime.now().difference(lastLoadedAt) >= minAge) {
+      return loadSessions(force: true);
+    }
   }
 
   Future<_RemoteSessionLoadResult> _fetchRemoteSessionLoad() async {

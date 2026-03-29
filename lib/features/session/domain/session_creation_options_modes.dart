@@ -28,6 +28,10 @@ List<SessionModeOption> permissionOptionsForAgent(
   }
 }
 
+List<SessionModeOption> newSessionPermissionOptionsForAgent(String? agent) {
+  return permissionOptionsForAgent(agent);
+}
+
 List<SessionModeOption> modelOptionsForAgent(
   String? agent, {
   dynamic metadataOptions,
@@ -36,34 +40,11 @@ List<SessionModeOption> modelOptionsForAgent(
   if (mapped.isNotEmpty) {
     return mapped;
   }
-  switch (normalizeSessionAgent(agent)) {
-    case 'codex':
-      return const [
-        SessionModeOption(key: 'gpt-5-codex-high', label: 'GPT-5 Codex High'),
-        SessionModeOption(
-            key: 'gpt-5-codex-medium', label: 'GPT-5 Codex Medium'),
-        SessionModeOption(key: 'gpt-5-codex-low', label: 'GPT-5 Codex Low'),
-        SessionModeOption(key: 'gpt-5-minimal', label: 'GPT-5 Minimal'),
-        SessionModeOption(key: 'gpt-5-low', label: 'GPT-5 Low'),
-        SessionModeOption(key: 'gpt-5-medium', label: 'GPT-5 Medium'),
-        SessionModeOption(key: 'gpt-5-high', label: 'GPT-5 High'),
-      ];
-    case 'gemini':
-      return const [
-        SessionModeOption(key: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro'),
-        SessionModeOption(key: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash'),
-        SessionModeOption(
-            key: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite'),
-      ];
-    case 'claude':
-    default:
-      return const [
-        SessionModeOption(key: 'default', label: 'Default'),
-        SessionModeOption(key: 'adaptiveUsage', label: 'Adaptive Usage'),
-        SessionModeOption(key: 'sonnet', label: 'Sonnet'),
-        SessionModeOption(key: 'opus', label: 'Opus'),
-      ];
-  }
+  return const [SessionModeOption(key: 'default', label: '默认')];
+}
+
+List<SessionModeOption> newSessionModelOptionsForAgent(String? agent) {
+  return modelOptionsForAgent(agent);
 }
 
 String defaultPermissionModeForAgent(String? agent) {
@@ -74,14 +55,178 @@ String defaultModelModeForAgent(String? agent) {
   return modelOptionsForAgent(agent).first.key;
 }
 
+Map<String, dynamic>? resolveModeMetadataForSessions(
+  Iterable<Session> sessions, {
+  required String? machineId,
+  required String? agent,
+}) {
+  final sortedSessions = sessions.toList(growable: false)
+    ..sort(compareSessionsByRecency);
+  final matchingMachineSessions = machineId == null || machineId.trim().isEmpty
+      ? sortedSessions
+      : sortedSessions.where((session) {
+          return session.metadata?['machineId']?.toString() == machineId;
+        }).toList(growable: false);
+  final matchingFlavorSessions = _filterSessionsByAgent(
+    matchingMachineSessions,
+    agent,
+  );
+  final globalFlavorSessions = _filterSessionsByAgent(
+    sortedSessions,
+    agent,
+  );
+
+  return _firstModeMetadataSource([
+        matchingFlavorSessions,
+        matchingMachineSessions,
+        globalFlavorSessions,
+        sortedSessions,
+      ]) ??
+      _firstNonEmptyMetadata([
+        matchingFlavorSessions,
+        matchingMachineSessions,
+        globalFlavorSessions,
+        sortedSessions,
+      ]);
+}
+
+Map<String, dynamic>? resolveModeMetadataForMachines(
+  Iterable<Machine> machines, {
+  required String? machineId,
+  required String? agent,
+}) {
+  final normalizedMachineId = machineId?.trim();
+  final normalizedAgent = normalizeSessionAgent(agent);
+  final matchingMachines =
+      (normalizedMachineId == null || normalizedMachineId.isEmpty)
+          ? machines
+          : machines.where((machine) => machine.id == normalizedMachineId);
+
+  for (final machine in matchingMachines) {
+    final metadata = _resolveMachineModeMetadata(
+      machine.metadata,
+      agent: normalizedAgent,
+    );
+    if (metadata != null) {
+      return metadata;
+    }
+  }
+  return null;
+}
+
+String? resolveModeKey(List<String?> candidates) {
+  for (final candidate in candidates) {
+    final normalized = candidate?.trim();
+    if (normalized != null && normalized.isNotEmpty) {
+      return normalized;
+    }
+  }
+  return null;
+}
+
+String? resolveLocalModeValue({
+  String? preferredValue,
+  String? explicitValue,
+  String? metadataValue,
+}) {
+  return resolveModeKey([
+    preferredValue,
+    explicitValue,
+    metadataValue,
+  ]);
+}
+
+String? resolveRemoteModeValue({
+  String? metadataValue,
+  String? explicitValue,
+  String? preferredValue,
+}) {
+  return resolveModeKey([
+    metadataValue,
+    explicitValue,
+    preferredValue,
+  ]);
+}
+
+SessionModeOption? findModeOptionByKey(
+  List<SessionModeOption> options,
+  String? key,
+) {
+  final normalized = resolveModeKey([key]);
+  if (normalized == null || normalized.isEmpty) {
+    return null;
+  }
+  for (final option in options) {
+    if (option.key == normalized) {
+      return option;
+    }
+  }
+  return null;
+}
+
+SessionModeOption? findPreferredListedModeOption(
+  List<SessionModeOption> options,
+  List<String?> preferredKeys,
+) {
+  for (final key in preferredKeys) {
+    final option = findModeOptionByKey(options, key);
+    if (option != null) {
+      return option;
+    }
+  }
+  return null;
+}
+
+SessionModeOption? resolveCurrentModeOption(
+  List<SessionModeOption> options,
+  List<String?> preferredKeys,
+) {
+  for (final key in preferredKeys) {
+    final normalizedKey = resolveModeKey([key]);
+    if (normalizedKey == null) {
+      continue;
+    }
+    final option = findModeOptionByKey(options, normalizedKey);
+    if (option != null) {
+      return option;
+    }
+    return SessionModeOption(
+      key: normalizedKey,
+      label: normalizedKey,
+    );
+  }
+  if (options.isEmpty) {
+    return null;
+  }
+  return options.first;
+}
+
 String resolveModeSelection({
   required String? preferred,
   required List<SessionModeOption> options,
   required String fallback,
 }) {
-  if (preferred != null && preferred.isNotEmpty) {
+  final normalizedPreferred = resolveModeKey([preferred]);
+  if (normalizedPreferred != null) {
     for (final option in options) {
-      if (option.key == preferred) {
+      if (option.key == normalizedPreferred) {
+        return option.key;
+      }
+    }
+    return normalizedPreferred;
+  }
+  return fallback;
+}
+
+String resolveListedModeSelection({
+  required String? preferred,
+  required List<SessionModeOption> options,
+  required String fallback,
+}) {
+  final normalizedPreferred = resolveModeKey([preferred]);
+  if (normalizedPreferred != null) {
+    for (final option in options) {
+      if (option.key == normalizedPreferred) {
         return option.key;
       }
     }
@@ -97,4 +242,105 @@ List<SessionModeOption> _mapModeOptions(dynamic metadataOptions) {
       .map((item) => item is Map ? SessionModeOption.fromMap(item) : null)
       .whereType<SessionModeOption>()
       .toList();
+}
+
+List<Session> _filterSessionsByAgent(
+  Iterable<Session> sessions,
+  String? agent,
+) {
+  final normalizedAgent = normalizeSessionAgent(agent);
+  return sessions.where((session) {
+    final flavor = normalizeSessionAgent(
+      session.metadata?['flavor']?.toString(),
+    );
+    return flavor == normalizedAgent;
+  }).toList(growable: false);
+}
+
+Map<String, dynamic>? _firstModeMetadataSource(
+  Iterable<List<Session>> sessionGroups,
+) {
+  for (final sessions in sessionGroups) {
+    for (final session in sessions) {
+      final metadata = session.metadata;
+      if (metadata == null) {
+        continue;
+      }
+      final hasModels = _mapModeOptions(metadata['models']).isNotEmpty;
+      final hasOperatingModes =
+          _mapModeOptions(metadata['operatingModes']).isNotEmpty;
+      if (hasModels || hasOperatingModes) {
+        return metadata;
+      }
+    }
+  }
+  return null;
+}
+
+Map<String, dynamic>? _firstNonEmptyMetadata(
+  Iterable<List<Session>> sessionGroups,
+) {
+  for (final sessions in sessionGroups) {
+    for (final session in sessions) {
+      final metadata = session.metadata;
+      if (metadata != null && metadata.isNotEmpty) {
+        return metadata;
+      }
+    }
+  }
+  return null;
+}
+
+Map<String, dynamic>? _resolveMachineModeMetadata(
+  Map<String, dynamic>? metadata, {
+  required String agent,
+}) {
+  if (metadata == null || metadata.isEmpty) {
+    return null;
+  }
+  if (_mapContainsModeMetadata(metadata)) {
+    return metadata;
+  }
+
+  for (final key in const <String>['agents', 'flavors', 'providers']) {
+    final nested = _asModeMetadataMap(metadata[key]);
+    if (nested == null || nested.isEmpty) {
+      continue;
+    }
+    final directMatch = _asModeMetadataMap(nested[agent]);
+    if (directMatch != null && _mapContainsModeMetadata(directMatch)) {
+      return directMatch;
+    }
+    for (final entry in nested.entries) {
+      if (normalizeSessionAgent(entry.key) != agent) {
+        continue;
+      }
+      final matched = _asModeMetadataMap(entry.value);
+      if (matched != null && _mapContainsModeMetadata(matched)) {
+        return matched;
+      }
+    }
+  }
+
+  return null;
+}
+
+Map<String, dynamic>? _asModeMetadataMap(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is Map) {
+    return value.map(
+      (key, entry) => MapEntry(key.toString(), entry),
+    );
+  }
+  return null;
+}
+
+bool _mapContainsModeMetadata(Map<String, dynamic>? metadata) {
+  if (metadata == null || metadata.isEmpty) {
+    return false;
+  }
+  return _mapModeOptions(metadata['models']).isNotEmpty ||
+      _mapModeOptions(metadata['operatingModes']).isNotEmpty;
 }

@@ -29,11 +29,56 @@ Widget _buildNewSessionFlowScreen(_NewSessionFlowScreenState state) {
       .where((item) => item.id == effectiveMachineId)
       .cast<_MachineOption?>()
       .firstWhere((item) => item != null, orElse: () => null);
-  final permissionOptions = permissionOptionsForAgent(state._selectedAgent);
-  final selectedPermission = permissionOptions.firstWhere(
-    (option) => option.key == state._permissionMode,
-    orElse: () => permissionOptions.first,
+  final permissionOptions = _sessionFlowPermissionOptions(
+    state,
   );
+  final resolvedPermissionMode = resolveModeSelection(
+    preferred: state._permissionMode,
+    options: permissionOptions,
+    fallback: _defaultSessionFlowModeKey(
+      permissionOptions,
+      defaultPermissionModeForAgent(state._selectedAgent),
+    ),
+  );
+  final selectedPermission = resolveCurrentModeOption(
+        permissionOptions,
+        <String?>[
+          resolvedPermissionMode,
+          defaultPermissionModeForAgent(state._selectedAgent),
+        ],
+      ) ??
+      permissionOptions.first;
+  final modelOptions = _sessionFlowModelOptions(
+    state,
+  );
+  final resolvedModelMode = resolveListedModeSelection(
+    preferred: state._modelMode,
+    options: modelOptions,
+    fallback: _defaultSessionFlowModeKey(
+      modelOptions,
+      defaultModelModeForAgent(state._selectedAgent),
+    ),
+  );
+  final selectedModel = resolveCurrentModeOption(
+        modelOptions,
+        <String?>[
+          resolvedModelMode,
+          defaultModelModeForAgent(state._selectedAgent),
+        ],
+      ) ??
+      modelOptions.first;
+  if (resolvedPermissionMode != state._permissionMode ||
+      resolvedModelMode != state._modelMode) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!state.mounted) {
+        return;
+      }
+      state._updateView(() {
+        state._permissionMode = resolvedPermissionMode;
+        state._modelMode = resolvedModelMode;
+      });
+    });
+  }
   final effectiveDirectory =
       _effectiveSessionFlowDirectory(state, selectedMachine);
   final canCreate = !state._isCreating &&
@@ -84,6 +129,7 @@ Widget _buildNewSessionFlowScreen(_NewSessionFlowScreenState state) {
                     state,
                     selectedMachine: selectedMachine,
                     selectedPermission: selectedPermission,
+                    selectedModel: selectedModel,
                     canCreate: canCreate,
                   ),
                 ),
@@ -135,6 +181,7 @@ Widget _buildSessionFlowComposer(
   _NewSessionFlowScreenState state, {
   required _MachineOption? selectedMachine,
   required SessionModeOption selectedPermission,
+  required SessionModeOption selectedModel,
   required bool canCreate,
 }) {
   final directory = _effectiveSessionFlowDirectory(state, selectedMachine);
@@ -153,6 +200,7 @@ Widget _buildSessionFlowComposer(
       _buildSessionFlowComposerHeader(
         state,
         selectedPermission: selectedPermission,
+        selectedModel: selectedModel,
         connectionColor: connectionColor,
         connectionText: connectionText,
       ),

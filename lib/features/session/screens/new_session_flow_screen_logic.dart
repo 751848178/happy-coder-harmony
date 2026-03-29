@@ -1,5 +1,63 @@
 part of 'new_session_flow_screen.dart';
 
+List<SessionModeOption> _sessionFlowPermissionOptions(
+  _NewSessionFlowScreenState state, {
+  String? agent,
+}) {
+  return newSessionPermissionOptionsForAgent(agent ?? state._selectedAgent);
+}
+
+List<SessionModeOption> _sessionFlowModelOptions(
+  _NewSessionFlowScreenState state, {
+  String? agent,
+}) {
+  return newSessionModelOptionsForAgent(agent ?? state._selectedAgent);
+}
+
+String _defaultSessionFlowModeKey(
+  List<SessionModeOption> options,
+  String fallback,
+) {
+  if (options.isEmpty) {
+    return fallback;
+  }
+  return options.first.key;
+}
+
+void _syncSessionFlowModeSelections(
+  _NewSessionFlowScreenState state, {
+  String? agent,
+  String? preferredPermissionMode,
+  String? preferredModelMode,
+}) {
+  final resolvedAgent = agent ?? state._selectedAgent;
+  final permissionOptions = _sessionFlowPermissionOptions(
+    state,
+    agent: resolvedAgent,
+  );
+  final modelOptions = _sessionFlowModelOptions(
+    state,
+    agent: resolvedAgent,
+  );
+
+  state._permissionMode = resolveModeSelection(
+    preferred: preferredPermissionMode ?? state._permissionMode,
+    options: permissionOptions,
+    fallback: _defaultSessionFlowModeKey(
+      permissionOptions,
+      defaultPermissionModeForAgent(resolvedAgent),
+    ),
+  );
+  state._modelMode = resolveListedModeSelection(
+    preferred: preferredModelMode ?? state._modelMode,
+    options: modelOptions,
+    fallback: _defaultSessionFlowModeKey(
+      modelOptions,
+      defaultModelModeForAgent(resolvedAgent),
+    ),
+  );
+}
+
 String _effectiveSessionFlowDirectory(
   _NewSessionFlowScreenState state,
   _MachineOption? machine,

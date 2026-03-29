@@ -122,7 +122,6 @@ class LatestUsage {
   factory LatestUsage.fromJson(Map<String, dynamic> json) {
     return LatestUsage(
       messageCount: _parseInt(json['messageCount']) ??
-          _parseInt(json['outputTokens']) ??
           _parseInt(json['message_count']) ??
           0,
       tokenCount: _parseInt(json['tokenCount']) ??

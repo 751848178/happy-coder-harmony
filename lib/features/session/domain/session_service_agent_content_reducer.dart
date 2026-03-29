@@ -16,22 +16,22 @@ extension SessionServiceAgentContentReducer on SessionServiceNotifier {
       switch (partType) {
         case 'text':
           final text = part['text']?.toString();
-          if (text != null && text.isNotEmpty) {
+          if (!_isBlankReducerText(text)) {
             messages.add(_buildTextReducerMessage(
               id: '$baseId:text:$index',
               createdAt: createdAt,
-              text: text,
+              text: text!,
               metadata: {...?meta, 'role': role},
             ));
           }
           break;
         case 'thinking':
           final thinking = part['thinking']?.toString();
-          if (thinking != null && thinking.isNotEmpty) {
+          if (!_isBlankReducerText(thinking)) {
             messages.add(_buildTextReducerMessage(
               id: '$baseId:thinking:$index',
               createdAt: createdAt,
-              text: thinking,
+              text: thinking!,
               metadata: {...?meta, 'role': role, 'outputType': 'thinking'},
             ));
           }
@@ -86,11 +86,11 @@ extension SessionServiceAgentContentReducer on SessionServiceNotifier {
           break;
         case 'summary':
           final summary = part['summary']?.toString();
-          if (summary != null && summary.isNotEmpty) {
+          if (!_isBlankReducerText(summary)) {
             messages.add(_buildTextReducerMessage(
               id: '$baseId:summary:$index',
               createdAt: createdAt,
-              text: summary,
+              text: summary!,
               metadata: {...?meta, 'role': role},
             ));
           }

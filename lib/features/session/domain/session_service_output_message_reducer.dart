@@ -13,9 +13,10 @@ extension SessionServiceOutputMessageReducer on SessionServiceNotifier {
     }
 
     final outputType = outputData['type']?.toString();
+    final role = outputType == 'user' ? 'user' : 'agent';
     final baseMetadata = {
       ...?meta,
-      'role': 'agent',
+      'role': role,
       if (localId != null && localId.isNotEmpty) 'localId': localId,
       if (outputType != null) 'outputType': outputType,
     };
@@ -24,14 +25,14 @@ extension SessionServiceOutputMessageReducer on SessionServiceNotifier {
       case 'message':
       case 'reasoning':
         final text = outputData['message']?.toString();
-        if (text == null || text.isEmpty) {
+        if (_isBlankReducerText(text)) {
           return const <ReducerMessage>[];
         }
         return <ReducerMessage>[
           _buildTextReducerMessage(
             id: '$id:output:$outputType',
             createdAt: createdAt,
-            text: text,
+            text: text!,
             metadata: {
               ...baseMetadata,
               if (outputType == 'reasoning') 'outputType': 'thinking',
@@ -40,19 +41,18 @@ extension SessionServiceOutputMessageReducer on SessionServiceNotifier {
         ];
       case 'summary':
         final summary = outputData['summary']?.toString();
-        if (summary == null || summary.isEmpty) {
+        if (_isBlankReducerText(summary)) {
           return const <ReducerMessage>[];
         }
         return <ReducerMessage>[
           _buildTextReducerMessage(
             id: '$id:output:summary',
             createdAt: createdAt,
-            text: summary,
+            text: summary!,
             metadata: baseMetadata,
           ),
         ];
       case 'assistant':
-      case 'user':
         final message = _asStringMap(outputData['message']);
         final content = message?['content'];
         final parts = _normalizeAgentContentParts(content);
@@ -65,25 +65,60 @@ extension SessionServiceOutputMessageReducer on SessionServiceNotifier {
               ...baseMetadata,
               if (outputType == 'user') 'sourceRole': 'user',
             },
-            role: 'agent',
+            role: role,
           );
         }
         final directText =
             content is String ? content : message?['content']?.toString();
-        if (directText == null || directText.trim().isEmpty) {
+        if (_isBlankReducerText(directText)) {
           return const <ReducerMessage>[];
         }
         return <ReducerMessage>[
           _buildTextReducerMessage(
             id: '$id:output:$outputType',
             createdAt: createdAt,
-            text: directText,
+            text: directText!,
             metadata: {
               ...baseMetadata,
               if (outputType == 'user') 'sourceRole': 'user',
             },
           ),
         ];
+      case 'user':
+        final message = _asStringMap(outputData['message']);
+        final content = message?['content'];
+        if (content is String) {
+          if (_isBlankReducerText(content)) {
+            return const <ReducerMessage>[];
+          }
+          return <ReducerMessage>[
+            _buildTextReducerMessage(
+              id: '$id:output:user',
+              createdAt: createdAt,
+              text: content,
+              metadata: {
+                ...baseMetadata,
+                'role': 'user',
+                'sourceRole': 'user',
+              },
+            ),
+          ];
+        }
+        final parts = _normalizeAgentContentParts(content);
+        if (parts.isNotEmpty) {
+          return _reduceAgentContentParts(
+            parts,
+            baseId: id,
+            createdAt: createdAt,
+            meta: {
+              ...baseMetadata,
+              'role': 'agent',
+              'sourceRole': 'user',
+            },
+            role: 'agent',
+          );
+        }
+        return const <ReducerMessage>[];
       default:
         final message = _asStringMap(outputData['message']);
         final content = message?['content'];

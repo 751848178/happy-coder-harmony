@@ -4,11 +4,12 @@ extension on _SessionsScreenState {
   Widget _buildCustomGroupList({
     required List<Session> sessions,
     required Map<String, SessionStats> statsBySessionId,
+    required Map<String, bool> thinkingBySessionId,
   }) {
+    final unavailableSessions =
+        sessions.where(_isSessionUnavailable).toList(growable: false);
     final availableSessions =
         sessions.where((session) => !_isSessionUnavailable(session)).toList();
-    final unavailableSessions = sessions.where(_isSessionUnavailable).toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     final sessionMap = {
       for (final session in availableSessions) session.id: session,
     };
@@ -18,19 +19,24 @@ extension on _SessionsScreenState {
           group: group,
           sessionMap: sessionMap,
           statsBySessionId: statsBySessionId,
+          thinkingBySessionId: thinkingBySessionId,
         ),
       _buildUngroupedSection(
-        availableSessions: availableSessions,
+        sessions: availableSessions,
         statsBySessionId: statsBySessionId,
+        thinkingBySessionId: thinkingBySessionId,
       ),
       if (unavailableSessions.isNotEmpty)
-        _buildUnavailableSessionSection(
+        _buildUnavailableCustomGroupSection(
           sessions: unavailableSessions,
           statsBySessionId: statsBySessionId,
+          thinkingBySessionId: thinkingBySessionId,
         ),
     ];
 
-    if (_groupingState.groups.isEmpty && unavailableSessions.isEmpty) {
+    if (_groupingState.groups.isEmpty &&
+        availableSessions.isEmpty &&
+        unavailableSessions.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -69,16 +75,59 @@ extension on _SessionsScreenState {
     );
   }
 
+  Widget _buildUnavailableCustomGroupSection({
+    required List<Session> sessions,
+    required Map<String, SessionStats> statsBySessionId,
+    required Map<String, bool> thinkingBySessionId,
+  }) {
+    final orderedSessions = sessions.toList(growable: false)
+      ..sort(compareSessionsByStableListOrder);
+    return _SessionsGroupSection(
+      header: _SessionSectionHeader(
+        title: SessionsScreen.unavailableGroupLabel,
+        count: orderedSessions.length,
+        collapsed: _isDefaultGroupCollapsed(
+          SessionsScreen.unavailableGroupLabel,
+          defaultCollapsed: true,
+        ),
+        onTap: () => _toggleDefaultGroup(
+          SessionsScreen.unavailableGroupLabel,
+          defaultCollapsed: true,
+        ),
+      ),
+      collapsed: _isDefaultGroupCollapsed(
+        SessionsScreen.unavailableGroupLabel,
+        defaultCollapsed: true,
+      ),
+      children: [
+        for (final session in orderedSessions)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _SessionListItem(
+              session: session,
+              stats: statsBySessionId[session.id]!,
+              isThinking:
+                  thinkingBySessionId[session.id] ?? session.thinking == true,
+              onTap: () => _openSession(session),
+              onDelete: () => _deleteSession(session),
+              onMove: () => _showMoveSessionSheet(session),
+              onLongPress: () => _showMoveSessionSheet(session),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildCustomGroupSection({
     required SessionGroup group,
     required Map<String, Session> sessionMap,
     required Map<String, SessionStats> statsBySessionId,
+    required Map<String, bool> thinkingBySessionId,
   }) {
-    final groupedSessions = group.sessionIds
-        .map((sessionId) => sessionMap[sessionId])
-        .whereType<Session>()
-        .toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final groupedSessions = orderSessionsByStoredIds(
+      group.sessionIds,
+      sessionMap,
+    );
     return _SessionsGroupSection(
       header: _SessionSectionHeader(
         title: group.name,
@@ -115,7 +164,8 @@ extension on _SessionsScreenState {
                   child: _SessionListItem(
                     session: session,
                     stats: statsBySessionId[session.id]!,
-                    groupName: group.name,
+                    isThinking: thinkingBySessionId[session.id] ??
+                        session.thinking == true,
                     onTap: () => _openSession(session),
                     onDelete: () => _deleteSession(session),
                     onMove: () => _showMoveSessionSheet(session),
@@ -127,15 +177,16 @@ extension on _SessionsScreenState {
   }
 
   Widget _buildUngroupedSection({
-    required List<Session> availableSessions,
+    required List<Session> sessions,
     required Map<String, SessionStats> statsBySessionId,
+    required Map<String, bool> thinkingBySessionId,
   }) {
     final groupedIds =
         _groupingState.groups.expand((group) => group.sessionIds).toSet();
-    final ungroupedSessions = availableSessions
+    final ungroupedSessions = sessions
         .where((session) => !groupedIds.contains(session.id))
         .toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      ..sort(compareSessionsByStableListOrder);
     return _SessionsGroupSection(
       header: _SessionSectionHeader(
         title: '未分组',
@@ -157,6 +208,8 @@ extension on _SessionsScreenState {
                   child: _SessionListItem(
                     session: session,
                     stats: statsBySessionId[session.id]!,
+                    isThinking: thinkingBySessionId[session.id] ??
+                        session.thinking == true,
                     onTap: () => _openSession(session),
                     onDelete: () => _deleteSession(session),
                     onMove: () => _showMoveSessionSheet(session),

@@ -71,10 +71,6 @@ extension _SessionScreenStateSocket on _SessionScreenState {
             draft,
           );
     });
-    if (!mounted) {
-      return;
-    }
-    _updateState(() {});
   }
 
   void _handleScrollMetricsChanged() {
@@ -91,7 +87,9 @@ extension _SessionScreenStateSocket on _SessionScreenState {
         nextCanScrollToBottom != _canScrollToBottom ||
         nextIsNearBottom != _isNearBottom ||
         nextShouldStickToLatest != _shouldStickToLatest;
-    _scheduleViewportStateRefresh();
+    if (_hasStickyTurnCandidates || _stickyTurnId != null) {
+      _scheduleViewportStateRefresh();
+    }
     if (!shouldUpdate) {
       return;
     }

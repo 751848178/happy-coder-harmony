@@ -46,48 +46,21 @@ class _SwipeActionButton extends StatelessWidget {
 
 class _SessionLeadingIcon extends StatelessWidget {
   const _SessionLeadingIcon({
+    required this.session,
     required this.isActive,
     required this.isThinking,
   });
 
+  final Session session;
   final bool isActive;
   final bool isThinking;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color:
-                AppTheme.brandColor.withValues(alpha: isThinking ? 0.16 : 0.1),
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-          ),
-          child: Icon(
-            Icons.chat_bubble_outline,
-            size: 20,
-            color: isActive || isThinking
-                ? AppTheme.brandColor
-                : AppTheme.neutral500,
-          ),
-        ),
-        if (isThinking)
-          Positioned(
-            top: -3,
-            right: -3,
-            child: Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: AppTheme.brandColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppTheme.surface, width: 2),
-              ),
-            ),
-          ),
-      ],
+    return SessionAgentAvatar(
+      session: session,
+      isActive: isActive,
+      isThinking: isThinking,
     );
   }
 }

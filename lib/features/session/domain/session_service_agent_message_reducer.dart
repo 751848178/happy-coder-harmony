@@ -25,14 +25,14 @@ extension SessionServiceAgentMessageReducer on SessionServiceNotifier {
       case 'message':
       case 'reasoning':
         final text = codexData['message']?.toString();
-        if (text == null || text.isEmpty) {
+        if (_isBlankReducerText(text)) {
           return const <ReducerMessage>[];
         }
         return <ReducerMessage>[
           _buildTextReducerMessage(
             id: '$id:codex:$codexType',
             createdAt: createdAt,
-            text: text,
+            text: text!,
             metadata: {
               ...metadata,
               if (codexType == 'reasoning') 'outputType': 'thinking',

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../domain/session_recency.dart';
 import '../domain/session_stats.dart';
 import '../../../shared/widgets/session_history_list.dart';
 
@@ -13,7 +14,8 @@ class SessionRecentScreen extends ConsumerStatefulWidget {
   const SessionRecentScreen({super.key});
 
   @override
-  ConsumerState<SessionRecentScreen> createState() => _SessionRecentScreenState();
+  ConsumerState<SessionRecentScreen> createState() =>
+      _SessionRecentScreenState();
 }
 
 class _SessionRecentScreenState extends ConsumerState<SessionRecentScreen> {
@@ -30,34 +32,30 @@ class _SessionRecentScreenState extends ConsumerState<SessionRecentScreen> {
     ref.watch(sessionStateProvider);
     final sessionNotifier = ref.read(sessionStateProvider.notifier);
     final sessions = [...sessionNotifier.sessions]
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    final items = sessions
-        .map(
-          (session) {
-            final stats = SessionStatsCalculator.fromSession(
-              session: session,
-              messages: sessionNotifier.getSessionMessages(session.id)?.messages,
-            );
-            final summary = session.metadata?['summary'];
-            final summaryText = summary is Map
-                ? summary['text']?.toString()
-                : null;
-            return SessionHistoryItem(
-              id: session.id,
-              title: session.title.isEmpty ? '未命名会话' : session.title,
-              subtitle: summaryText ??
-                  session.path ??
-                  session.metadata?['description']?.toString(),
-              createdAt: session.activeAt ?? session.updatedAt,
-              lastModified: session.updatedAt,
-              type: session.tag,
-              machine: session.metadata?['host']?.toString(),
-              messageCount: stats.messageCount,
-              changedLineCount: stats.hasChanges ? stats.changedLineCount : null,
-            );
-          },
-        )
-        .toList();
+      ..sort(compareSessionsByRecency);
+    final items = sessions.map(
+      (session) {
+        final stats = SessionStatsCalculator.fromSession(
+          session: session,
+          messages: sessionNotifier.getSessionMessages(session.id)?.messages,
+        );
+        final summary = session.metadata?['summary'];
+        final summaryText = summary is Map ? summary['text']?.toString() : null;
+        return SessionHistoryItem(
+          id: session.id,
+          title: session.title.isEmpty ? '未命名会话' : session.title,
+          subtitle: summaryText ??
+              session.path ??
+              session.metadata?['description']?.toString(),
+          createdAt: session.activeAt ?? session.updatedAt,
+          lastModified: session.updatedAt,
+          type: session.tag,
+          machine: session.metadata?['host']?.toString(),
+          messageCount: stats.messageCount,
+          changedLineCount: stats.hasChanges ? stats.changedLineCount : null,
+        );
+      },
+    ).toList();
 
     return Scaffold(
       backgroundColor: AppTheme.neutral50,

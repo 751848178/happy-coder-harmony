@@ -1,9 +1,37 @@
 part of 'sessions_screen.dart';
 
-class _SessionListItem extends StatefulWidget {
+class _SessionListItemSelection {
+  const _SessionListItemSelection({
+    required this.session,
+    required this.messages,
+    required this.hasLoadedMessages,
+    required this.isReady,
+  });
+
+  final Session session;
+  final List<ReducerMessage>? messages;
+  final bool hasLoadedMessages;
+  final bool isReady;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _SessionListItemSelection &&
+        identical(session, other.session) &&
+        identical(messages, other.messages) &&
+        hasLoadedMessages == other.hasLoadedMessages &&
+        isReady == other.isReady;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(session, messages, hasLoadedMessages, isReady);
+}
+
+class _SessionListItem extends ConsumerStatefulWidget {
   const _SessionListItem({
     required this.session,
     required this.stats,
+    required this.isThinking,
     required this.onTap,
     required this.onDelete,
     this.onMove,
@@ -13,6 +41,7 @@ class _SessionListItem extends StatefulWidget {
 
   final Session session;
   final SessionStats stats;
+  final bool isThinking;
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback? onMove;
@@ -20,10 +49,10 @@ class _SessionListItem extends StatefulWidget {
   final String? groupName;
 
   @override
-  State<_SessionListItem> createState() => _SessionListItemState();
+  ConsumerState<_SessionListItem> createState() => _SessionListItemState();
 }
 
-class _SessionListItemState extends State<_SessionListItem> {
+class _SessionListItemState extends ConsumerState<_SessionListItem> {
   static const double _actionWidth = 78;
 
   double _dragExtent = 0;
@@ -83,6 +112,56 @@ class _SessionListItemState extends State<_SessionListItem> {
 
   @override
   Widget build(BuildContext context) {
+    final selection = ref.watch(
+      sessionStateProvider.select(
+        (state) => state.when(
+          initial: () => _SessionListItemSelection(
+            session: widget.session,
+            messages: null,
+            hasLoadedMessages: false,
+            isReady: false,
+          ),
+          loading: () => _SessionListItemSelection(
+            session: widget.session,
+            messages: null,
+            hasLoadedMessages: false,
+            isReady: false,
+          ),
+          ready: (sessions, sessionMessages, _) => _SessionListItemSelection(
+            session: sessions[widget.session.id] ?? widget.session,
+            messages: sessionMessages[widget.session.id]?.messages,
+            hasLoadedMessages:
+                sessionMessages[widget.session.id]?.isLoaded == true,
+            isReady: true,
+          ),
+          error: (_) => _SessionListItemSelection(
+            session: widget.session,
+            messages: null,
+            hasLoadedMessages: false,
+            isReady: false,
+          ),
+        ),
+      ),
+    );
+    final session = selection.session;
+    final activitySnapshot = resolveSessionListActivitySnapshot(
+      session: session,
+      messages: selection.messages,
+      hasLoadedMessages: selection.hasLoadedMessages,
+    );
+    final titleText = resolveSessionListTitle(session);
+    final isThinking = selection.isReady
+        ? sessionTurnIsThinkingStillBlocking(
+            session: session,
+            messages: selection.messages ?? const <ReducerMessage>[],
+          )
+        : widget.isThinking;
+    final statusSnapshot = resolveSessionListStatusSnapshot(
+      messages: selection.messages,
+      isThinking: isThinking,
+      isActive: session.active,
+    );
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
       child: Stack(
@@ -123,9 +202,10 @@ class _SessionListItemState extends State<_SessionListItem> {
               offset: Offset(_dragExtent, 0),
               child: _SessionListItemContent(
                 dragExtent: _dragExtent,
-                session: widget.session,
-                stats: widget.stats,
-                groupName: widget.groupName,
+                session: session,
+                titleText: titleText,
+                activitySnapshot: activitySnapshot,
+                statusSnapshot: statusSnapshot,
                 onTap: widget.onTap,
                 onLongPress: widget.onLongPress,
                 onCloseActions: _closeActions,

@@ -76,11 +76,23 @@ extension _SessionScreenStateAppBar on _SessionScreenState {
         ],
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.info_outline_rounded),
-          onPressed: () =>
-              context.push(AppRoutes.sessionInfoDetail(widget.sessionId)),
-          tooltip: '会话信息',
+        IgnorePointer(
+          ignoring: _isRefreshingSessionState,
+          child: Opacity(
+            opacity: _isRefreshingSessionState ? 0.72 : 1,
+            child: IconButton(
+              icon: RotationTransition(
+                turns: _refreshIconController,
+                child: Icon(
+                  _isRefreshingSessionState
+                      ? Icons.sync_rounded
+                      : Icons.refresh_rounded,
+                ),
+              ),
+              onPressed: _refreshSessionState,
+              tooltip: _isRefreshingSessionState ? '刷新中' : '刷新会话',
+            ),
+          ),
         ),
         if (showOverviewToggle)
           IconButton(
@@ -97,16 +109,6 @@ extension _SessionScreenStateAppBar on _SessionScreenState {
             },
             tooltip: _sessionOverviewCollapsed ? '展开会话信息' : '收起会话信息',
           ),
-        if (turnGroups.isNotEmpty)
-          IconButton(
-            icon: Icon(
-              _collapseAllTurns
-                  ? Icons.unfold_more_rounded
-                  : Icons.unfold_less_rounded,
-            ),
-            onPressed: () => _toggleAllTurns(turnGroups),
-            tooltip: _collapseAllTurns ? '展开全部轮次' : '按轮次折叠',
-          ),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
           onSelected: (value) {
@@ -122,6 +124,9 @@ extension _SessionScreenStateAppBar on _SessionScreenState {
                 break;
               case 'info':
                 context.push(AppRoutes.sessionInfoDetail(widget.sessionId));
+                break;
+              case 'sync_messages':
+                unawaited(_syncSessionMessagesFromRemote());
                 break;
               case 'clear':
                 _showClearDialog();
@@ -166,6 +171,16 @@ extension _SessionScreenStateAppBar on _SessionScreenState {
                   Icon(Icons.info_outline_rounded, size: 18),
                   SizedBox(width: 12),
                   Text('会话详情'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'sync_messages',
+              child: Row(
+                children: [
+                  Icon(Icons.cloud_sync_outlined, size: 18),
+                  SizedBox(width: 12),
+                  Text('同步全部消息'),
                 ],
               ),
             ),

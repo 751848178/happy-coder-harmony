@@ -66,6 +66,11 @@ extension SessionServiceSessionUpdates on SessionServiceNotifier {
   void clearSessionMessages(String sessionId) {
     _sessionLastSeq.remove(sessionId);
     _repository.clearSessionMessages(sessionId);
+    unawaited(_persistSessionCacheImmediately(sessionId).catchError((
+      Object error,
+    ) {
+      Logger.warning('Failed to persist cleared session cache: $error');
+    }));
   }
 
   void updateDraft(String sessionId, String? draft) {
@@ -120,9 +125,15 @@ extension SessionServiceSessionUpdates on SessionServiceNotifier {
     final normalizedAlias = _normalizeOptionalValue(alias);
     final fallbackMetadata = Map<String, dynamic>.from(
       session.metadata ?? const <String, dynamic>{},
-    )
-      ..remove('name')
-      ..remove('title');
+    );
+    if (normalizedAlias == null) {
+      fallbackMetadata
+        ..remove('name')
+        ..remove('title');
+    } else {
+      fallbackMetadata['name'] = normalizedAlias;
+      fallbackMetadata['title'] = normalizedAlias;
+    }
     final nextTitle = normalizedAlias ??
         _resolveSessionTitle(
           path: session.path ?? fallbackMetadata['path']?.toString(),
@@ -133,7 +144,12 @@ extension SessionServiceSessionUpdates on SessionServiceNotifier {
           fallback: session.title,
         );
 
-    _repository.applySessions([session.copyWith(title: nextTitle)]);
+    _repository.applySessions([
+      session.copyWith(
+        title: nextTitle,
+        metadata: fallbackMetadata,
+      ),
+    ]);
     await _preferencesService.update(
         sessionId: sessionId, alias: normalizedAlias);
 

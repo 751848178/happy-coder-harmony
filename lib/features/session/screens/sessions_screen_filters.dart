@@ -41,7 +41,7 @@ extension on _SessionsScreenState {
   }
 
   bool _isSessionUnavailable(Session session) {
-    return session.thinking != true && !session.active;
+    return !session.active && session.thinking != true;
   }
 
   String? _groupNameForSession(String sessionId) {

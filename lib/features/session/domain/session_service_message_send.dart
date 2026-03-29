@@ -9,6 +9,13 @@ extension SessionServiceMessageSend on SessionServiceNotifier {
   }) async {
     final resolvedLocalId =
         localId ?? 'msg_${DateTime.now().microsecondsSinceEpoch}';
+    final bridgeStopper = Completer<void>();
+    unawaited(
+      _pollSessionMessagesDuringSend(
+        sessionId: sessionId,
+        stopSignal: bridgeStopper.future,
+      ),
+    );
     try {
       final session = _repository.getSession(sessionId);
       if (session == null) {
@@ -49,15 +56,48 @@ extension SessionServiceMessageSend on SessionServiceNotifier {
           },
         ),
       );
+      if (!bridgeStopper.isCompleted) {
+        bridgeStopper.complete();
+      }
       unawaited(loadSessionMessages(sessionId).catchError((Object error) {
         Logger.warning('Failed to refresh session messages after send: $error');
       }));
 
       Logger.info('Message sent to session: $sessionId');
     } catch (error) {
+      if (!bridgeStopper.isCompleted) {
+        bridgeStopper.complete();
+      }
       _repository.removeMessage(sessionId, resolvedLocalId);
       Logger.error('Send message error: $error');
       rethrow;
+    }
+  }
+
+  Future<void> _pollSessionMessagesDuringSend({
+    required String sessionId,
+    required Future<void> stopSignal,
+  }) async {
+    var shouldStop = false;
+    stopSignal.then((_) {
+      shouldStop = true;
+    });
+
+    while (!shouldStop) {
+      await Future.any<void>([
+        stopSignal,
+        Future<void>.delayed(const Duration(milliseconds: 450)),
+      ]);
+      if (shouldStop) {
+        break;
+      }
+      try {
+        await loadSessionMessages(sessionId);
+      } catch (error) {
+        Logger.warning(
+          'Failed to poll session messages during send for $sessionId: $error',
+        );
+      }
     }
   }
 

@@ -26,14 +26,14 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
       case 'message':
       case 'reasoning':
         final text = acpData['message']?.toString();
-        if (text == null || text.isEmpty) {
+        if (_isBlankReducerText(text)) {
           return const <ReducerMessage>[];
         }
         return <ReducerMessage>[
           _buildTextReducerMessage(
             id: '$id:acp:$acpType',
             createdAt: createdAt,
-            text: text,
+            text: text!,
             metadata: {
               ...metadata,
               if (acpType == 'reasoning') 'outputType': 'thinking',
@@ -42,14 +42,14 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
         ];
       case 'thinking':
         final text = acpData['text']?.toString();
-        if (text == null || text.isEmpty) {
+        if (_isBlankReducerText(text)) {
           return const <ReducerMessage>[];
         }
         return <ReducerMessage>[
           _buildTextReducerMessage(
             id: '$id:acp:thinking',
             createdAt: createdAt,
-            text: text,
+            text: text!,
             metadata: {...metadata, 'outputType': 'thinking'},
           ),
         ];

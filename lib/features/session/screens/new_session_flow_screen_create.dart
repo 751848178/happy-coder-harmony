@@ -30,6 +30,7 @@ Future<void> _createSessionFlowSession(
       state,
       machine: machine,
       directory: directory,
+      modelMode: state._modelMode,
     );
     if (sessionId == null || sessionId.isEmpty) {
       state._updateView(() {
@@ -85,6 +86,7 @@ Future<String?> _spawnSessionFlowSessionWithApproval(
   _NewSessionFlowScreenState state, {
   required _MachineOption machine,
   required String directory,
+  required String modelMode,
 }) async {
   final notifier = state.ref.read(sessionStateProvider.notifier);
   var result = await notifier.spawnSession(
@@ -93,6 +95,7 @@ Future<String?> _spawnSessionFlowSessionWithApproval(
     agent: state._selectedAgent,
     approvedNewDirectoryCreation: false,
     permissionMode: state._permissionMode,
+    modelMode: modelMode,
   );
 
   if (result.requiresDirectoryApproval) {
@@ -109,6 +112,7 @@ Future<String?> _spawnSessionFlowSessionWithApproval(
       agent: state._selectedAgent,
       approvedNewDirectoryCreation: true,
       permissionMode: state._permissionMode,
+      modelMode: modelMode,
     );
   }
 

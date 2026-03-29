@@ -1,4 +1,6 @@
 import '../../profile/domain/profile_models.dart' as profile_models;
+import 'session_models.dart';
+import 'session_recency.dart';
 
 part 'session_creation_options_agents.dart';
 part 'session_creation_options_modes.dart';

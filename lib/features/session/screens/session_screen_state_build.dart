@@ -1,21 +1,51 @@
 part of 'session_screen.dart';
 
 extension _SessionScreenStateBuild on _SessionScreenState {
+  _SessionScreenSelection _watchSessionSelection() {
+    return ref.watch(
+      sessionStateProvider.select(
+        (state) =>
+            state.whenOrNull(
+              ready: (sessions, sessionMessages, _) => _SessionScreenSelection(
+                session: sessions[widget.sessionId],
+                messages: sessionMessages[widget.sessionId]?.messages,
+                hasLoadedSessions: sessions.isNotEmpty,
+                isReady: true,
+              ),
+            ) ??
+            const _SessionScreenSelection.initial(),
+      ),
+    );
+  }
+
+  SessionStats? _resolveSessionStats(
+    Session? session,
+    List<ReducerMessage> messages,
+  ) {
+    if (session == null) {
+      return null;
+    }
+    if (identical(_cachedStatsSession, session) &&
+        identical(_cachedStatsMessages, messages)) {
+      return _cachedSessionStats;
+    }
+    final stats = SessionStatsCalculator.fromSession(
+      session: session,
+      messages: messages,
+    );
+    _cachedStatsSession = session;
+    _cachedStatsMessages = messages;
+    _cachedSessionStats = stats;
+    return stats;
+  }
+
   Widget _buildSessionScreen(BuildContext context) {
-    ref.watch(sessionStateProvider);
+    final selection = _watchSessionSelection();
     final settings = ref.watch(settingsStateProvider);
-    final sessionNotifier = ref.read(sessionStateProvider.notifier);
-    final session = sessionNotifier.getSession(widget.sessionId);
-    final sessionMessages =
-        sessionNotifier.getSessionMessages(widget.sessionId);
-    final messages = sessionMessages?.messages ?? [];
-    final turnGroups = _MessageTurnGroup.build(messages);
-    final sessionStats = session == null
-        ? null
-        : SessionStatsCalculator.fromSession(
-            session: session,
-            messages: messages,
-          );
+    final session = selection.session;
+    final messages = selection.messages ?? const <ReducerMessage>[];
+    final turnGroups = _resolveTurnGroups(messages);
+    final sessionStats = _resolveSessionStats(session, messages);
     if (messages.isNotEmpty && !_hasScrolledToLatest) {
       _scheduleScrollToLatest();
     }
@@ -31,26 +61,29 @@ extension _SessionScreenStateBuild on _SessionScreenState {
       });
     }
     final slashCommands = _resolveSlashCommands(session);
-    final visibleSlashCommands = _visibleSlashCommands(
-      session,
-      settings.commandPaletteEnabled,
-    );
-    final visibleInputTemplates = _visibleInputTemplates();
+    final availableInputTemplates = _allInputTemplates();
     final conversationBusy = _isConversationBusy(session, turnGroups);
     final suppressStaleLiveState =
         _isRefreshingSessionState && _activeResponseLocalId == null;
     final effectiveConversationBusy =
         suppressStaleLiveState ? false : conversationBusy;
-    final showLiveReplyBadge = messages.isNotEmpty &&
-        session?.thinking == true &&
-        !suppressStaleLiveState;
-    final messageViewportReady = messages.isEmpty || _hasScrolledToLatest;
-    final hasLoadedSessions = sessionNotifier.sessions.isNotEmpty;
+    final effectiveThinking = _isThinkingActive(session, turnGroups);
+    final shouldKeepScreenAwake = session != null &&
+        (_activeResponseLocalId != null || effectiveThinking);
+    _updateScreenAwakePolicy(keepAwake: shouldKeepScreenAwake);
+    final showLiveReplyBadge =
+        messages.isNotEmpty && effectiveThinking && !suppressStaleLiveState;
+    final hasLoadedSessions = selection.hasLoadedSessions;
     _visibleTurnGroups = turnGroups;
-    if (messageViewportReady && messages.isNotEmpty) {
+    _hasStickyTurnCandidates = !_collapseAllTurns &&
+        turnGroups.any(
+          (group) => group.userPrompt != null && group.messages.length > 1,
+        );
+    if (messages.isNotEmpty &&
+        (_hasStickyTurnCandidates || _stickyTurnId != null)) {
       _scheduleViewportStateRefresh();
     }
-    _scheduleQueuedMessageReconciliation();
+    _scheduleQueuedMessageReconciliation(session, messages);
 
     return PopScope(
       canPop: false,
@@ -79,68 +112,56 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                           !_sessionOverviewCollapsed)
                         _buildSessionOverview(session, sessionStats),
                       Expanded(
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: messages.isEmpty
-                                  ? _buildEmptyState()
-                                  : IgnorePointer(
-                                      ignoring: !messageViewportReady,
-                                      child: Opacity(
-                                        opacity: messageViewportReady ? 1 : 0,
-                                        child: _buildMessageList(
-                                          messages: messages,
-                                          turnGroups: turnGroups,
-                                          autoApproveEnabled: session != null
-                                              ? _shouldAutoApprove(session)
-                                              : false,
-                                        ),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) => Stack(
+                            children: [
+                              Positioned.fill(
+                                child: messages.isEmpty
+                                    ? _buildEmptyState()
+                                    : _buildMessageList(
+                                        messages: messages,
+                                        turnGroups: turnGroups,
+                                        autoApproveEnabled: session != null
+                                            ? _shouldAutoApprove(session)
+                                            : false,
                                       ),
-                                    ),
-                            ),
-                            if (messageViewportReady &&
-                                messages.isNotEmpty &&
-                                _stickyTurnId != null &&
-                                !_collapseAllTurns)
-                              Positioned(
-                                key: const ValueKey('session-sticky-turn'),
-                                left: AppTheme.spacingMd,
-                                top: 8,
-                                right: showLiveReplyBadge ? 132 : 16,
-                                child: _buildStickyTurnPrompt(),
                               ),
-                            if (showLiveReplyBadge)
-                              Positioned(
-                                key: const ValueKey('session-thinking-badge'),
-                                top: 8,
-                                right: AppTheme.spacingMd,
-                                child: _buildFloatingThinkingBadge(session!),
-                              ),
-                            if (messageViewportReady &&
-                                messages.isNotEmpty &&
-                                _hasUnreadMessages)
-                              Positioned(
-                                key: const ValueKey('session-unread-indicator'),
-                                left: AppTheme.spacingMd,
-                                right: AppTheme.spacingMd,
-                                bottom: 112,
-                                child: Center(
-                                  child: _buildNewMessageIndicator(),
+                              if (messages.isNotEmpty &&
+                                  _stickyTurnId != null &&
+                                  !_collapseAllTurns)
+                                Positioned(
+                                  key: const ValueKey('session-sticky-turn'),
+                                  left: AppTheme.spacingMd,
+                                  top: 8,
+                                  right: showLiveReplyBadge ? 132 : 16,
+                                  child: _buildStickyTurnPrompt(),
                                 ),
-                              ),
-                            if (messageViewportReady && messages.isNotEmpty)
-                              Align(
-                                key: const ValueKey('session-scroll-actions'),
-                                alignment: Alignment.bottomRight,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(
-                                    right: AppTheme.spacingMd,
-                                    bottom: 20,
+                              if (showLiveReplyBadge)
+                                Positioned(
+                                  key: const ValueKey('session-thinking-badge'),
+                                  top: 8,
+                                  right: AppTheme.spacingMd,
+                                  child: _buildFloatingThinkingBadge(session!),
+                                ),
+                              if (messages.isNotEmpty && _hasUnreadMessages)
+                                Positioned(
+                                  key: const ValueKey(
+                                      'session-unread-indicator'),
+                                  left: AppTheme.spacingMd,
+                                  right: AppTheme.spacingMd,
+                                  bottom: 112,
+                                  child: Center(
+                                    child: _buildNewMessageIndicator(),
                                   ),
-                                  child: _buildScrollActions(),
                                 ),
-                              ),
-                          ],
+                              if (messages.isNotEmpty)
+                                _buildScrollActionsOverlay(
+                                  viewportHeight: constraints.maxHeight,
+                                  session: session,
+                                  turnGroups: turnGroups,
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                       _buildInputArea(
@@ -149,8 +170,7 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                         conversationBusy: effectiveConversationBusy,
                         settings: settings,
                         slashCommands: slashCommands,
-                        visibleSlashCommands: visibleSlashCommands,
-                        visibleInputTemplates: visibleInputTemplates,
+                        availableInputTemplates: availableInputTemplates,
                       ),
                     ],
                   ),

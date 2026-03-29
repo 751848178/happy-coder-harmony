@@ -6,18 +6,31 @@ void _selectSessionFlowAgent(_NewSessionFlowScreenState state, String agent) {
     return;
   }
 
-  final permissionOptions = permissionOptionsForAgent(normalized);
+  final notifier = state.ref.read(sessionStateProvider.notifier);
+  final permissionOptions = _sessionFlowPermissionOptions(
+    state,
+    agent: normalized,
+  );
+  final modelOptions = _sessionFlowModelOptions(
+    state,
+    agent: normalized,
+  );
   final currentPermission = permissionOptions
       .where((option) => option.key == state._permissionMode)
+      .cast<SessionModeOption?>()
+      .firstWhere((option) => option != null, orElse: () => null);
+  final currentModel = modelOptions
+      .where((option) => option.key == state._modelMode)
       .cast<SessionModeOption?>()
       .firstWhere((option) => option != null, orElse: () => null);
 
   state._updateView(() {
     state._selectedAgent = normalized;
-    state._permissionMode = resolveModeSelection(
-      preferred: currentPermission?.key,
-      options: permissionOptions,
-      fallback: defaultPermissionModeForAgent(normalized),
+    _syncSessionFlowModeSelections(
+      state,
+      agent: normalized,
+      preferredPermissionMode: currentPermission?.key,
+      preferredModelMode: currentModel?.key,
     );
   });
 }

@@ -86,11 +86,7 @@ extension _SessionScreenStateLoad on _SessionScreenState {
     final sessionNotifier = ref.read(sessionStateProvider.notifier);
     _restoreComposerDraft(sessionNotifier.getSession(widget.sessionId),
         force: true);
-    if (mounted) {
-      _updateState(() {
-        _isRefreshingSessionState = true;
-      });
-    }
+    _setSessionRefreshing(true);
     try {
       await sessionNotifier.loadSessions(force: true);
       final loadedSession = sessionNotifier.getSession(widget.sessionId);
@@ -98,9 +94,12 @@ extension _SessionScreenStateLoad on _SessionScreenState {
       if (loadedSession == null) {
         return;
       }
+      final hasCachedMessageSnapshot =
+          sessionNotifier.getSessionMessages(widget.sessionId)?.isLoaded ==
+              true;
       await sessionNotifier.loadSessionMessages(
         widget.sessionId,
-        force: true,
+        force: !hasCachedMessageSnapshot,
       );
       _restoreComposerDraft(
         sessionNotifier.getSession(widget.sessionId),
@@ -115,11 +114,7 @@ extension _SessionScreenStateLoad on _SessionScreenState {
           .subscribeToSession(widget.sessionId);
       _startMessagePolling();
     } finally {
-      if (mounted) {
-        _updateState(() {
-          _isRefreshingSessionState = false;
-        });
-      }
+      _setSessionRefreshing(false);
     }
   }
 }

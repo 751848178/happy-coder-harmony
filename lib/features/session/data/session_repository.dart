@@ -1,7 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
+
+import 'package:collection/collection.dart';
 
 import '../domain/reducer.dart' as domain;
+import '../domain/session_local_snapshot.dart';
+import '../domain/session_recency.dart';
 import '../domain/session_models.dart';
 import '../../../shared/utils/extensions.dart';
 
@@ -26,3 +29,6 @@ class SessionRepository {
 
   Stream<SessionStateChange> get stateChanges => _stateController.stream;
 }
+
+const DeepCollectionEquality _sessionRepositoryDeepEquality =
+    DeepCollectionEquality();

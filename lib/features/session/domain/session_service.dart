@@ -17,7 +17,10 @@ import '../../storage/domain/storage_service.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../app/services/api_service.dart';
 import '../../../shared/utils/extensions.dart';
+import 'reducer.dart' as domain;
 import 'session_creation_options.dart';
+import 'session_local_snapshot.dart';
+import 'session_recency.dart';
 import 'session_rpc_models.dart';
 
 part 'session_service_agent_message_reducer.dart';
@@ -31,6 +34,7 @@ part 'session_service_message_send.dart';
 part 'session_service_messages.dart';
 part 'session_service_metadata.dart';
 part 'session_service_metadata_sync.dart';
+part 'session_service_event_message_reducer.dart';
 part 'session_service_output_message_reducer.dart';
 part 'session_service_payload_helpers.dart';
 part 'session_service_rpc.dart';
@@ -41,6 +45,20 @@ part 'session_service_session_parsing.dart';
 part 'session_service_session_updates.dart';
 part 'session_service_sessions.dart';
 part 'session_service_state.dart';
+
+class _CachedSessionRestoreResult {
+  const _CachedSessionRestoreResult({
+    this.sessions = const <Session>[],
+    this.sessionMessagesById = const <String, SessionMessages>{},
+    this.lastSeqBySessionId = const <String, int>{},
+  });
+
+  final List<Session> sessions;
+  final Map<String, SessionMessages> sessionMessagesById;
+  final Map<String, int> lastSeqBySessionId;
+
+  bool get isEmpty => sessions.isEmpty;
+}
 
 class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   static const Object _sessionOverrideSentinel = Object();
@@ -103,6 +121,9 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
         _schedulePersistCachedSessions();
         break;
       case SessionChangeType.messagesUpdated:
+        _emitReadyState();
+        _schedulePersistCachedSessions();
+        break;
       case SessionChangeType.agentStateUpdated:
       case SessionChangeType.machinesUpdated:
       case SessionChangeType.toolCallApproved:
@@ -119,28 +140,65 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   void _schedulePersistCachedSessions() {
     _cachePersistDebounce?.cancel();
     _cachePersistDebounce = Timer(const Duration(milliseconds: 450), () {
-      unawaited(_persistCachedSessions(_repository.getAllSessions()));
+      unawaited(_persistCachedSessions(
+        _repository.getAllSessions(),
+        sessionMessagesById: _repository.sessionMessagesMap,
+      ));
     });
   }
 
-  Future<List<Session>> _restoreCachedSessions() async {
+  Future<_CachedSessionRestoreResult> _restoreCachedSessions() async {
     try {
       final cachedSessions = await StorageService.instance.getAllSessions();
-      return cachedSessions.map(_sessionFromCache).toList()
-        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      final restoredSessions = <Session>[];
+      final restoredSessionMessages = <String, SessionMessages>{};
+      final restoredLastSeqs = <String, int>{};
+
+      for (final cached in cachedSessions) {
+        final localState =
+            _extractLocalSessionStateFromMetadata(cached.metadata);
+        final session = _sessionFromCache(cached, localState: localState);
+        restoredSessions.add(session);
+
+        final restoredMessages = restoreMessagesFromLocalSnapshot(localState);
+        if (localSnapshotHasLoadedMessages(localState)) {
+          final messages = restoredMessages ?? const <ReducerMessage>[];
+          restoredSessionMessages[session.id] = SessionMessages(
+            messages: messages,
+            messagesMap: {
+              for (final message in messages) message.id: message,
+            },
+            reducerState: domain.ReducerState.initial,
+            isLoaded: true,
+          );
+        }
+
+        final lastSeq = restoreSessionLastSeqFromLocalSnapshot(localState);
+        if (lastSeq != null && lastSeq > 0) {
+          restoredLastSeqs[session.id] = lastSeq;
+        }
+      }
+
+      restoredSessions.sort(compareSessionsByRecency);
+      return _CachedSessionRestoreResult(
+        sessions: restoredSessions,
+        sessionMessagesById: restoredSessionMessages,
+        lastSeqBySessionId: restoredLastSeqs,
+      );
     } catch (error) {
       Logger.warning('Failed to restore cached sessions: $error');
-      return const <Session>[];
+      return const _CachedSessionRestoreResult();
     }
   }
 
-  Session _sessionFromCache(storage_models.SessionStorageModel cached) {
+  Session _sessionFromCache(
+    storage_models.SessionStorageModel cached, {
+    Map<String, dynamic>? localState,
+  }) {
     final metadata = cached.metadata == null
         ? null
         : Map<String, dynamic>.from(cached.metadata!);
-    final localState = metadata == null
-        ? null
-        : _asStringMap(metadata.remove(_localSessionSnapshotKey));
+    metadata?.remove(_localSessionSnapshotKey);
     return Session(
       id: cached.id,
       title: cached.title,
@@ -151,19 +209,72 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
       tag: cached.tag,
       path: metadata?['path']?.toString(),
       metadata: metadata,
-      permissionMode:
-          _normalizeOptionalValue(localState?['permissionMode']?.toString()),
-      modelMode: _normalizeOptionalValue(localState?['modelMode']?.toString()),
+      latestUsage: restoreLatestUsageFromLocalSnapshot(
+        localState,
+        fallbackTimestamp: cached.updatedAt,
+      ),
+      permissionMode: resolveLocalModeValue(
+        preferredValue: localState?['permissionMode']?.toString(),
+        explicitValue: null,
+        metadataValue: metadata?['currentOperatingModeCode']?.toString(),
+      ),
+      modelMode: resolveLocalModeValue(
+        preferredValue: localState?['modelMode']?.toString(),
+        explicitValue: null,
+        metadataValue: metadata?['currentModelCode']?.toString(),
+      ),
       draft: _normalizeOptionalValue(localState?['draft']?.toString()),
     );
   }
 
-  Future<void> _persistCachedSessions(List<Session> sessions) async {
+  Map<String, dynamic>? _extractLocalSessionStateFromMetadata(
+    Map<String, dynamic>? metadata,
+  ) {
+    if (metadata == null) {
+      return null;
+    }
+    return _asStringMap(metadata[_localSessionSnapshotKey]);
+  }
+
+  Future<void> _persistCachedSessions(
+    List<Session> sessions, {
+    Map<String, SessionMessages> sessionMessagesById = const {},
+  }) async {
     try {
-      await StorageService.instance.cacheRemoteSessions(sessions);
+      final localStateBySessionId = <String, Map<String, dynamic>>{};
+      for (final session in sessions) {
+        final cachedMessages = sessionMessagesById[session.id];
+        final isLoaded = cachedMessages?.isLoaded == true;
+        localStateBySessionId[session.id] = buildLocalSessionSnapshot(
+          session: session,
+          loadedMessageCount: isLoaded ? cachedMessages!.messages.length : null,
+          loadedMessages: isLoaded ? cachedMessages!.messages : null,
+          messagesLoaded: isLoaded,
+          lastSeq: _sessionLastSeq[session.id],
+        );
+      }
+      await StorageService.instance.cacheRemoteSessions(
+        sessions,
+        localStateBySessionId: localStateBySessionId,
+      );
     } catch (error) {
       Logger.warning('Failed to persist cached sessions: $error');
     }
+  }
+
+  Future<void> _persistSessionCacheImmediately(String sessionId) async {
+    final session = _repository.getSession(sessionId);
+    if (session == null) {
+      await StorageService.instance.deleteSession(sessionId);
+      return;
+    }
+    final sessionMessages = _repository.getSessionMessages(sessionId);
+    await _persistCachedSessions(
+      [session],
+      sessionMessagesById: sessionMessages == null
+          ? const <String, SessionMessages>{}
+          : <String, SessionMessages>{sessionId: sessionMessages},
+    );
   }
 
   List<Session> get sessions => _repository.getAllSessions();
@@ -179,6 +290,8 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
 
   bool hasRemoteSession(String sessionId) =>
       _lastRemoteSessionIds.contains(sessionId);
+
+  DateTime? get lastSessionsLoadedAt => _lastSessionsLoadedAt;
 
   @override
   void dispose() {

@@ -8,10 +8,13 @@ extension _SessionScreenViewCommandLogic on _SessionScreenState {
     ];
   }
 
-  _ComposerTriggerMatch? _findComposerTrigger(String trigger) {
-    final value = _messageController.value;
-    final text = value.text;
-    final selection = value.selection;
+  _ComposerTriggerMatch? _findComposerTrigger(
+    String trigger, {
+    TextEditingValue? value,
+  }) {
+    final currentValue = value ?? _messageController.value;
+    final text = currentValue.text;
+    final selection = currentValue.selection;
     final cursor = selection.isValid ? selection.end : text.length;
     if (cursor < 0 || cursor > text.length) {
       return null;
@@ -32,14 +35,16 @@ extension _SessionScreenViewCommandLogic on _SessionScreenState {
     );
   }
 
-  _ComposerTriggerMatch? _findInputTemplateTrigger() {
-    return _findComposerTrigger('^');
+  _ComposerTriggerMatch? _findInputTemplateTrigger({
+    TextEditingValue? value,
+  }) {
+    return _findComposerTrigger('^', value: value);
   }
 
   void _showModeSheet({
     required String title,
     required List<_ModeOption> options,
-    required _ModeOption current,
+    required _ModeOption? current,
     required ValueChanged<_ModeOption> onSelected,
   }) {
     showModalBottomSheet(
@@ -85,7 +90,7 @@ extension _SessionScreenViewCommandLogic on _SessionScreenState {
                                 bottom: AppTheme.spacingMd),
                             child: _ModeOptionTile(
                               option: option,
-                              selected: option.key == current.key,
+                              selected: option.key == current?.key,
                               onTap: () => onSelected(option),
                             ),
                           );
@@ -136,13 +141,14 @@ extension _SessionScreenViewCommandLogic on _SessionScreenState {
   }
 
   List<_SlashCommandItem> _visibleSlashCommands(
-    Session? session,
-    bool enabled,
-  ) {
+    List<_SlashCommandItem> commands, {
+    required bool enabled,
+    TextEditingValue? value,
+  }) {
     if (!enabled) {
       return const <_SlashCommandItem>[];
     }
-    final text = _messageController.text.trimLeft();
+    final text = (value ?? _messageController.value).text.trimLeft();
     if (!text.startsWith('/')) {
       return const <_SlashCommandItem>[];
     }
@@ -151,7 +157,6 @@ extension _SessionScreenViewCommandLogic on _SessionScreenState {
       return const <_SlashCommandItem>[];
     }
     final query = rawQuery.trim().toLowerCase();
-    final commands = _resolveSlashCommands(session);
     if (query.isEmpty) {
       return commands;
     }
@@ -164,18 +169,26 @@ extension _SessionScreenViewCommandLogic on _SessionScreenState {
         .toList();
   }
 
-  bool _shouldShowSlashCommands(List<_SlashCommandItem> commands) {
-    return _messageController.text.trimLeft().startsWith('/') &&
+  bool _shouldShowSlashCommands(
+    List<_SlashCommandItem> commands, {
+    TextEditingValue? value,
+  }) {
+    return (value ?? _messageController.value)
+            .text
+            .trimLeft()
+            .startsWith('/') &&
         commands.isNotEmpty;
   }
 
-  List<_InputTemplateItem> _visibleInputTemplates() {
-    final triggerMatch = _findInputTemplateTrigger();
+  List<_InputTemplateItem> _visibleInputTemplates(
+    List<_InputTemplateItem> templates, {
+    TextEditingValue? value,
+  }) {
+    final triggerMatch = _findInputTemplateTrigger(value: value);
     if (triggerMatch == null) {
       return const <_InputTemplateItem>[];
     }
     final query = triggerMatch.query;
-    final templates = _allInputTemplates();
     if (query.isEmpty) {
       return templates;
     }
@@ -188,7 +201,11 @@ extension _SessionScreenViewCommandLogic on _SessionScreenState {
         .toList();
   }
 
-  bool _shouldShowInputTemplates(List<_InputTemplateItem> templates) {
-    return _findInputTemplateTrigger() != null && templates.isNotEmpty;
+  bool _shouldShowInputTemplates(
+    List<_InputTemplateItem> templates, {
+    TextEditingValue? value,
+  }) {
+    return _findInputTemplateTrigger(value: value) != null &&
+        templates.isNotEmpty;
   }
 }

@@ -7,6 +7,11 @@ extension _SessionScreenViewControls on _SessionScreenState {
   ) {
     final permissionOption = _resolveCurrentPermissionOption(session);
     final modelOption = _resolveCurrentModelOption(session);
+    final permissionLabel = permissionOption?.label ??
+        _currentExplicitPermissionKey(session) ??
+        '未设置';
+    final modelLabel =
+        modelOption?.label ?? _currentExplicitModelKey(session) ?? '未设置';
     final isActive = session.active || session.presence?.isOnline == true;
     final statusText = isActive ? '已连接' : '离线';
 
@@ -50,29 +55,15 @@ extension _SessionScreenViewControls on _SessionScreenState {
               ),
             ),
             const SizedBox(width: 8),
-            IgnorePointer(
-              ignoring: _isRefreshingSessionState,
-              child: Opacity(
-                opacity: _isRefreshingSessionState ? 0.72 : 1,
-                child: _ControlChip(
-                  icon: _isRefreshingSessionState
-                      ? Icons.sync_rounded
-                      : Icons.refresh_rounded,
-                  label: _isRefreshingSessionState ? '刷新中' : '刷新',
-                  onTap: _refreshSessionState,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
             _ControlChip(
               icon: Icons.security_rounded,
-              label: '权限 ${permissionOption.label}',
+              label: '权限 $permissionLabel',
               onTap: _showPermissionDialog,
             ),
             const SizedBox(width: 8),
             _ControlChip(
               icon: Icons.tune_rounded,
-              label: '模型 ${modelOption.label}',
+              label: '模型 $modelLabel',
               onTap: () => _showModelDialog(session),
             ),
             if (turnGroups.isNotEmpty) ...[
@@ -90,6 +81,4 @@ extension _SessionScreenViewControls on _SessionScreenState {
       ),
     );
   }
-
-
 }

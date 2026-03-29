@@ -110,6 +110,7 @@ extension _SessionScreenMessageBubbleStatus on _MessageBubbleState {
   }
 
   Widget _buildErrorMessage() {
+    final text = message.text?.trim();
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
       padding: const EdgeInsets.all(AppTheme.spacingMd),
@@ -124,7 +125,7 @@ extension _SessionScreenMessageBubbleStatus on _MessageBubbleState {
           const SizedBox(width: AppTheme.spacingSm),
           Expanded(
             child: Text(
-              message.text ?? '发生错误',
+              text == null || text.isEmpty ? '发生错误' : text,
               style: const TextStyle(
                 fontSize: 14,
                 color: AppTheme.errorColor,
@@ -135,6 +136,4 @@ extension _SessionScreenMessageBubbleStatus on _MessageBubbleState {
       ),
     );
   }
-
-
 }

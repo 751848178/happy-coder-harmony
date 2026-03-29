@@ -8,13 +8,15 @@ extension _SessionScreenViewMessages on _SessionScreenState {
   }) {
     if (_collapseAllTurns && turnGroups.isNotEmpty) {
       return ListView.builder(
-        key: _messageListViewportKey,
         controller: _scrollController,
+        physics: const RangeMaintainingScrollPhysics(
+          parent: ClampingScrollPhysics(),
+        ),
         padding: const EdgeInsets.fromLTRB(
           AppTheme.spacingMd,
-          12,
+          _sessionMessageListTopPadding,
           AppTheme.spacingMd,
-          116,
+          _sessionMessageListBottomPadding,
         ),
         itemCount: turnGroups.length,
         itemBuilder: (context, index) {
@@ -28,22 +30,24 @@ extension _SessionScreenViewMessages on _SessionScreenState {
       );
     }
 
-    return ListView(
-      key: _messageListViewportKey,
+    return ListView.builder(
       controller: _scrollController,
+      physics: const RangeMaintainingScrollPhysics(
+        parent: ClampingScrollPhysics(),
+      ),
       padding: const EdgeInsets.fromLTRB(
         AppTheme.spacingMd,
-        12,
+        _sessionMessageListTopPadding,
         AppTheme.spacingMd,
-        116,
+        _sessionMessageListBottomPadding,
       ),
-      children: [
-        for (final group in turnGroups)
-          _buildExpandedTurnSection(
-            group,
-            autoApproveEnabled: autoApproveEnabled,
-          ),
-      ],
+      itemCount: turnGroups.length,
+      itemBuilder: (context, index) {
+        return _buildExpandedTurnSection(
+          turnGroups[index],
+          autoApproveEnabled: autoApproveEnabled,
+        );
+      },
     );
   }
 
@@ -52,37 +56,39 @@ extension _SessionScreenViewMessages on _SessionScreenState {
     required bool autoApproveEnabled,
   }) {
     final prompt = group.userPrompt;
-    final remainingMessages = prompt == null
-        ? group.messages
-        : group.messages
-            .where((message) => message.id != prompt.id)
-            .toList(growable: false);
-
+    final firstReplyIndex = prompt == null ? 0 : 1;
+    final hasReplies = group.messages.length > firstReplyIndex;
+    final section = Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (prompt != null)
+            _buildMessageBubble(
+              prompt,
+              autoApproveEnabled: autoApproveEnabled,
+            ),
+          if (hasReplies)
+            SizedBox(
+              key: _turnReplyAnchorKey(group.id),
+              height: 0,
+            ),
+          for (var index = firstReplyIndex;
+              index < group.messages.length;
+              index++)
+            _buildMessageBubble(
+              group.messages[index],
+              autoApproveEnabled: autoApproveEnabled,
+            ),
+        ],
+      ),
+    );
+    if (!hasReplies) {
+      return section;
+    }
     return KeyedSubtree(
       key: _turnSectionKey(group.id),
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (prompt != null)
-              _buildMessageBubble(
-                prompt,
-                autoApproveEnabled: autoApproveEnabled,
-              ),
-            if (remainingMessages.isNotEmpty)
-              SizedBox(
-                key: _turnReplyAnchorKey(group.id),
-                height: 0,
-              ),
-            for (final message in remainingMessages)
-              _buildMessageBubble(
-                message,
-                autoApproveEnabled: autoApproveEnabled,
-              ),
-          ],
-        ),
-      ),
+      child: section,
     );
   }
 
@@ -90,14 +96,16 @@ extension _SessionScreenViewMessages on _SessionScreenState {
     ReducerMessage message, {
     required bool autoApproveEnabled,
   }) {
-    return _MessageBubble(
-      key: ValueKey(message.id),
-      message: message,
-      autoApproveEnabled: autoApproveEnabled,
-      isToolActionPending: message.tool != null &&
-          _toolActionsInFlight.contains(message.tool!.id),
-      onApproveTool: _approveToolCall,
-      onRejectTool: _rejectToolCall,
+    return RepaintBoundary(
+      child: _MessageBubble(
+        key: ValueKey(message.id),
+        message: message,
+        autoApproveEnabled: autoApproveEnabled,
+        isToolActionPending: message.tool != null &&
+            _toolActionsInFlight.contains(message.tool!.id),
+        onApproveTool: _approveToolCall,
+        onRejectTool: _rejectToolCall,
+      ),
     );
   }
 

@@ -41,9 +41,7 @@ class _MessageBubbleState extends State<_MessageBubble>
   @override
   void didUpdateWidget(covariant _MessageBubble oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final contentChanged =
-        jsonEncode(oldWidget.message.toJson()) != jsonEncode(message.toJson());
-    if (oldWidget.message.id != widget.message.id || contentChanged) {
+    if (_shouldResetCollapsedState(oldWidget.message, message)) {
       _collapsed = _shouldStartCollapsed(message);
       updateKeepAlive();
     }
@@ -92,6 +90,59 @@ class _MessageBubbleState extends State<_MessageBubble>
     final normalized = value.trimRight();
     final lineCount = '\n'.allMatches(normalized).length + 1;
     return normalized.length > 240 || lineCount > 6;
+  }
+
+  bool _shouldResetCollapsedState(
+    ReducerMessage previous,
+    ReducerMessage next,
+  ) {
+    if (previous.id != next.id ||
+        previous.kind != next.kind ||
+        previous.createdAt != next.createdAt) {
+      return true;
+    }
+    if (previous.isText || previous.isError || next.isText || next.isError) {
+      return previous.text != next.text ||
+          sessionMessageIsUserAuthored(previous) !=
+              sessionMessageIsUserAuthored(next) ||
+          previous.metadata?['outputType'] != next.metadata?['outputType'] ||
+          previous.metadata?['optimistic'] != next.metadata?['optimistic'];
+    }
+    if (previous.isToolCall || next.isToolCall) {
+      return _toolCollapseSignature(previous.tool) !=
+          _toolCollapseSignature(next.tool);
+    }
+    return false;
+  }
+
+  String _toolCollapseSignature(ToolInfo? tool) {
+    if (tool == null) {
+      return '';
+    }
+    final arguments = tool.arguments;
+    final keys = arguments.keys.map((key) => key.toString()).toList()..sort();
+    final keyArguments = <String>[
+      for (final key in keys.take(8))
+        '$key=${_toolCollapseValueSignature(arguments[key])}',
+      if (keys.length > 8) 'extra=${keys.length - 8}',
+    ].join('\u0001');
+    return [
+      tool.id,
+      tool.name,
+      tool.status?.name ?? '',
+      _toolCollapseValueSignature(tool.result),
+      _toolCollapseValueSignature(tool.error),
+      _toolCollapseValueSignature(tool.description),
+      keyArguments,
+    ].join('\u0002');
+  }
+
+  String _toolCollapseValueSignature(Object? value) {
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) {
+      return '';
+    }
+    return '${text.length}:${text.hashCode}';
   }
 
   void _toggleCollapsed() {

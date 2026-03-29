@@ -3,6 +3,7 @@ part of 'new_session_flow_screen.dart';
 Widget _buildSessionFlowComposerHeader(
   _NewSessionFlowScreenState state, {
   required SessionModeOption selectedPermission,
+  required SessionModeOption selectedModel,
   required Color connectionColor,
   required String connectionText,
 }) {
@@ -36,6 +37,14 @@ Widget _buildSessionFlowComposerHeader(
                 fontSize: 11,
                 color: _sessionFlowModeTint(
                     state._selectedAgent, state._permissionMode),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              selectedModel.label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppTheme.neutral600,
               ),
             ),
           ],
@@ -116,7 +125,7 @@ Widget _buildSessionFlowPromptCard(
                   children: [
                     _IconActionButton(
                       icon: Icons.settings_outlined,
-                      tooltip: '权限设置',
+                      tooltip: '会话设置',
                       onTap: state._showSettingsSheet,
                     ),
                     const SizedBox(width: 8),

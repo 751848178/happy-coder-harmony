@@ -15,10 +15,9 @@ extension SessionServiceSessionMessageReducer on SessionServiceNotifier {
     final event = _asStringMap(envelope['ev']);
     final eventType = event?['t']?.toString();
     final envelopeRole = envelope['role']?.toString() ?? 'agent';
-    final normalizedRole = envelopeRole == 'user' ? 'agent' : envelopeRole;
     final metadata = {
       ...?meta,
-      'role': normalizedRole,
+      'role': envelopeRole,
       'sourceRole': envelopeRole,
       if (localId != null && localId.isNotEmpty) 'localId': localId,
       if (eventType != null) 'eventType': eventType,
@@ -27,14 +26,24 @@ extension SessionServiceSessionMessageReducer on SessionServiceNotifier {
     switch (eventType) {
       case 'text':
         final text = event?['text']?.toString();
-        if (text == null || text.isEmpty) {
+        if (_isBlankReducerText(text)) {
           return const <ReducerMessage>[];
+        }
+        if (envelopeRole == 'user') {
+          return <ReducerMessage>[
+            _buildTextReducerMessage(
+              id: '$id:session:text',
+              createdAt: createdAt,
+              text: text!,
+              metadata: metadata,
+            ),
+          ];
         }
         return <ReducerMessage>[
           _buildTextReducerMessage(
             id: '$id:session:text',
             createdAt: createdAt,
-            text: text,
+            text: text!,
             metadata: {
               ...metadata,
               if (event?['thinking'] == true) 'outputType': 'thinking',
@@ -43,26 +52,26 @@ extension SessionServiceSessionMessageReducer on SessionServiceNotifier {
         ];
       case 'service':
         final text = event?['text']?.toString();
-        if (text == null || text.isEmpty) {
+        if (_isBlankReducerText(text)) {
           return const <ReducerMessage>[];
         }
         return <ReducerMessage>[
-          _buildEventReducerMessage(
+          _buildTextReducerMessage(
             id: '$id:session:service',
             createdAt: createdAt,
-            text: text,
+            text: text!,
             metadata: metadata,
           ),
         ];
       case 'start':
         final title = event?['title']?.toString();
-        return title == null || title.isEmpty
+        return _isBlankReducerText(title)
             ? const <ReducerMessage>[]
             : <ReducerMessage>[
                 _buildEventReducerMessage(
                   id: '$id:session:start',
                   createdAt: createdAt,
-                  text: title,
+                  text: title!,
                   metadata: metadata,
                 ),
               ];

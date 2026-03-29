@@ -27,13 +27,11 @@ extension SessionServiceMetadata on SessionServiceNotifier {
     required String? explicit,
     required String? metadataValue,
   }) {
-    for (final candidate in [metadataValue, explicit, preferred]) {
-      final normalized = _normalizeOptionalValue(candidate);
-      if (normalized != null) {
-        return normalized;
-      }
-    }
-    return null;
+    return resolveLocalModeValue(
+      preferredValue: preferred,
+      explicitValue: explicit,
+      metadataValue: metadataValue,
+    );
   }
 
   String? _normalizeOptionalValue(String? value) {
@@ -64,21 +62,17 @@ extension SessionServiceMetadata on SessionServiceNotifier {
   }
 
   (String, String?) _resolveMessageModeMeta(Session session) {
-    final sandbox = _asStringMap(session.metadata?['sandbox']);
     final metadata = session.metadata ?? const <String, dynamic>{};
+    final sandbox = _asStringMap(metadata['sandbox']);
     final sandboxEnabled = sandbox?['enabled'] == true;
     final resolvedPermissionMode = _normalizeOptionalValue(
-          metadata['currentOperatingModeCode']?.toString(),
-        ) ??
-        _normalizeOptionalValue(session.permissionMode);
+      session.permissionMode,
+    );
     final permissionMode =
         resolvedPermissionMode != null && resolvedPermissionMode != 'default'
             ? resolvedPermissionMode
             : (sandboxEnabled ? 'bypassPermissions' : 'default');
-    final resolvedModelMode = _normalizeOptionalValue(
-          metadata['currentModelCode']?.toString(),
-        ) ??
-        _normalizeOptionalValue(session.modelMode);
+    final resolvedModelMode = _normalizeOptionalValue(session.modelMode);
     final modelMode =
         resolvedModelMode != null && resolvedModelMode != 'default'
             ? resolvedModelMode

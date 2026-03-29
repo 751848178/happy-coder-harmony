@@ -15,6 +15,31 @@ class _MessageTurnGroup {
   final DateTime createdAt;
   final ReducerMessage? userPrompt;
 
+  static bool startsNewTurn(ReducerMessage message) {
+    return message.isText && sessionMessageIsUserAuthored(message);
+  }
+
+  factory _MessageTurnGroup.single(ReducerMessage message) {
+    final prompt = startsNewTurn(message) ? message : null;
+    return _MessageTurnGroup(
+      id: prompt?.id ?? message.id,
+      messages: <ReducerMessage>[message],
+      preview: _previewFor(prompt, fallback: message),
+      createdAt: message.createdAt,
+      userPrompt: prompt,
+    );
+  }
+
+  _MessageTurnGroup append(ReducerMessage message) {
+    return _MessageTurnGroup(
+      id: id,
+      messages: List<ReducerMessage>.from(messages)..add(message),
+      preview: preview,
+      createdAt: createdAt,
+      userPrompt: userPrompt,
+    );
+  }
+
   static List<_MessageTurnGroup> build(List<ReducerMessage> messages) {
     if (messages.isEmpty) {
       return const [];
@@ -45,8 +70,7 @@ class _MessageTurnGroup {
     }
 
     for (final message in messages) {
-      final isUserText =
-          message.isText && message.metadata?['role']?.toString() == 'user';
+      final isUserText = startsNewTurn(message);
       if (isUserText) {
         flushCurrent();
         currentPrompt = message;
@@ -73,4 +97,3 @@ class _MessageTurnGroup {
     return '${normalized.substring(0, 56)}...';
   }
 }
-

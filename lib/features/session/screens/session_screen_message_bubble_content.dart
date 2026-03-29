@@ -2,11 +2,14 @@ part of 'session_screen.dart';
 
 extension _SessionScreenMessageBubbleContent on _MessageBubbleState {
   Widget _buildTextMessage(BuildContext context) {
-    final role = message.metadata?['role']?.toString();
-    final isUser = role == 'user';
+    final text = message.text;
+    if (text == null || text.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final isUser = sessionMessageIsUserAuthored(message);
     final isThinking = message.metadata?['outputType'] == 'thinking';
     final isOptimistic = message.metadata?['optimistic'] == true;
-    final canCollapse = _shouldCollapseTextMessage(message.text ?? '');
+    final canCollapse = _shouldCollapseTextMessage(text);
     final bubbleColor = isUser ? AppTheme.brandColor : AppTheme.surface;
     final textColor = isUser ? Colors.white : AppTheme.textPrimary;
 
@@ -51,12 +54,12 @@ extension _SessionScreenMessageBubbleContent on _MessageBubbleState {
                 opacity: isThinking ? 0.84 : 1,
                 child: _collapsed && canCollapse
                     ? _buildCollapsedTextPreview(
-                        content: message.text ?? '',
+                        content: text,
                         textColor: textColor,
                         isUser: isUser,
                       )
                     : _MarkdownMessageContent(
-                        content: message.text ?? '',
+                        content: text,
                         isUser: isUser,
                         textColor: textColor,
                       ),
@@ -94,6 +97,4 @@ extension _SessionScreenMessageBubbleContent on _MessageBubbleState {
       ),
     );
   }
-
-
 }

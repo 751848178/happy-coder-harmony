@@ -9,42 +9,93 @@ extension _SessionScreenStateScroll on _SessionScreenState {
     bool animate = false,
     bool force = false,
   }) {
+    if (_scrollToLatestScheduled && !force) {
+      return;
+    }
+    _scrollToLatestScheduled = true;
+    final requestId = ++_scrollToLatestRequestId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) {
+      _scrollToLatestScheduled = false;
+      unawaited(
+        _scrollToLatestUntilSettled(
+          requestId,
+          animate: animate,
+          force: force,
+        ),
+      );
+    });
+  }
+
+  Future<void> _scrollToLatestUntilSettled(
+    int requestId, {
+    required bool animate,
+    required bool force,
+  }) async {
+    if (!mounted || !_scrollController.hasClients) {
+      return;
+    }
+    if (_hasScrolledToLatest && !force) {
+      return;
+    }
+
+    var previousMaxScrollExtent = -1.0;
+    var animated = false;
+
+    for (var attempt = 0; attempt < 8; attempt++) {
+      if (!mounted ||
+          !_scrollController.hasClients ||
+          requestId != _scrollToLatestRequestId) {
         return;
       }
-      if (_hasScrolledToLatest && !force) {
-        return;
-      }
+
       final position = _scrollController.position;
       final target = position.maxScrollExtent;
       final alreadyAtLatest = (position.pixels - target).abs() < 1;
-      if (animate) {
-        if (!alreadyAtLatest) {
-          _scrollController.animateTo(
+
+      if (!alreadyAtLatest) {
+        if (animate && !animated) {
+          animated = true;
+          await _scrollController.animateTo(
             target,
             duration: const Duration(milliseconds: 260),
             curve: Curves.easeOutCubic,
           );
-        }
-      } else {
-        if (!alreadyAtLatest) {
+        } else {
           _scrollController.jumpTo(target);
         }
       }
-      if (mounted) {
-        _updateState(() {
-          _hasScrolledToLatest = true;
-          _shouldStickToLatest = true;
-          _hasUnreadMessages = false;
-        });
-      } else {
-        _hasScrolledToLatest = true;
-        _shouldStickToLatest = true;
-        _hasUnreadMessages = false;
+
+      await SchedulerBinding.instance.endOfFrame;
+
+      if (!mounted ||
+          !_scrollController.hasClients ||
+          requestId != _scrollToLatestRequestId) {
+        return;
       }
-      _handleScrollMetricsChanged();
+
+      final settledPosition = _scrollController.position;
+      final settledMaxScrollExtent = settledPosition.maxScrollExtent;
+      final distanceToBottom =
+          (settledPosition.pixels - settledMaxScrollExtent).abs();
+      final extentStable =
+          (settledMaxScrollExtent - previousMaxScrollExtent).abs() < 1;
+
+      if (distanceToBottom < 1 && extentStable) {
+        break;
+      }
+      previousMaxScrollExtent = settledMaxScrollExtent;
+    }
+
+    if (!mounted || requestId != _scrollToLatestRequestId) {
+      return;
+    }
+
+    _updateState(() {
+      _hasScrolledToLatest = true;
+      _shouldStickToLatest = true;
+      _hasUnreadMessages = false;
     });
+    _handleScrollMetricsChanged();
   }
 
   void _scrollToTop() {
@@ -60,19 +111,5 @@ extension _SessionScreenStateScroll on _SessionScreenState {
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
     );
-  }
-
-  void _scheduleQueuedMessageReconciliation() {
-    if (_queueReconcileScheduled) {
-      return;
-    }
-    _queueReconcileScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _queueReconcileScheduled = false;
-      if (!mounted) {
-        return;
-      }
-      unawaited(_reconcileQueuedMessageState());
-    });
   }
 }

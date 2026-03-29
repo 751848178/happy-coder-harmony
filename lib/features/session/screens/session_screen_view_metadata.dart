@@ -50,44 +50,85 @@ extension _SessionScreenViewMetadata on _SessionScreenState {
     }
   }
 
-  List<_ModeOption> _permissionOptionsFor(Session session) {
+  List<SessionModeOption> _permissionOptionSourcesFor(Session session) {
     final metadata = session.metadata ?? const <String, dynamic>{};
     return permissionOptionsForAgent(
       metadata['flavor']?.toString(),
       metadataOptions: metadata['operatingModes'],
-    ).map(_ModeOption.fromSessionModeOption).toList();
+    );
   }
 
-  List<_ModeOption> _modelOptionsFor(Session session) {
+  List<_ModeOption> _permissionOptionsFor(Session session) {
+    return _permissionOptionSourcesFor(session)
+        .map(_ModeOption.fromSessionModeOption)
+        .toList(growable: false);
+  }
+
+  List<SessionModeOption> _modelOptionSourcesFor(Session session) {
     final metadata = session.metadata ?? const <String, dynamic>{};
     return modelOptionsForAgent(
       metadata['flavor']?.toString(),
       metadataOptions: metadata['models'],
-    ).map(_ModeOption.fromSessionModeOption).toList();
-  }
-
-  _ModeOption _resolveCurrentPermissionOption(Session session) {
-    final options = _permissionOptionsFor(session);
-    final currentKey =
-        session.metadata?['currentOperatingModeCode']?.toString() ??
-            session.permissionMode ??
-            'default';
-    return options.firstWhere(
-      (option) => option.key == currentKey,
-      orElse: () => options.first,
     );
   }
 
-  _ModeOption _resolveCurrentModelOption(Session session) {
-    final options = _modelOptionsFor(session);
+  List<_ModeOption> _modelOptionsFor(Session session) {
+    return _modelOptionSourcesFor(session)
+        .map(_ModeOption.fromSessionModeOption)
+        .toList(growable: false);
+  }
+
+  List<String?> _currentPermissionKeys(Session session) {
     final metadata = session.metadata ?? const <String, dynamic>{};
-    final currentKey = metadata['currentModelCode']?.toString() ??
-        session.modelMode ??
-        options.first.key;
-    return options.firstWhere(
-      (option) => option.key == currentKey,
-      orElse: () => options.first,
+    final flavor = metadata['flavor']?.toString();
+    return <String?>[
+      session.permissionMode,
+      metadata['currentOperatingModeCode']?.toString(),
+      defaultPermissionModeForAgent(flavor),
+    ];
+  }
+
+  String? _currentExplicitPermissionKey(Session session) {
+    final metadata = session.metadata ?? const <String, dynamic>{};
+    return resolveModeKey(<String?>[
+      session.permissionMode,
+      metadata['currentOperatingModeCode']?.toString(),
+    ]);
+  }
+
+  List<String?> _currentModelKeys(Session session) {
+    final metadata = session.metadata ?? const <String, dynamic>{};
+    final flavor = metadata['flavor']?.toString();
+    return <String?>[
+      session.modelMode,
+      metadata['currentModelCode']?.toString(),
+      defaultModelModeForAgent(flavor),
+    ];
+  }
+
+  String? _currentExplicitModelKey(Session session) {
+    final metadata = session.metadata ?? const <String, dynamic>{};
+    return resolveModeKey(<String?>[
+      session.modelMode,
+      metadata['currentModelCode']?.toString(),
+    ]);
+  }
+
+  _ModeOption? _resolveCurrentPermissionOption(Session session) {
+    final metadata = session.metadata ?? const <String, dynamic>{};
+    final option = findPreferredListedModeOption(
+      _permissionOptionSourcesFor(session),
+      _currentPermissionKeys(session),
     );
+    return option == null ? null : _ModeOption.fromSessionModeOption(option);
+  }
+
+  _ModeOption? _resolveCurrentModelOption(Session session) {
+    final option = findPreferredListedModeOption(
+      _modelOptionSourcesFor(session),
+      _currentModelKeys(session),
+    );
+    return option == null ? null : _ModeOption.fromSessionModeOption(option);
   }
 
   void _showModelDialog(Session session) {

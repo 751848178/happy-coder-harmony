@@ -19,6 +19,7 @@ extension SessionRepositoryMessages on SessionRepository {
         reducerState: domain.ReducerState.initial,
         isLoaded: true,
       );
+      _syncSessionLatestUsageWithLoadedCount(sessionId, messages.length);
     } else {
       final mergedMessagesMap = Map<String, domain.ReducerMessage>.from(
         existing.messagesMap,
@@ -44,8 +45,9 @@ extension SessionRepositoryMessages on SessionRepository {
         messages: messagesArray,
         messagesMap: mergedMessagesMap,
         reducerState: existing.reducerState,
-        isLoaded: existing.isLoaded,
+        isLoaded: true,
       );
+      _syncSessionLatestUsageWithLoadedCount(sessionId, messagesArray.length);
     }
     _stateController.add(
       SessionStateChange(
@@ -96,6 +98,7 @@ extension SessionRepositoryMessages on SessionRepository {
       reducerState: existing?.reducerState ?? domain.ReducerState.initial,
       isLoaded: true,
     );
+    _syncSessionLatestUsageWithLoadedCount(sessionId, nextMessages.length);
     _stateController.add(
       SessionStateChange(
         type: SessionChangeType.messagesUpdated,

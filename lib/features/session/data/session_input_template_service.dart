@@ -74,7 +74,7 @@ class SessionInputTemplateService {
           .where(
             (item) => item.id.isNotEmpty && item.label.isNotEmpty,
           )
-          .toList(growable: false);
+          .toList();
     } catch (_) {
       return const <SessionInputTemplate>[];
     }
@@ -110,7 +110,7 @@ class SessionInputTemplateService {
   Future<List<SessionInputTemplate>> upsertTemplate(
     SessionInputTemplate template,
   ) async {
-    final templates = await loadTemplates();
+    final templates = List<SessionInputTemplate>.from(await loadTemplates());
     final index = templates.indexWhere((item) => item.id == template.id);
     final normalized = template.copyWith(
       id: template.id.trim(),
@@ -126,7 +126,7 @@ class SessionInputTemplateService {
   }
 
   Future<List<SessionInputTemplate>> deleteTemplate(String id) async {
-    final templates = await loadTemplates();
+    final templates = List<SessionInputTemplate>.from(await loadTemplates());
     templates.removeWhere((item) => item.id == id);
     return saveTemplates(templates);
   }

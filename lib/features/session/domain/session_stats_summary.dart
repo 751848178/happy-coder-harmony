@@ -2,20 +2,10 @@ part of 'session_stats.dart';
 
 int _resolveSessionMessageCount(
     Session session, List<ReducerMessage>? messages) {
-  if (messages != null && messages.isNotEmpty) {
-    return messages.length;
-  }
-  return _firstPositive([
-        session.latestUsage?.messageCount,
-        _deepInt(session.metadata, const ['summary', 'messageCount']),
-        _deepInt(session.metadata, const ['stats', 'messageCount']),
-        _deepInt(session.metadata, const ['messageCount']),
-        _deepInt(session.agentState, const ['messageCount']),
-        _deepInt(session.agentState, const ['summary', 'messageCount']),
-        _deepInt(session.agentState, const ['stats', 'messageCount']),
-        session.messages.length,
-      ]) ??
-      0;
+  return resolveDisplaySessionMessageCount(
+    session: session,
+    loadedMessageCount: messages?.length,
+  );
 }
 
 _ChangeSummary _extractStructuredChangeSummary(Session session) {

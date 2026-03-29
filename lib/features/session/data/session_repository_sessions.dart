@@ -2,13 +2,12 @@ part of 'session_repository.dart';
 
 extension SessionRepositorySessions on SessionRepository {
   List<Session> getAllSessions() {
-    return _sessions.values.toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return _sessions.values.toList()..sort(compareSessionsByRecency);
   }
 
   List<Session> getActiveSessions() {
     return _sessions.values.where((s) => s.active).toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      ..sort(compareSessionsByRecency);
   }
 
   Session? getSession(String sessionId) => _sessions[sessionId];
@@ -28,8 +27,7 @@ extension SessionRepositorySessions on SessionRepository {
     }
     for (final session in sessions) {
       final existing = _sessions[session.id];
-      if (existing != null &&
-          jsonEncode(existing.toJson()) == jsonEncode(session.toJson())) {
+      if (existing != null && _sessionsEqual(existing, session)) {
         continue;
       }
       _sessions[session.id] = session;
@@ -109,8 +107,7 @@ extension SessionRepositorySessions on SessionRepository {
 
     for (final machine in machines) {
       final existing = _machines[machine.id];
-      if (existing != null &&
-          jsonEncode(existing.toJson()) == jsonEncode(machine.toJson())) {
+      if (existing != null && _machinesEqual(existing, machine)) {
         continue;
       }
       _machines[machine.id] = machine;
@@ -151,4 +148,61 @@ extension SessionRepositorySessions on SessionRepository {
   void dispose() {
     _stateController.close();
   }
+}
+
+bool _sessionsEqual(Session current, Session next) {
+  return current.id == next.id &&
+      current.seq == next.seq &&
+      current.title == next.title &&
+      _sessionRepositoryDeepEquality.equals(current.messages, next.messages) &&
+      current.createdAt == next.createdAt &&
+      current.updatedAt == next.updatedAt &&
+      current.active == next.active &&
+      current.activeAt == next.activeAt &&
+      current.tag == next.tag &&
+      current.path == next.path &&
+      _sessionRepositoryDeepEquality.equals(current.metadata, next.metadata) &&
+      current.metadataVersion == next.metadataVersion &&
+      current.permissionMode == next.permissionMode &&
+      current.modelMode == next.modelMode &&
+      current.draft == next.draft &&
+      _sessionRepositoryDeepEquality.equals(
+        current.agentState,
+        next.agentState,
+      ) &&
+      current.agentStateVersion == next.agentStateVersion &&
+      _sessionRepositoryDeepEquality.equals(
+        _todosToComparable(current.todos),
+        _todosToComparable(next.todos),
+      ) &&
+      _sessionRepositoryDeepEquality.equals(
+        current.presence?.toJson(),
+        next.presence?.toJson(),
+      ) &&
+      current.thinking == next.thinking &&
+      current.thinkingAt == next.thinkingAt &&
+      _sessionRepositoryDeepEquality.equals(
+        current.latestUsage?.toJson(),
+        next.latestUsage?.toJson(),
+      );
+}
+
+bool _machinesEqual(Machine current, Machine next) {
+  return current.id == next.id &&
+      current.seq == next.seq &&
+      current.name == next.name &&
+      current.platform == next.platform &&
+      current.createdAt == next.createdAt &&
+      current.updatedAt == next.updatedAt &&
+      current.active == next.active &&
+      current.activeAt == next.activeAt &&
+      _sessionRepositoryDeepEquality.equals(current.metadata, next.metadata) &&
+      current.metadataVersion == next.metadataVersion;
+}
+
+List<Map<String, dynamic>>? _todosToComparable(List<domain.Todo>? todos) {
+  if (todos == null) {
+    return null;
+  }
+  return todos.map((todo) => todo.toJson()).toList(growable: false);
 }

@@ -69,20 +69,23 @@ class _SessionPermissionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final flavor = session.metadata?['flavor']?.toString();
     return _InfoCard(
       title: '权限设置',
       icon: Icons.security,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _InfoRow('权限模式', permissionModeText(session.permissionMode)),
+          _InfoRow(
+            '权限模式',
+            permissionModeText(session.permissionMode, flavor: flavor),
+          ),
           const SizedBox(height: 12),
           _InfoContent(
-            session.permissionMode == 'manual'
-                ? '每次工具调用都需要手动确认'
-                : session.permissionMode == 'auto'
-                    ? '自动批准所有工具调用'
-                    : '根据工具类型询问是否批准',
+            permissionModeDescription(
+              session.permissionMode,
+              flavor: flavor,
+            ),
           ),
         ],
       ),

@@ -12,18 +12,38 @@ void _seedSessionFlowInitialState(
       : null;
   final initialAgent =
       explicitAgent ?? normalizeSessionAgent(settings.lastUsedAgent);
+  final initialMachineId = state._selectedMachineId ??
+      (machines.isNotEmpty ? machines.first.id : null);
+  final permissionOptions = _sessionFlowPermissionOptions(
+    state,
+    agent: initialAgent,
+  );
+  final modelOptions = _sessionFlowModelOptions(
+    state,
+    agent: initialAgent,
+  );
   final initialPermission = resolveModeSelection(
     preferred:
         state.widget.initialPermissionMode ?? settings.lastUsedPermissionMode,
-    options: permissionOptionsForAgent(initialAgent),
-    fallback: defaultPermissionModeForAgent(initialAgent),
+    options: permissionOptions,
+    fallback: _defaultSessionFlowModeKey(
+      permissionOptions,
+      defaultPermissionModeForAgent(initialAgent),
+    ),
   );
-  final initialMachineId = state._selectedMachineId ??
-      (machines.isNotEmpty ? machines.first.id : null);
+  final initialModel = resolveListedModeSelection(
+    preferred: state.widget.initialModelMode,
+    options: modelOptions,
+    fallback: _defaultSessionFlowModeKey(
+      modelOptions,
+      defaultModelModeForAgent(initialAgent),
+    ),
+  );
 
   state._updateView(() {
     state._selectedAgent = initialAgent;
     state._permissionMode = initialPermission;
+    state._modelMode = initialModel;
     state._selectedMachineId = initialMachineId;
     if (state._pathController.text.trim().isEmpty && initialMachineId != null) {
       state._pathController.text = _defaultSessionFlowPathForMachine(

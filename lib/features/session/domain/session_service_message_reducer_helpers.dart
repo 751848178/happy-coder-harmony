@@ -1,6 +1,10 @@
 part of 'session_service.dart';
 
 extension SessionServiceMessageReducerHelpers on SessionServiceNotifier {
+  bool _isBlankReducerText(String? value) {
+    return value == null || value.trim().isEmpty;
+  }
+
   ReducerMessage _buildTextReducerMessage({
     required String id,
     required DateTime createdAt,

@@ -24,6 +24,7 @@ Future<void> _pickSessionFlowMachine(_NewSessionFlowScreenState state) async {
   state._updateView(() {
     state._selectedMachineId = result;
     state._pathController.text = nextPath ?? '';
+    _syncSessionFlowModeSelections(state);
   });
 }
 
@@ -47,7 +48,12 @@ Future<void> _pickSessionFlowPath(_NewSessionFlowScreenState state) async {
 Future<void> _showSessionFlowSettingsSheet(
   _NewSessionFlowScreenState state,
 ) async {
-  final permissionOptions = permissionOptionsForAgent(state._selectedAgent);
+  final permissionOptions = _sessionFlowPermissionOptions(
+    state,
+  );
+  final modelOptions = _sessionFlowModelOptions(
+    state,
+  );
 
   await showModalBottomSheet<void>(
     context: state.context,
@@ -58,10 +64,13 @@ Future<void> _showSessionFlowSettingsSheet(
     ),
     builder: (context) {
       var localPermission = state._permissionMode;
+      var localModel = state._modelMode;
       return StatefulBuilder(
         builder: (context, setModalState) {
           final mediaHeight = MediaQuery.sizeOf(context).height;
-          final sheetHeight = (148.0 + (permissionOptions.length * 58.0))
+          final sheetHeight = (236.0 +
+                  (permissionOptions.length * 58.0) +
+                  (modelOptions.length * 58.0))
               .clamp(320.0, mediaHeight * 0.78)
               .toDouble();
           return SafeArea(
@@ -99,6 +108,27 @@ Future<void> _showSessionFlowSettingsSheet(
                                       );
                                       setModalState(
                                           () => localPermission = option.key);
+                                    },
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                          const SizedBox(height: 12),
+                          _SheetSection(
+                            title: '模型',
+                            children: modelOptions
+                                .map(
+                                  (option) => _SheetOptionTile(
+                                    title: option.label,
+                                    subtitle: option.description,
+                                    selected: localModel == option.key,
+                                    onTap: () {
+                                      state._updateView(
+                                        () => state._modelMode = option.key,
+                                      );
+                                      setModalState(
+                                        () => localModel = option.key,
+                                      );
                                     },
                                   ),
                                 )

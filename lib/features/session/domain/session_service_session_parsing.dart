@@ -100,11 +100,21 @@ extension SessionServiceSessionParsing on SessionServiceNotifier {
     );
     final parsedSession = Session.fromJson(sessionJson);
     final existingSession = _repository.getSession(parsedSession.id);
+    final existingMessages = _repository.getSessionMessages(parsedSession.id);
     final nextMetadata = metadata ?? parsedSession.metadata;
     final summary = _asStringMap(nextMetadata?['summary']);
     final resolvedPath =
         nextMetadata?['path']?.toString() ?? parsedSession.path;
     final preferences = sessionPreferences[parsedSession.id];
+    final loadedMessageCount = existingMessages?.isLoaded == true
+        ? existingMessages!.messages.length
+        : null;
+    final baseSession = parsedSession.copyWith(
+      path: resolvedPath,
+      metadata: nextMetadata,
+      agentState: agentState ?? parsedSession.agentState,
+      latestUsage: parsedSession.latestUsage ?? existingSession?.latestUsage,
+    );
     final session = parsedSession.copyWith(
       title: _resolveSessionTitle(
         path: resolvedPath,
@@ -116,15 +126,17 @@ extension SessionServiceSessionParsing on SessionServiceNotifier {
       path: resolvedPath,
       metadata: nextMetadata,
       agentState: agentState ?? parsedSession.agentState,
-      permissionMode: _resolveLocalSessionMode(
-        preferred: preferences?.permissionMode,
-        explicit: parsedSession.permissionMode,
-        metadataValue: nextMetadata?['currentOperatingModeCode']?.toString(),
+      latestUsage: resolvePersistedSessionLatestUsage(
+        session: baseSession,
+        loadedMessageCount: loadedMessageCount,
       ),
-      modelMode: _resolveLocalSessionMode(
-        preferred: preferences?.modelMode,
-        explicit: parsedSession.modelMode,
+      permissionMode: resolveRemoteModeValue(
+        metadataValue: nextMetadata?['currentOperatingModeCode']?.toString(),
+        explicitValue: parsedSession.permissionMode,
+      ),
+      modelMode: resolveRemoteModeValue(
         metadataValue: nextMetadata?['currentModelCode']?.toString(),
+        explicitValue: parsedSession.modelMode,
       ),
       draft: _resolveSessionDraft(
         remoteDraft: parsedSession.draft,
@@ -173,9 +185,17 @@ extension SessionServiceSessionParsing on SessionServiceNotifier {
 
   Future<void> _handleLoadSessionsError(Object error) async {
     if (_repository.sessionsMap.isEmpty) {
-      final restoredSessions = await _restoreCachedSessions();
-      if (restoredSessions.isNotEmpty) {
-        _repository.applySessions(restoredSessions);
+      final restored = await _restoreCachedSessions();
+      if (!restored.isEmpty) {
+        _repository.applySessions(restored.sessions);
+        for (final entry in restored.sessionMessagesById.entries) {
+          _repository.replaceMessages(
+            entry.key,
+            entry.value.messages,
+            preserveOptimisticMessages: false,
+          );
+        }
+        _sessionLastSeq.addAll(restored.lastSeqBySessionId);
       }
     }
 
