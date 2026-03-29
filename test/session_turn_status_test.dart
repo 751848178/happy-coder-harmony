@@ -78,6 +78,63 @@ void main() {
     );
   });
 
+  test('ready event clears blocking state even without visible turn-close', () {
+    final prompt = _userPrompt(localId: 'local-ready');
+    final messages = <ReducerMessage>[
+      prompt,
+      _agentText('我先想一下', outputType: 'thinking'),
+      _agentEvent('ready'),
+    ];
+
+    expect(
+      sessionTurnIsThinkingStillBlocking(
+        session: _session(thinking: false),
+        messages: messages,
+      ),
+      isFalse,
+    );
+    expect(
+      sessionConversationIsBusy(
+        session: _session(thinking: false),
+        latestTurnMessages: messages,
+        latestUserPrompt: prompt,
+        isSending: false,
+        isAutoSendingQueuedMessage: false,
+        activeResponseLocalId: null,
+      ),
+      isFalse,
+    );
+  });
+
+  test('manual thinking override can unblock stuck conversation', () {
+    final prompt = _userPrompt(localId: 'local-manual');
+    final messages = <ReducerMessage>[
+      prompt,
+      _agentText('我还在思考', outputType: 'thinking'),
+    ];
+
+    expect(
+      sessionTurnIsThinkingStillBlocking(
+        session: _session(thinking: true),
+        messages: messages,
+        manualThinkingOverride: false,
+      ),
+      isFalse,
+    );
+    expect(
+      sessionConversationIsBusy(
+        session: _session(thinking: true),
+        latestTurnMessages: messages,
+        latestUserPrompt: prompt,
+        isSending: false,
+        isAutoSendingQueuedMessage: false,
+        activeResponseLocalId: null,
+        manualThinkingOverride: false,
+      ),
+      isFalse,
+    );
+  });
+
   test('pending tool work still blocks queued auto-send', () {
     final prompt = _userPrompt(localId: 'local-4');
     final messages = <ReducerMessage>[
@@ -105,6 +162,74 @@ void main() {
         activeResponseLocalId: null,
       ),
       isTrue,
+    );
+  });
+
+  test('manual finished override bypasses stale pending tool blockers', () {
+    final prompt = _userPrompt(localId: 'local-pending-override');
+    final messages = <ReducerMessage>[
+      prompt,
+      _toolCall(ToolCallStatus.pending),
+    ];
+
+    expect(
+      sessionConversationIsBusy(
+        session: _session(thinking: true),
+        latestTurnMessages: messages,
+        latestUserPrompt: prompt,
+        isSending: false,
+        isAutoSendingQueuedMessage: false,
+        activeResponseLocalId: null,
+        manualThinkingOverride: false,
+      ),
+      isFalse,
+    );
+  });
+
+  test('manual finished override bypasses stale optimistic prompt blockers',
+      () {
+    final prompt = _userPrompt(
+      localId: 'local-optimistic-override',
+      optimistic: true,
+    );
+
+    expect(
+      sessionConversationIsBusy(
+        session: _session(thinking: false),
+        latestTurnMessages: [prompt],
+        latestUserPrompt: prompt,
+        isSending: false,
+        isAutoSendingQueuedMessage: false,
+        activeResponseLocalId: 'msg_local_100',
+        manualThinkingOverride: false,
+      ),
+      isFalse,
+    );
+  });
+
+  test('sourceRole=user is still treated as user-authored content', () {
+    final echoedUserMessage = ReducerMessage(
+      id: 'server-user-1',
+      kind: 'text',
+      createdAt: _createdAt,
+      text: '继续执行',
+      metadata: const <String, dynamic>{
+        'role': 'agent',
+        'sourceRole': 'user',
+      },
+    );
+
+    expect(sessionMessageIsUserAuthored(echoedUserMessage), isTrue);
+    expect(
+      sessionTurnHasRenderableAgentOutput([echoedUserMessage]),
+      isFalse,
+    );
+    expect(
+      sessionTurnIsThinkingStillBlocking(
+        session: _session(thinking: false),
+        messages: [echoedUserMessage],
+      ),
+      isFalse,
     );
   });
 }
@@ -164,5 +289,18 @@ ReducerMessage _toolCall(ToolCallStatus status) {
       arguments: const <String, dynamic>{'cmd': 'echo 1'},
       status: status,
     ),
+  );
+}
+
+ReducerMessage _agentEvent(String eventType, {String? text}) {
+  return ReducerMessage(
+    id: 'event-$eventType',
+    kind: 'agent-event',
+    createdAt: _createdAt,
+    text: text,
+    metadata: <String, dynamic>{
+      'role': 'agent',
+      'eventType': eventType,
+    },
   );
 }

@@ -56,8 +56,19 @@ void main() {
     expect(session.title, 'Remote Session');
     expect(session.path, '/workspace/nested');
     expect(session.thinking, isFalse);
-    expect(session.latestUsage?.messageCount, 5);
+    expect(session.latestUsage?.messageCount, 0);
     expect(session.latestUsage?.tokenCount, 11);
+  });
+
+  test('LatestUsage does not treat token counters as message counters', () {
+    final usage = LatestUsage.fromJson({
+      'outputTokens': 512,
+      'inputTokens': 1024,
+      'timestamp': 1772973090000,
+    });
+
+    expect(usage.messageCount, 0);
+    expect(usage.tokenCount, 1024);
   });
 
   test('Session.copyWith can clear draft explicitly', () {
