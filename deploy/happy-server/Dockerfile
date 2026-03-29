@@ -2,10 +2,13 @@
 # Default ref is pinned for reproducibility and can be overridden in .env.
 # For public GitHub repos we prefer the archive download because fetching a
 # detached commit SHA over git is flaky in some Docker/network environments.
+# Mirror-prefixed GitHub URLs are supported as long as they preserve the
+# upstream path in the final URL, for example:
+# https://gh-proxy.com/https://github.com/slopus/happy.git
 
 FROM node:20 AS source
 
-ARG HAPPY_REPO=https://github.com/slopus/happy.git
+ARG HAPPY_REPO=https://gh-proxy.com/https://github.com/slopus/happy.git
 ARG HAPPY_REF=d343330c86ab966969aecd82be4aecbad7ec4238
 ARG HAPPY_ARCHIVE_URL=
 
@@ -21,7 +24,7 @@ RUN set -eux; \
   archive_url=""; \
   if [ -n "${HAPPY_ARCHIVE_URL}" ]; then \
     archive_url="${HAPPY_ARCHIVE_URL}"; \
-  elif [ "${repo_base#https://github.com/}" != "${repo_base}" ] || [ "${repo_base#http://github.com/}" != "${repo_base}" ]; then \
+  elif [ "${repo_base#*https://github.com/}" != "${repo_base}" ] || [ "${repo_base#*http://github.com/}" != "${repo_base}" ]; then \
     archive_url="${repo_base}/archive/${HAPPY_REF}.tar.gz"; \
   fi; \
   if [ -n "${archive_url}" ]; then \

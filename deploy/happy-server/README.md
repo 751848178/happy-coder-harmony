@@ -29,6 +29,12 @@
 
 另外，这里的源码阶段现在会优先下载 GitHub 的源码压缩包，而不是在容器里直接 `git fetch` 某个 commit SHA。这样在网络较慢、代理较严格，或 Docker 内 `git` 对 commit ref 支持不稳定的环境里更稳。
 
+当前默认的 `HAPPY_UPSTREAM_REPO` 已经切到了带 GitHub 镜像前缀的地址：
+
+- `https://gh-proxy.com/https://github.com/slopus/happy.git`
+
+Dockerfile 也会自动识别这类“镜像前缀 + GitHub 仓库”的 URL，并继续优先下载对应的 archive 包，所以后续只改 `HAPPY_UPSTREAM_REF` 也能继续走镜像。
+
 ## 快速开始
 
 1. 复制环境变量模板。
@@ -51,13 +57,17 @@ docker compose build --pull
 docker compose up -d
 ```
 
-如果默认的 GitHub 源地址太慢，或者你想走镜像源，也可以在 `.env` 里额外设置：
+默认已经走镜像仓库。如果你想显式指定另一套镜像 archive，或者想切回官方源，可以在 `.env` 里这样改：
 
 ```bash
+# 显式指定 archive 镜像
 HAPPY_UPSTREAM_ARCHIVE_URL=https://your-mirror.example.com/happy.tar.gz
+
+# 或切回 GitHub 官方仓库
+HAPPY_UPSTREAM_REPO=https://github.com/slopus/happy.git
 ```
 
-不设置时，会自动按 `HAPPY_UPSTREAM_REPO + HAPPY_UPSTREAM_REF` 推导 GitHub archive 地址。
+不设置 `HAPPY_UPSTREAM_ARCHIVE_URL` 时，会自动按 `HAPPY_UPSTREAM_REPO + HAPPY_UPSTREAM_REF` 推导 archive 地址；镜像前缀形式的 GitHub URL 也支持自动推导。
 
 4. 查看启动日志，确认迁移完成并成功监听 `3005`。
 
