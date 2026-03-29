@@ -4,7 +4,7 @@
     "vendor": "Happy Coder Team",
     "versionCode": 2,
     "versionName": "2.0.0",
-    "icon": "$media:app_icon",
+    "icon": "$media:app_layered_image",
     "label": "$string:app_name"
   }
 }
