@@ -72,7 +72,8 @@ class HiveRepository {
     _statsController.add(await _computeStats());
   }
 
-  Future<SessionStorageModel?> getSession(String id) async => _sessionsBox.get(id);
+  Future<SessionStorageModel?> getSession(String id) async =>
+      _sessionsBox.get(id);
 
   Future<List<SessionStorageModel>> getAllSessions() async {
     return _sessionsBox.values.toList()
@@ -101,6 +102,12 @@ class HiveRepository {
   }
 
   Future<void> deleteSession(String id) async {
+    final messageKeys = _messagesBox.keys
+        .where((key) => _messagesBox.get(key)?.sessionId == id)
+        .toList(growable: false);
+    if (messageKeys.isNotEmpty) {
+      await _messagesBox.deleteAll(messageKeys);
+    }
     await _sessionsBox.delete(id);
     _statsController.add(await _computeStats());
   }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/utils/extensions.dart';
+import '../../session/domain/session_local_snapshot.dart';
 import '../../session/domain/session_models.dart' as session_models;
 import '../data/hive_repository.dart';
 import 'storage_models.dart';

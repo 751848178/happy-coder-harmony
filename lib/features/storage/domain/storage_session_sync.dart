@@ -29,8 +29,9 @@ extension StorageSessionSync on StorageService {
 
   /// 缓存远端会话摘要，供启动时快速恢复列表
   Future<void> cacheRemoteSessions(
-    List<session_models.Session> onlineSessions,
-  ) async {
+    List<session_models.Session> onlineSessions, {
+    Map<String, Map<String, dynamic>> localStateBySessionId = const {},
+  }) async {
     for (final session in onlineSessions) {
       final existing = await _repository.getSession(session.id);
       final metadata = session.metadata == null
@@ -39,14 +40,9 @@ extension StorageSessionSync on StorageService {
       if ((session.path ?? '').isNotEmpty) {
         metadata['path'] = session.path;
       }
-      metadata[StorageService._localSessionSnapshotKey] = <String, dynamic>{
-        'active': session.active,
-        if (session.permissionMode != null)
-          'permissionMode': session.permissionMode,
-        if (session.modelMode != null) 'modelMode': session.modelMode,
-        if (session.draft != null && session.draft!.trim().isNotEmpty)
-          'draft': session.draft,
-      };
+      metadata[StorageService._localSessionSnapshotKey] =
+          localStateBySessionId[session.id] ??
+              buildLocalSessionSnapshot(session: session);
 
       final storageModel = SessionStorageModel(
         id: session.id,

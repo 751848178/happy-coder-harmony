@@ -6,10 +6,10 @@ extension SocketRepositoryUpdates on SocketRepository {
     SocketMessageType type = SocketMessageType.user,
   }) {
     try {
-      if (data == null || data is! Map) return;
-      final messageData = data as Map<String, dynamic>;
-      final messageId = messageData['id'] as String?;
-      if (messageId == null) return;
+      final messageData = _asStringMap(data);
+      if (messageData == null) return;
+      final messageId = messageData['id']?.toString();
+      if (messageId == null || messageId.isEmpty) return;
       if (_deduplicationSet.contains(messageId)) {
         Logger.debug('Duplicate message ignored: $messageId');
         return;
@@ -19,13 +19,10 @@ extension SocketRepositoryUpdates on SocketRepository {
       final message = SocketMessage(
         id: messageId,
         type: type,
-        content: messageData['content'] as String? ?? '',
-        sessionId: messageData['sessionId'] as String?,
-        metadata: messageData['metadata'] as Map<String, dynamic>?,
-        timestamp: messageData['timestamp'] != null
-            ? DateTime.fromMillisecondsSinceEpoch(
-                messageData['timestamp'] as int)
-            : DateTime.now(),
+        content: messageData['content']?.toString() ?? '',
+        sessionId: _resolveSocketSessionId(messageData),
+        metadata: _asStringMap(messageData['metadata']),
+        timestamp: _parseDateTime(messageData['timestamp']) ?? DateTime.now(),
       );
 
       _messageController.add(message);
@@ -80,8 +77,13 @@ extension SocketRepositoryUpdates on SocketRepository {
               agentState: nextAgentState,
               agentStateVersion: agentStateUpdate?['version'] as int? ??
                   existing.agentStateVersion,
-              updatedAt:
-                  _parseDateTime(payload?['createdAt']) ?? existing.updatedAt,
+              updatedAt: resolveSessionUpdatedAtForRealtimeUpdate(
+                currentUpdatedAt: existing.updatedAt,
+                sessionUpdatedAt: _parseDateTime(
+                  body?['updatedAt'] ?? payload?['updatedAt'],
+                ),
+                eventCreatedAt: _parseDateTime(payload?['createdAt']),
+              ),
             ),
           ]);
           break;
@@ -168,11 +170,16 @@ extension SocketRepositoryUpdates on SocketRepository {
 
   void _handleToolCallRequest(dynamic data) {
     try {
-      if (data == null || data is! Map) return;
-      final toolData = data as Map<String, dynamic>;
-      final toolId = toolData['id'] as String?;
-      final sessionId = toolData['sessionId'] as String?;
-      if (toolId == null || sessionId == null) return;
+      final toolData = _asStringMap(data);
+      if (toolData == null) return;
+      final toolId = toolData['id']?.toString();
+      final sessionId = _resolveSocketSessionId(toolData);
+      if (toolId == null ||
+          toolId.isEmpty ||
+          sessionId == null ||
+          sessionId.isEmpty) {
+        return;
+      }
 
       final request = ToolCallRequest(
         id: toolId,
@@ -187,5 +194,18 @@ extension SocketRepositoryUpdates on SocketRepository {
     } catch (e) {
       Logger.error('Failed to handle tool call request: $e');
     }
+  }
+
+  String? _resolveSocketSessionId(Map<String, dynamic>? payload) {
+    if (payload == null) {
+      return null;
+    }
+    for (final key in const ['sessionId', 'sid', 'session_id', 'session']) {
+      final value = payload[key]?.toString().trim();
+      if (value != null && value.isNotEmpty && value != 'null') {
+        return value;
+      }
+    }
+    return null;
   }
 }

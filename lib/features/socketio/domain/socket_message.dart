@@ -34,20 +34,20 @@ class SocketMessage {
   final DateTime? timestamp;
 
   factory SocketMessage.fromJson(Map<String, dynamic> json) {
+    final rawType = json['type']?.toString();
+    final type = rawType == null
+        ? SocketMessageType.user
+        : SocketMessageType.values.firstWhere(
+            (value) => value.name == rawType,
+            orElse: () => SocketMessageType.user,
+          );
     return SocketMessage(
       id: json['id'] as String? ?? '',
-      type: json['type'] != null
-          ? SocketMessageType.values.firstWhere(
-              (value) => value.name == json['type'],
-              orElse: () => SocketMessageType.user,
-            )
-          : SocketMessageType.user,
+      type: type,
       content: json['content'] as String? ?? '',
-      sessionId: json['sessionId'] as String?,
-      metadata: json['metadata'] as Map<String, dynamic>?,
-      timestamp: json['timestamp'] != null
-          ? DateTime.parse(json['timestamp'] as String)
-          : null,
+      sessionId: _resolveSocketMessageSessionId(json),
+      metadata: _asSocketMessageMetadata(json['metadata']),
+      timestamp: _parseSocketMessageTimestamp(json['timestamp']),
     );
   }
 
@@ -61,4 +61,49 @@ class SocketMessage {
       if (timestamp != null) 'timestamp': timestamp!.toIso8601String(),
     };
   }
+}
+
+String? _resolveSocketMessageSessionId(Map<String, dynamic> json) {
+  for (final key in const ['sessionId', 'sid', 'session_id', 'session']) {
+    final value = json[key]?.toString().trim();
+    if (value != null && value.isNotEmpty && value != 'null') {
+      return value;
+    }
+  }
+  return null;
+}
+
+Map<String, dynamic>? _asSocketMessageMetadata(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is Map) {
+    return value.map(
+      (key, mapValue) => MapEntry(key.toString(), mapValue),
+    );
+  }
+  return null;
+}
+
+DateTime? _parseSocketMessageTimestamp(dynamic value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is DateTime) {
+    return value;
+  }
+  if (value is int) {
+    return DateTime.fromMillisecondsSinceEpoch(value);
+  }
+  if (value is double) {
+    return DateTime.fromMillisecondsSinceEpoch(value.toInt());
+  }
+  if (value is String && value.isNotEmpty) {
+    final asInt = int.tryParse(value);
+    if (asInt != null) {
+      return DateTime.fromMillisecondsSinceEpoch(asInt);
+    }
+    return DateTime.tryParse(value);
+  }
+  return null;
 }

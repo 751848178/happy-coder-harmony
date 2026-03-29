@@ -7,6 +7,7 @@ import 'core/config/app_config.dart';
 import 'core/config/server_config_service.dart';
 import 'app/routes/app_router.dart';
 import 'app/widgets/happy_link_gate.dart';
+import 'app/widgets/session_background_refresh_gate.dart';
 import 'features/storage/domain/storage_service.dart';
 import 'shared/utils/extensions.dart';
 
@@ -105,7 +106,9 @@ class HappyCoderApp extends ConsumerWidget {
         return MediaQuery(
           data: MediaQuery.of(context)
               .copyWith(textScaler: TextScaler.linear(1.0)),
-          child: HappyLinkGate(child: routedChild),
+          child: SessionBackgroundRefreshGate(
+            child: HappyLinkGate(child: routedChild),
+          ),
         );
       },
     );

@@ -11,6 +11,7 @@ import '../../session/data/session_repository.dart';
 import '../../session/data/session_ui_state_service.dart';
 import '../../session/domain/session_activity_state.dart';
 import '../../session/domain/session_models.dart';
+import '../../session/domain/session_recency.dart';
 import '../../auth/data/token_storage_service.dart';
 import '../../encryption/domain/crypto_service.dart';
 import '../../storage/domain/storage_service.dart';
