@@ -1,5 +1,9 @@
 part of 'session_screen.dart';
 
+typedef _SessionMessageActionHandler = Future<void> Function(
+  _SessionMessageActionChoice choice,
+);
+
 class _MessageBubble extends StatefulWidget {
   const _MessageBubble({
     super.key,
@@ -23,6 +27,9 @@ class _MessageBubble extends StatefulWidget {
 class _MessageBubbleState extends State<_MessageBubble>
     with AutomaticKeepAliveClientMixin<_MessageBubble> {
   bool _collapsed = true;
+  String? _actionText;
+  _SessionMessageActionHandler? _onMessageAction;
+  Future<void> Function()? _onLongPressMessage;
 
   ReducerMessage get message => widget.message;
   bool get autoApproveEnabled => widget.autoApproveEnabled;
@@ -30,21 +37,60 @@ class _MessageBubbleState extends State<_MessageBubble>
   Future<void> Function(String) get onApproveTool => widget.onApproveTool;
   Future<void> Function(String, String?) get onRejectTool =>
       widget.onRejectTool;
+  _SessionMessageActionHandler? get onMessageAction => _onMessageAction;
+  Future<void> Function()? get onLongPressMessage => _onLongPressMessage;
 
   @override
   void initState() {
     super.initState();
     _collapsed = _shouldStartCollapsed(message);
+    _updateActionState();
     updateKeepAlive();
   }
 
   @override
   void didUpdateWidget(covariant _MessageBubble oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.message, widget.message)) {
+      _updateActionState();
+    }
     if (_shouldResetCollapsedState(oldWidget.message, message)) {
       _collapsed = _shouldStartCollapsed(message);
       updateKeepAlive();
     }
+  }
+
+  void _updateActionState() {
+    final newText = resolveSessionMessageActionText(message);
+    if (newText == _actionText) {
+      return;
+    }
+    _actionText = newText;
+    if (_actionText == null) {
+      _onMessageAction = null;
+      _onLongPressMessage = null;
+      return;
+    }
+    final actionText = _actionText!;
+    final msg = message;
+    _onMessageAction = (choice) async {
+      final screen = context.findAncestorStateOfType<_SessionScreenState>();
+      if (screen != null && screen.mounted) {
+        await screen._handleMessageActionChoice(
+          choice: choice,
+          actionText: actionText,
+        );
+      }
+    };
+    _onLongPressMessage = () async {
+      final screen = context.findAncestorStateOfType<_SessionScreenState>();
+      if (screen != null && screen.mounted) {
+        await screen._showMessageActionSheet(
+          message: msg,
+          actionText: actionText,
+        );
+      }
+    };
   }
 
   @override
@@ -187,21 +233,31 @@ class _MessageBubbleState extends State<_MessageBubble>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    Widget child;
     // 根据消息类型渲染不同的气泡
     if (message.isText) {
-      return _buildTextMessage(context);
+      child = _buildTextMessage(context);
     } else if (message.isAgentEvent) {
-      return _buildAgentEventMessage();
+      child = _buildAgentEventMessage();
     } else if (message.isPermissionRequest) {
-      return _buildPermissionRequestMessage();
+      child = _buildPermissionRequestMessage();
     } else if (message.isTurnClose) {
-      return _buildTurnCloseMessage();
+      child = _buildTurnCloseMessage();
     } else if (message.isError) {
-      return _buildErrorMessage();
+      child = _buildErrorMessage();
     } else if (message.isToolCall && message.tool != null) {
-      return _buildToolCallMessage(message.tool!);
+      child = _buildToolCallMessage(message.tool!);
     } else {
-      return _buildDefaultMessage();
+      child = _buildDefaultMessage();
     }
+    if (onLongPressMessage == null) {
+      return child;
+    }
+    return ImmediateLongPressRegion(
+      longPressDelay: _sessionMessageImmediateLongPressDelay,
+      moveSlop: _sessionMessageLongPressMoveSlop,
+      onLongPress: onLongPressMessage!,
+      child: child,
+    );
   }
 }
