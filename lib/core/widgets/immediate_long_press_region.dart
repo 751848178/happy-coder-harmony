@@ -16,6 +16,11 @@ import 'package:flutter/widgets.dart';
 /// touch position before the long press is cancelled. In scrollable contexts
 /// a larger value (e.g. 36 px) helps avoid accidental triggers during slow
 /// scrolling.
+///
+/// Additionally, velocity-based rejection prevents the long press from firing
+/// when the user is actively scrolling: if consecutive pointer move events
+/// exceed a scroll-like velocity, the gesture is rejected before the timer
+/// fires.
 class ImmediateLongPressRegion extends StatelessWidget {
   const ImmediateLongPressRegion({
     super.key,
@@ -54,11 +59,15 @@ class ImmediateLongPressRegion extends StatelessWidget {
 }
 
 /// A [LongPressGestureRecognizer] subclass that overrides
-/// [preAcceptSlopTolerance] with a custom [movementThreshold].
+/// [preAcceptSlopTolerance] with a custom [movementThreshold] and adds
+/// velocity-based rejection to prevent long press from firing during active
+/// scrolling.
 ///
 /// By extending [LongPressGestureRecognizer] directly we inherit all the
-/// arena lifecycle management (accept / reject, timer, velocity tracking)
-/// and simply customise the movement tolerance before the deadline fires.
+/// arena lifecycle management (accept / reject, timer) and add a velocity
+/// check on top. When consecutive [PointerMoveEvent]s exceed
+/// [_scrollVelocityThreshold], the recognizer rejects itself so the scroll
+/// recognizer can take over.
 class _ArenaLongPressGestureRecognizer extends LongPressGestureRecognizer {
   _ArenaLongPressGestureRecognizer({
     required Duration duration,
@@ -67,6 +76,68 @@ class _ArenaLongPressGestureRecognizer extends LongPressGestureRecognizer {
 
   final double movementThreshold;
 
+  Offset? _previousPosition;
+  Duration? _previousTimestamp;
+  int _scrollLikeMoveCount = 0;
+
+  /// Pointer velocity above this threshold (px/s) suggests scrolling.
+  static const double _scrollVelocityThreshold = 120.0;
+
+  /// Number of consecutive scroll-like move events needed to reject.
+  static const int _scrollMoveConfirmation = 2;
+
   @override
   double? get preAcceptSlopTolerance => movementThreshold;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    _previousPosition = event.position;
+    _previousTimestamp = event.timeStamp;
+    _scrollLikeMoveCount = 0;
+    super.addAllowedPointer(event);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (event is PointerMoveEvent &&
+        _previousPosition != null &&
+        _previousTimestamp != null) {
+      final dtMicros =
+          (event.timeStamp - _previousTimestamp!).inMicroseconds;
+      if (dtMicros > 0) {
+        final distance = (event.position - _previousPosition!).distance;
+        final velocity = distance * 1000000 / dtMicros;
+        if (velocity > _scrollVelocityThreshold) {
+          _scrollLikeMoveCount++;
+          if (_scrollLikeMoveCount >= _scrollMoveConfirmation) {
+            resolve(GestureDisposition.rejected);
+            return;
+          }
+        } else {
+          _scrollLikeMoveCount = 0;
+        }
+      }
+      _previousPosition = event.position;
+      _previousTimestamp = event.timeStamp;
+    }
+    super.handleEvent(event);
+  }
+
+  @override
+  void acceptGesture(int pointer) {
+    _reset();
+    super.acceptGesture(pointer);
+  }
+
+  @override
+  void rejectGesture(int pointer) {
+    _reset();
+    super.rejectGesture(pointer);
+  }
+
+  void _reset() {
+    _previousPosition = null;
+    _previousTimestamp = null;
+    _scrollLikeMoveCount = 0;
+  }
 }

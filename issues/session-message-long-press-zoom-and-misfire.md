@@ -90,6 +90,29 @@ const double _sessionMessageLongPressMoveSlop = 36.0;
 
 在测试中使用 `ImmediateLongPressRegion` 时，确保内部子组件使用 `HitTestBehavior.opaque` 或能通过 hit test 的组件（如带颜色的 `Container`）。`SizedBox` 不绘制任何内容，配合 `deferToChild` 行为会导致 hit test 失败，手势识别器不会注册。
 
+## 后续修复：滚动时仍触发长按菜单（2026-03-30）
+
+### 问题
+
+即使 `moveSlop` 已设为 36px，用户慢速滚动时手指可能在 480ms 内漂移不超过 36px（Euclidean 距离），导致长按定时器触发并弹出菜单。
+
+### 根因
+
+`_ArenaLongPressGestureRecognizer` 仅通过 `preAcceptSlopTolerance`（Euclidean 距离）判断是否取消长按，不检查指针移动速度。慢速滚动时：
+- 手指速度 ≈ 60-120 px/s
+- 480ms 内漂移 ≈ 29-58px，部分场景落在 36px 容差内
+- 长按定时器先于滚动识别器赢得竞技场
+
+### 修复：基于速度的拒绝
+
+在 `_ArenaLongPressGestureRecognizer.handleEvent` 中追踪连续 `PointerMoveEvent` 的瞬时速度：
+
+- 若连续 2 帧速度超过 120 px/s，立即 `resolve(rejected)`
+- 速度低于阈值时重置计数器
+- 在 `acceptGesture` / `rejectGesture` 中清理追踪状态
+
+这使得手指在移动（滚动）时，即使 Euclidean 距离未超限，也能因速度信号被正确拒绝。
+
 ## 相关历史
 
 - `issues/session-message-long-press-actions-blocked-by-selectable-text.md`：前次修复尝试（使用 `Listener` + `cancelPointer`），解决了菜单被吃掉的问题，但引入了本 issue 的缩放和误触问题
