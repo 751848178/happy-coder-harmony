@@ -12,6 +12,7 @@ part 'usage_statistics_screen_breakdowns.dart';
 part 'usage_statistics_screen_chart.dart';
 part 'usage_statistics_screen_content.dart';
 part 'usage_statistics_screen_data.dart';
+part 'usage_statistics_screen_helpers.dart';
 part 'usage_statistics_screen_info.dart';
 part 'usage_statistics_screen_summary.dart';
 

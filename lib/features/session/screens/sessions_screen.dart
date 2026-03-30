@@ -33,6 +33,7 @@ part 'sessions_screen_list_item_support.dart';
 part 'sessions_screen_session_actions.dart';
 part 'sessions_screen_session_move_sheet.dart';
 part 'sessions_screen_section_header.dart';
+part 'sessions_screen_stats.dart';
 
 /// 会话列表屏幕
 class SessionsScreen extends ConsumerStatefulWidget {

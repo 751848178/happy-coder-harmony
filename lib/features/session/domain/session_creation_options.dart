@@ -3,6 +3,7 @@ import 'session_models.dart';
 import 'session_recency.dart';
 
 part 'session_creation_options_agents.dart';
+part 'session_creation_options_mode_helpers.dart';
 part 'session_creation_options_modes.dart';
 
 class SessionModeOption {
