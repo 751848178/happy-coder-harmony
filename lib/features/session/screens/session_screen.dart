@@ -20,11 +20,14 @@ import '../../../core/theme/app_theme.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../app/services/settings_service.dart' show SettingsState;
 import '../../../harmony/src/harmony_platform.dart';
+import '../../../core/widgets/immediate_long_press_region.dart';
 import '../data/session_composer_queue_service.dart';
 import '../data/session_input_template_service.dart';
 import '../domain/session_stats.dart';
 import '../data/session_ui_state_service.dart';
+import '../domain/session_list_preview.dart';
 import '../presentation/session_input_template_catalog.dart';
+import '../presentation/session_message_actions.dart';
 import '../presentation/session_turn_status.dart';
 import '../domain/session_creation_options.dart';
 import '../../socketio/domain/socket_service.dart';
@@ -63,6 +66,7 @@ part 'session_screen_message_bubble_tool_sections_2.dart';
 part 'session_screen_message_bubble_tool_helpers.dart';
 part 'session_screen_message_bubble_tool_helpers_2.dart';
 part 'session_screen_message_bubble_tool_helpers_3.dart';
+part 'session_screen_message_actions.dart';
 part 'session_screen_markdown_message.dart';
 part 'session_screen_markdown_table.dart';
 part 'session_screen_markdown_text.dart';
@@ -90,6 +94,10 @@ const double _sessionScrollActionHandlePeekWidth = 10.0;
 const double _sessionScrollActionHideThreshold = 28.0;
 const double _sessionScrollActionDragTravel = 42.0;
 const double _sessionScrollActionTopClearance = 76.0;
+const Duration _sessionMessageImmediateLongPressDelay = Duration(
+  milliseconds: 480,
+);
+const double _sessionMessageLongPressMoveSlop = 36.0;
 const double _sessionScrollActionRailHeight =
     _sessionScrollActionButtonSize * 3 + _sessionScrollActionGap * 2;
 
@@ -165,6 +173,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen>
       SessionInputTemplateService.instance;
   final SessionUiStateService _uiStateService = SessionUiStateService.instance;
   bool _isSending = false;
+  bool _isAborting = false;
+  bool _awaitingAbortRemoteSettle = false;
   bool _isAutoSendingQueuedMessage = false;
   bool _isRefreshingSessionState = false;
   bool _queueReconcileScheduled = false;

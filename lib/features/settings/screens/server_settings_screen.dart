@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/config/app_config.dart';
@@ -16,29 +18,6 @@ class ServerSettingsScreen extends StatefulWidget {
 }
 
 class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
-  final TextEditingController _controller = TextEditingController();
-  String _selectedServerId = ServerConfigService.defaultServerId;
-  bool _isSaving = false;
-  String? _errorMessage;
-  ServerProbeResult? _probeResult;
-
-  @override
-  void initState() {
-    super.initState();
-    final service = ServerConfigService.instance;
-    _selectedServerId = service.selectedServerId;
-    final customServerUrl = service.customServerUrl;
-    if (customServerUrl != null) {
-      _controller.text = customServerUrl;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
   void _updateView(VoidCallback update) {
     if (!mounted) {
       return;
@@ -46,12 +25,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
     setState(update);
   }
 
-  Future<void> _save() => _saveServerSettings(this);
-
-  Future<void> _reset() => _resetServerSettings(this);
-
-  bool get _isCustomSelected =>
-      _selectedServerId == ServerConfigService.customServerId;
+  Future<void> _openServerEditorSheet() => _openServerEditorSheetInternal(this);
 
   @override
   Widget build(BuildContext context) {

@@ -1,6 +1,29 @@
 part of 'session_service.dart';
 
 extension SessionServiceRpc on SessionServiceNotifier {
+  static const String _defaultAbortReason =
+      "The user doesn't want to proceed with this tool use. "
+      'The tool use was rejected (eg. if it was a file edit, the new_string '
+      'was NOT written to the file). STOP what you are doing and wait for the '
+      'user to tell you how to proceed.';
+
+  Future<void> abortSession({
+    required String sessionId,
+    String? reason,
+  }) async {
+    await _callSessionRpcDecoded(
+      sessionId: sessionId,
+      method: 'abort',
+      payload: SessionAbortRequest(
+        reason: _normalizeOptionalValue(reason) ?? _defaultAbortReason,
+      ).toJson(),
+    );
+    await Future.wait([
+      loadSessionMessages(sessionId, force: true),
+      loadSessions(force: true),
+    ]);
+  }
+
   Future<SessionBashResponse> executeSessionBash({
     required String sessionId,
     required String command,

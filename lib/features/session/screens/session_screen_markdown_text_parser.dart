@@ -90,4 +90,3 @@ class _MarkdownTextSection {
     return sections;
   }
 }
-

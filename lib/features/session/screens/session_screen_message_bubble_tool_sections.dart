@@ -66,7 +66,10 @@ extension _SessionScreenMessageBubbleToolSections on _MessageBubbleState {
         const SizedBox(height: 10),
         _ToolSection(
           title: '摘要',
-          child: _ToolSummaryCard(text: summaryText),
+          child: _ToolSummaryCard(
+            text: summaryText,
+            onMessageAction: onMessageAction,
+          ),
         ),
       ]);
     }
@@ -90,6 +93,7 @@ extension _SessionScreenMessageBubbleToolSections on _MessageBubbleState {
             language: 'shell',
             isUser: false,
             collapsedLines: 6,
+            onMessageAction: onMessageAction,
           ),
         ),
       ]);
@@ -103,6 +107,7 @@ extension _SessionScreenMessageBubbleToolSections on _MessageBubbleState {
             content: resultPreview,
             language: resultLanguage.isEmpty ? 'shell' : resultLanguage,
             preferCode: true,
+            onMessageAction: onMessageAction,
           ),
         ),
       ]);
@@ -122,7 +127,10 @@ extension _SessionScreenMessageBubbleToolSections on _MessageBubbleState {
         const SizedBox(height: 10),
         _ToolSection(
           title: presentation == 'read' ? '读取摘要' : '结果摘要',
-          child: _ToolSummaryCard(text: summaryText),
+          child: _ToolSummaryCard(
+            text: summaryText,
+            onMessageAction: onMessageAction,
+          ),
         ),
       ]);
     }
@@ -134,6 +142,7 @@ extension _SessionScreenMessageBubbleToolSections on _MessageBubbleState {
           child: _ToolResultView(
             content: resultPreview,
             language: resultLanguage,
+            onMessageAction: onMessageAction,
           ),
         ),
       ]);
@@ -157,6 +166,7 @@ extension _SessionScreenMessageBubbleToolSections on _MessageBubbleState {
             language: 'diff',
             isUser: false,
             collapsedLines: 8,
+            onMessageAction: onMessageAction,
           ),
         ),
       ]);
@@ -172,6 +182,7 @@ extension _SessionScreenMessageBubbleToolSections on _MessageBubbleState {
             content: resultPreview,
             language: resultLanguage,
             preferCode: true,
+            onMessageAction: onMessageAction,
           ),
         ),
       ]);

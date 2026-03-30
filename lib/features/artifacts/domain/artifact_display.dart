@@ -37,7 +37,8 @@ String artifactDisplayTitle(Artifact artifact) {
     return title;
   }
 
-  final headerTitle = parseArtifactHeader(artifact.header)['title']?.toString().trim();
+  final headerTitle =
+      parseArtifactHeader(artifact.header)['title']?.toString().trim();
   if (headerTitle != null && headerTitle.isNotEmpty) {
     return headerTitle;
   }

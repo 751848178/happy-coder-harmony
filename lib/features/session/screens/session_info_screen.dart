@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../domain/session_list_preview.dart';
 import '../domain/session_stats.dart';
+import '../presentation/session_turn_status.dart';
 
 part 'session_info_screen_actions.dart';
 part 'session_info_screen_body.dart';
@@ -41,12 +43,14 @@ class _SessionInfoScreenState extends ConsumerState<SessionInfoScreen> {
     ref.watch(sessionStateProvider);
     final sessionNotifier = ref.read(sessionStateProvider.notifier);
     final session = sessionNotifier.getSession(widget.sessionId);
+    final messages =
+        sessionNotifier.getSessionMessages(widget.sessionId)?.messages ??
+            const <ReducerMessage>[];
     final stats = session == null
         ? null
         : SessionStatsCalculator.fromSession(
             session: session,
-            messages:
-                sessionNotifier.getSessionMessages(widget.sessionId)?.messages,
+            messages: messages,
           );
 
     if (session == null || stats == null) {
@@ -64,7 +68,11 @@ class _SessionInfoScreenState extends ConsumerState<SessionInfoScreen> {
       child: Scaffold(
         backgroundColor: AppTheme.neutral50,
         appBar: _buildAppBar(session),
-        body: _SessionInfoBody(session: session, stats: stats),
+        body: _SessionInfoBody(
+          session: session,
+          stats: stats,
+          messages: messages,
+        ),
       ),
     );
   }

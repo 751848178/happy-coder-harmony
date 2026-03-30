@@ -21,7 +21,8 @@ class ArtifactDetailScreen extends ConsumerStatefulWidget {
   final String artifactId;
 
   @override
-  ConsumerState<ArtifactDetailScreen> createState() => _ArtifactDetailScreenState();
+  ConsumerState<ArtifactDetailScreen> createState() =>
+      _ArtifactDetailScreenState();
 }
 
 class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen> {
@@ -43,7 +44,9 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen> {
       _error = null;
     });
 
-    final artifact = await ref.read(artifactStateProvider.notifier).loadArtifact(widget.artifactId);
+    final artifact = await ref
+        .read(artifactStateProvider.notifier)
+        .loadArtifact(widget.artifactId);
     if (!mounted) {
       return;
     }
@@ -58,10 +61,11 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final artifact = ref.watch(artifactStateProvider).artifacts.cast<Artifact?>().firstWhere(
-          (item) => item?.id == widget.artifactId,
-          orElse: () => null,
-        );
+    final artifact =
+        ref.watch(artifactStateProvider).artifacts.cast<Artifact?>().firstWhere(
+              (item) => item?.id == widget.artifactId,
+              orElse: () => null,
+            );
 
     return Scaffold(
       backgroundColor: AppTheme.neutral50,
@@ -73,7 +77,8 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen> {
         actions: [
           if (artifact != null) ...[
             IconButton(
-              onPressed: () => context.push(AppRoutes.editArtifactWithId(artifact.id)),
+              onPressed: () =>
+                  context.push(AppRoutes.editArtifactWithId(artifact.id)),
               icon: const Icon(Icons.edit_outlined),
               tooltip: '编辑',
             ),

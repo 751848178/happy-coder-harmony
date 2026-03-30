@@ -55,22 +55,41 @@ class _SessionPresenceCard extends StatelessWidget {
 class _SessionThinkingCard extends StatelessWidget {
   const _SessionThinkingCard({
     required this.session,
+    required this.messages,
   });
 
   final Session session;
+  final List<ReducerMessage> messages;
 
   @override
   Widget build(BuildContext context) {
+    final isThinking = sessionTurnIsThinkingStillBlocking(
+      session: session,
+      messages: messages,
+    );
+    final thinkingSince = sessionThinkingStartedAt(
+      session: session,
+      messages: messages,
+    );
+    final statusSnapshot = resolveSessionListStatusSnapshot(
+      messages: messages,
+      isThinking: isThinking,
+      isActive: session.active,
+    );
     return _InfoCard(
       title: 'AI 状态',
       icon: Icons.psychology,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _InfoRow('思考中', session.thinking! ? '是' : '否'),
-          if (session.thinkingAt != null) ...[
+          _InfoRow('思考中', isThinking ? '是' : '否'),
+          if (statusSnapshot != null) ...[
             const SizedBox(height: 12),
-            _InfoRow('开始时间', formatSessionInfoDateTime(session.thinkingAt!)),
+            _InfoRow('最近状态', statusSnapshot.label),
+          ],
+          if (thinkingSince != null) ...[
+            const SizedBox(height: 12),
+            _InfoRow('开始时间', formatSessionInfoDateTime(thinkingSince)),
           ],
         ],
       ),

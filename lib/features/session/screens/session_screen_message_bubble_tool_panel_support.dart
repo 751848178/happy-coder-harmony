@@ -113,7 +113,8 @@ extension _SessionScreenMessageBubbleToolPanelSupport on _MessageBubbleState {
             ),
           ),
         OutlinedButton(
-          onPressed: isToolActionPending ? null : () => onRejectTool(toolId, null),
+          onPressed:
+              isToolActionPending ? null : () => onRejectTool(toolId, null),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(0, 34),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

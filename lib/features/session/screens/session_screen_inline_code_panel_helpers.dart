@@ -41,6 +41,4 @@ extension _SessionScreenInlineCodePanelHelpers on _InlineCodePanelState {
         return language;
     }
   }
-
-
 }

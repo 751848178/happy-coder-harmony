@@ -128,10 +128,17 @@ extension _SessionScreenViewIndicators on _SessionScreenState {
     );
   }
 
-  Widget _buildFloatingThinkingBadge(Session session) {
-    final label = session.thinkingAt == null
-        ? 'AI 思考中'
-        : _formatThinkingLabel(session.thinkingAt!);
+  Widget _buildFloatingThinkingBadge(
+    Session session,
+    List<ReducerMessage> messages,
+  ) {
+    final thinkingSince = sessionThinkingStartedAt(
+      session: session,
+      messages: messages,
+      manualThinkingOverride: _manualThinkingOverride,
+    );
+    final label =
+        thinkingSince == null ? 'AI 思考中' : _formatThinkingLabel(thinkingSince);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(

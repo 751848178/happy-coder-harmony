@@ -20,7 +20,7 @@ class ServerConfigService {
     'HAPPY_SERVER_URL',
     defaultValue: 'https://api.cluster-fluster.com',
   );
-  static const String svtonServerUrl = 'https://happy.svton.cn';
+  static const String svtonServerUrl = 'https://hapmony.svton.cn';
   static const List<BuiltInServerOption> builtInServerOptions = [
     BuiltInServerOption(
       id: defaultServerId,
@@ -30,9 +30,9 @@ class ServerConfigService {
     ),
     BuiltInServerOption(
       id: svtonServerId,
-      name: '内置备用服务器',
+      name: '开发者提供的国内服务器',
       url: svtonServerUrl,
-      description: '内置可选地址 https://happy.svton.cn',
+      description: '我们 APP 开发者提供的国内服务器 https://hapmony.svton.cn',
     ),
   ];
 
@@ -94,7 +94,7 @@ class ServerConfigService {
 
   String get selectedServerName => switch (selectedServerId) {
         defaultServerId => '默认服务器',
-        svtonServerId => '内置备用服务器',
+        svtonServerId => '开发者提供的国内服务器',
         customServerId => '自定义服务器',
         _ => '默认服务器',
       };

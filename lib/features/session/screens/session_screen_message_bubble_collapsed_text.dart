@@ -161,6 +161,4 @@ extension _SessionScreenMessageBubbleCollapsedText on _MessageBubbleState {
   bool _looksLikeMarkdownContent(String content) {
     return _looksLikeMarkdownContentValue(content);
   }
-
-
 }

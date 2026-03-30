@@ -117,7 +117,11 @@ extension _SocketIntegrationMessageParsing on SocketIntegration {
             kind: 'tool-error',
             createdAt: timestamp,
             text: json['error'] as String? ?? 'Tool error',
-            metadata: {'tool': json['tool'], 'error': json['error'], ...?metadata},
+            metadata: {
+              'tool': json['tool'],
+              'error': json['error'],
+              ...?metadata
+            },
           );
         default:
           return ReducerMessage(

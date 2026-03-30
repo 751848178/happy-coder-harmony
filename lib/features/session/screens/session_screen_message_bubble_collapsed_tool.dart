@@ -52,6 +52,4 @@ extension _SessionScreenMessageBubbleCollapsedTool on _MessageBubbleState {
       ),
     );
   }
-
-
 }

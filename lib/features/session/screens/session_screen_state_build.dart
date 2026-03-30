@@ -44,6 +44,8 @@ extension _SessionScreenStateBuild on _SessionScreenState {
     final settings = ref.watch(settingsStateProvider);
     final session = selection.session;
     final messages = selection.messages ?? const <ReducerMessage>[];
+    final socketConnected =
+        ref.watch(socketStateProvider.select((state) => state.isConnected));
     final turnGroups = _resolveTurnGroups(messages);
     final sessionStats = _resolveSessionStats(session, messages);
     if (messages.isNotEmpty && !_hasScrolledToLatest) {
@@ -63,14 +65,19 @@ extension _SessionScreenStateBuild on _SessionScreenState {
     final slashCommands = _resolveSlashCommands(session);
     final availableInputTemplates = _allInputTemplates();
     final conversationBusy = _isConversationBusy(session, turnGroups);
+    final hasActiveResponseMarker =
+        _hasEffectiveActiveResponseMarker(session, turnGroups);
     final suppressStaleLiveState =
-        _isRefreshingSessionState && _activeResponseLocalId == null;
+        _isRefreshingSessionState && !hasActiveResponseMarker;
     final effectiveConversationBusy =
         suppressStaleLiveState ? false : conversationBusy;
     final effectiveThinking = _isThinkingActive(session, turnGroups);
-    final shouldKeepScreenAwake = session != null &&
-        (_activeResponseLocalId != null || effectiveThinking);
+    final shouldKeepScreenAwake =
+        session != null && (hasActiveResponseMarker || effectiveThinking);
     _updateScreenAwakePolicy(keepAwake: shouldKeepScreenAwake);
+    final latestTurnMessages = turnGroups.isNotEmpty
+        ? turnGroups.last.messages
+        : const <ReducerMessage>[];
     final showLiveReplyBadge =
         messages.isNotEmpty && effectiveThinking && !suppressStaleLiveState;
     final hasLoadedSessions = selection.hasLoadedSessions;
@@ -141,7 +148,10 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                                   key: const ValueKey('session-thinking-badge'),
                                   top: 8,
                                   right: AppTheme.spacingMd,
-                                  child: _buildFloatingThinkingBadge(session!),
+                                  child: _buildFloatingThinkingBadge(
+                                    session!,
+                                    latestTurnMessages,
+                                  ),
                                 ),
                               if (messages.isNotEmpty && _hasUnreadMessages)
                                 Positioned(
@@ -168,6 +178,7 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                         session,
                         turnGroups,
                         conversationBusy: effectiveConversationBusy,
+                        socketConnected: socketConnected,
                         settings: settings,
                         slashCommands: slashCommands,
                         availableInputTemplates: availableInputTemplates,

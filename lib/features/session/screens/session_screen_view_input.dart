@@ -5,6 +5,7 @@ extension _SessionScreenViewInput on _SessionScreenState {
     Session? session,
     List<_MessageTurnGroup> turnGroups, {
     required bool conversationBusy,
+    required bool socketConnected,
     required SettingsState settings,
     required List<_SlashCommandItem> slashCommands,
     required List<_InputTemplateItem> availableInputTemplates,
@@ -41,6 +42,11 @@ extension _SessionScreenViewInput on _SessionScreenState {
               value: composerValue,
             );
             final hasComposerText = composerValue.text.trim().isNotEmpty;
+            final canAbortCurrentResponse = _canAbortCurrentResponse(
+              session,
+              turnGroups,
+              socketConnected: socketConnected,
+            );
             final showingSuggestionPanel = (settings.commandPaletteEnabled &&
                     _shouldShowSlashCommands(
                       visibleSlashCommands,
@@ -114,6 +120,34 @@ extension _SessionScreenViewInput on _SessionScreenState {
                             : null,
                       ),
                     ),
+                    if (canAbortCurrentResponse) ...[
+                      const SizedBox(width: AppTheme.spacingSm),
+                      IconButton(
+                        tooltip: _isAborting ? '正在停止当前回复' : '停止当前回复',
+                        onPressed: _isAborting
+                            ? null
+                            : () => _handleAbortAction(
+                                  session,
+                                  turnGroups,
+                                  socketConnected: socketConnected,
+                                ),
+                        icon: _isAborting
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.stop_rounded),
+                        style: IconButton.styleFrom(
+                          backgroundColor:
+                              AppTheme.errorColor.withValues(alpha: 0.12),
+                          foregroundColor: AppTheme.errorColor,
+                          padding: const EdgeInsets.all(12),
+                        ),
+                      ),
+                    ],
                     const SizedBox(width: AppTheme.spacingSm),
                     IconButton(
                       tooltip: sendTooltip,

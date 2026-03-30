@@ -1,6 +1,33 @@
 part of 'session_screen.dart';
 
 extension _SessionScreenStateQueue on _SessionScreenState {
+  bool _remoteAbortHasSettled(
+    Session? session,
+    List<_MessageTurnGroup> turnGroups,
+  ) {
+    if (!_awaitingAbortRemoteSettle) {
+      return false;
+    }
+    final latestGroup = turnGroups.isNotEmpty ? turnGroups.last : null;
+    return sessionAbortHasSettledRemotely(
+      session: session,
+      messages: latestGroup?.messages ?? const <ReducerMessage>[],
+      userPrompt: latestGroup?.userPrompt,
+      isSending: _isSending,
+    );
+  }
+
+  bool _hasEffectiveActiveResponseMarker(
+    Session? session,
+    List<_MessageTurnGroup> turnGroups,
+  ) {
+    final activeLocalId = _activeResponseLocalId;
+    if (activeLocalId == null) {
+      return false;
+    }
+    return !_remoteAbortHasSettled(session, turnGroups);
+  }
+
   void _scheduleQueuedMessageReconciliation(
     Session? session,
     List<ReducerMessage> messages,
@@ -58,6 +85,27 @@ extension _SessionScreenStateQueue on _SessionScreenState {
         sessionNotifier.getSessionMessages(widget.sessionId)?.messages ??
             const <ReducerMessage>[];
     final turnGroups = _resolveTurnGroups(messages);
+    final latestGroup = turnGroups.isNotEmpty ? turnGroups.last : null;
+    final remoteAbortSettled = _remoteAbortHasSettled(session, turnGroups);
+
+    if (remoteAbortSettled && mounted) {
+      _updateState(() {
+        _awaitingAbortRemoteSettle = false;
+        _manualThinkingOverride = null;
+        _activeResponseLocalId = null;
+      });
+    }
+
+    if (_manualThinkingOverride != null &&
+        sessionTurnHasCompletionSignal(
+          latestGroup?.messages ?? const <ReducerMessage>[],
+        )) {
+      if (mounted) {
+        _updateState(() {
+          _manualThinkingOverride = null;
+        });
+      }
+    }
 
     final activeLocalId = _activeResponseLocalId;
     if (activeLocalId != null) {
@@ -67,6 +115,7 @@ extension _SessionScreenStateQueue on _SessionScreenState {
         if (mounted) {
           _updateState(() {
             _activeResponseLocalId = null;
+            _awaitingAbortRemoteSettle = false;
           });
         }
       } else {
@@ -82,6 +131,7 @@ extension _SessionScreenStateQueue on _SessionScreenState {
           if (mounted) {
             _updateState(() {
               _activeResponseLocalId = null;
+              _awaitingAbortRemoteSettle = false;
             });
           }
         }
@@ -115,7 +165,10 @@ extension _SessionScreenStateQueue on _SessionScreenState {
       latestUserPrompt: latestGroup?.userPrompt,
       isSending: _isSending,
       isAutoSendingQueuedMessage: _isAutoSendingQueuedMessage,
-      activeResponseLocalId: _activeResponseLocalId,
+      activeResponseLocalId:
+          _hasEffectiveActiveResponseMarker(session, turnGroups)
+              ? _activeResponseLocalId
+              : null,
       manualThinkingOverride: _manualThinkingOverride,
     );
   }

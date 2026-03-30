@@ -15,11 +15,13 @@ class _MarkdownTextBlock extends StatelessWidget {
     required this.content,
     required this.isUser,
     required this.textColor,
+    this.onMessageAction,
   });
 
   final String content;
   final bool isUser;
   final Color textColor;
+  final _SessionMessageActionHandler? onMessageAction;
 
   @override
   Widget build(BuildContext context) {
@@ -193,7 +195,9 @@ class _MarkdownTextBlock extends StatelessWidget {
               : AppTheme.neutral100,
         ),
       ),
+      contextMenuBuilder: _buildMessageActionContextMenuBuilder(
+        onMessageAction,
+      ),
     );
   }
 }
-

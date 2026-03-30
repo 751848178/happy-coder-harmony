@@ -80,10 +80,12 @@ class SessionGroupingService {
     if (trimmed.isEmpty) {
       return state;
     }
-    _ensureUniqueName(state.groups, candidate: trimmed, excludingGroupId: groupId);
+    _ensureUniqueName(state.groups,
+        candidate: trimmed, excludingGroupId: groupId);
     final next = state.copyWith(
       groups: state.groups
-          .map((group) => group.id == groupId ? group.copyWith(name: trimmed) : group)
+          .map((group) =>
+              group.id == groupId ? group.copyWith(name: trimmed) : group)
           .toList(),
     );
     await _persist(next);
@@ -92,7 +94,8 @@ class SessionGroupingService {
 
   Future<SessionGroupingState> deleteGroup(String groupId) async {
     final next = (await load()).copyWith(
-      groups: (await load()).groups.where((group) => group.id != groupId).toList(),
+      groups:
+          (await load()).groups.where((group) => group.id != groupId).toList(),
     );
     await _persist(next);
     return next;
@@ -126,9 +129,13 @@ class SessionGroupingService {
     final nextCollapsed = Set<String>.from(state.collapsedDefaultGroups);
     final nextExpanded = Set<String>.from(state.expandedDefaultGroups);
     if (defaultCollapsed) {
-      nextExpanded.contains(label) ? nextExpanded.remove(label) : nextExpanded.add(label);
+      nextExpanded.contains(label)
+          ? nextExpanded.remove(label)
+          : nextExpanded.add(label);
     } else {
-      nextCollapsed.contains(label) ? nextCollapsed.remove(label) : nextCollapsed.add(label);
+      nextCollapsed.contains(label)
+          ? nextCollapsed.remove(label)
+          : nextCollapsed.add(label);
     }
     final next = state.copyWith(
       collapsedDefaultGroups: nextCollapsed,
@@ -145,8 +152,9 @@ class SessionGroupingService {
     final state = await load();
     final next = state.copyWith(
       groups: state.groups.map((group) {
-        final nextSessionIds =
-            group.sessionIds.where((existingId) => existingId != sessionId).toList();
+        final nextSessionIds = group.sessionIds
+            .where((existingId) => existingId != sessionId)
+            .toList();
         if (group.id == groupId && !nextSessionIds.contains(sessionId)) {
           nextSessionIds.add(sessionId);
         }

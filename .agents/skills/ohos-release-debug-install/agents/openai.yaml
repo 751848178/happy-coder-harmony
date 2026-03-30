@@ -1,4 +1,4 @@
 interface:
-  display_name: "OHOS Release Install (Debug Profile)"
-  short_description: "Build release with debug profile and install to real OHOS device"
-  default_prompt: "Build latest code into an OHOS release package using the existing debug signing profile by bypassing scripts/run.sh, then install to a real device via hdc and report diagnostics."
+  display_name: "OHOS Real Device Install"
+  short_description: "Default real-device install to release package using current signing materials"
+  default_prompt: "Install the latest app build to a HarmonyOS/OpenHarmony real device. Unless the user explicitly asks for a debug package or live debugging, default to building and installing a release package that uses the profile and certificate currently configured in ohos/build-profile.json5, then report the device, signing material, artifact path, and installation result."

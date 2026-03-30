@@ -153,5 +153,7 @@ ThemeData _getTheme(BuildContext context) {
 }
 
 ThemeData _getCodeTheme(BuildContext context) {
-  return _isDarkMode(context) ? AppTheme.codeThemeDark : AppTheme.codeThemeLight;
+  return _isDarkMode(context)
+      ? AppTheme.codeThemeDark
+      : AppTheme.codeThemeLight;
 }

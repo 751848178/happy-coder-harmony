@@ -83,9 +83,9 @@ class TokenStorageService {
   Future<EncryptionType> getEncryptionType() async {
     final type = await _storage.read(_keyEncryptionType);
     return EncryptionType.values.firstWhere(
-          (e) => e.name == type,
-          orElse: () => EncryptionType.legacy,
-        );
+      (e) => e.name == type,
+      orElse: () => EncryptionType.legacy,
+    );
   }
 
   /// 保存公钥

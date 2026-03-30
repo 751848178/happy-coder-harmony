@@ -178,6 +178,4 @@ extension _SessionScreenMessageBubbleToolHelpers on _MessageBubbleState {
     }
     return Icons.handyman_outlined;
   }
-
-
 }

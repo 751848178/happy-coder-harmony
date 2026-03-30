@@ -15,7 +15,10 @@ extension _SessionScreenMessageBubbleToolSections2 on _MessageBubbleState {
         const SizedBox(height: 10),
         _ToolSection(
           title: '确认内容',
-          child: _ToolSummaryCard(text: prompt),
+          child: _ToolSummaryCard(
+            text: prompt,
+            onMessageAction: onMessageAction,
+          ),
         ),
       ]);
     }
@@ -69,6 +72,7 @@ extension _SessionScreenMessageBubbleToolSections2 on _MessageBubbleState {
             language: 'shell',
             isUser: false,
             collapsedLines: 6,
+            onMessageAction: onMessageAction,
           ),
         ),
       ]);
@@ -83,6 +87,7 @@ extension _SessionScreenMessageBubbleToolSections2 on _MessageBubbleState {
             language: 'diff',
             isUser: false,
             collapsedLines: 8,
+            onMessageAction: onMessageAction,
           ),
         ),
       ]);
@@ -97,6 +102,7 @@ extension _SessionScreenMessageBubbleToolSections2 on _MessageBubbleState {
             language: 'json',
             isUser: false,
             collapsedLines: 4,
+            onMessageAction: onMessageAction,
           ),
         ),
       ]);
@@ -110,6 +116,7 @@ extension _SessionScreenMessageBubbleToolSections2 on _MessageBubbleState {
             content: resultPreview,
             language: resultLanguage,
             preferCode: _prefersCodeView(tool.name),
+            onMessageAction: onMessageAction,
           ),
         ),
       ]);

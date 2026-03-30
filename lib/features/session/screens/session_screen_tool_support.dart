@@ -32,9 +32,11 @@ class _ToolSection extends StatelessWidget {
 class _ToolSummaryCard extends StatelessWidget {
   const _ToolSummaryCard({
     required this.text,
+    this.onMessageAction,
   });
 
   final String text;
+  final _SessionMessageActionHandler? onMessageAction;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +50,9 @@ class _ToolSummaryCard extends StatelessWidget {
       ),
       child: SelectableText(
         text,
+        contextMenuBuilder: _buildMessageActionContextMenuBuilder(
+          onMessageAction,
+        ),
         style: const TextStyle(
           fontSize: 13,
           height: 1.5,
@@ -142,11 +147,13 @@ class _ToolResultView extends StatelessWidget {
     required this.content,
     required this.language,
     this.preferCode = false,
+    this.onMessageAction,
   });
 
   final String content;
   final String language;
   final bool preferCode;
+  final _SessionMessageActionHandler? onMessageAction;
 
   @override
   Widget build(BuildContext context) {
@@ -169,12 +176,16 @@ class _ToolResultView extends StatelessWidget {
           content: content,
           isUser: false,
           textColor: AppTheme.textPrimary,
+          onMessageAction: onMessageAction,
         ),
       );
     }
 
     if (!preferCode && resolvedLanguage.isEmpty) {
-      return _ToolSummaryCard(text: content);
+      return _ToolSummaryCard(
+        text: content,
+        onMessageAction: onMessageAction,
+      );
     }
 
     return _InlineCodePanel(
@@ -182,7 +193,7 @@ class _ToolResultView extends StatelessWidget {
       language: resolvedLanguage,
       isUser: false,
       collapsedLines: 8,
+      onMessageAction: onMessageAction,
     );
   }
 }
-

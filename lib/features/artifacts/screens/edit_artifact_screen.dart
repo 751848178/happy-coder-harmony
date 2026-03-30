@@ -58,12 +58,15 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     }
     final originalTitle = artifactDisplayTitle(_artifact!);
     final originalBody = _artifact!.body ?? '';
-    return _titleController.text.trim() != (originalTitle == 'Untitled' ? '' : originalTitle) ||
+    return _titleController.text.trim() !=
+            (originalTitle == 'Untitled' ? '' : originalTitle) ||
         _bodyController.text.trim() != originalBody.trim();
   }
 
   Future<void> _loadArtifact() async {
-    final artifact = await ref.read(artifactStateProvider.notifier).loadArtifact(widget.artifactId);
+    final artifact = await ref
+        .read(artifactStateProvider.notifier)
+        .loadArtifact(widget.artifactId);
     if (!mounted) {
       return;
     }
@@ -122,17 +125,18 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
 
     setState(() => _isSaving = true);
     try {
-      final updated = await ref.read(artifactStateProvider.notifier).updateArtifact(
-            _artifact!.id,
-            UpdateArtifactRequest(
-              header: jsonEncode({
-                if (title.isNotEmpty) 'title': title,
-              }),
-              headerVersion: _artifact!.headerVersion,
-              body: body.isEmpty ? null : body,
-              bodyVersion: _artifact!.bodyVersion,
-            ),
-          );
+      final updated =
+          await ref.read(artifactStateProvider.notifier).updateArtifact(
+                _artifact!.id,
+                UpdateArtifactRequest(
+                  header: jsonEncode({
+                    if (title.isNotEmpty) 'title': title,
+                  }),
+                  headerVersion: _artifact!.headerVersion,
+                  body: body.isEmpty ? null : body,
+                  bodyVersion: _artifact!.bodyVersion,
+                ),
+              );
 
       if (!mounted) {
         return;

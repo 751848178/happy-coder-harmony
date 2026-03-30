@@ -4,6 +4,41 @@
 
 本次问题表现为移动端的模型列表、当前模型显示和实际发送时使用的模型，与 PC 端不一致；同时从 PC 创建或克隆过来的会话，在移动端也可能出现模型模式错位。
 
+## 2026-03-30 当前生效规则
+
+以下内容用于整理“现在 PC 支持的让移动端获取实际可用模型的方式”；如果和下文历史排查记录有冲突，以这一节为准。
+
+### 1. 会话详情里的候选模型列表：直接看 PC 会话 metadata
+
+- 入口文件：`lib/features/session/screens/session_screen_view_metadata.dart`
+- 规则：会话详情和模型弹层只使用 `session.metadata['models']` 作为候选列表来源。
+- 含义：只要 PC 在会话 metadata 里回传了 `models`，移动端就直接展示这组真实可用模型，不再自己拼一套本地多模型列表。
+
+### 2. 当前正在使用的模型：优先看本地会话态，再回退到 PC metadata 当前值
+
+- 入口文件：`lib/features/session/screens/session_screen_view_metadata.dart`
+- 解析顺序：`session.modelMode -> metadata.currentModelCode -> defaultModelKey(flavor)`。
+- 含义：PC 回传的 `currentModelCode` 负责兜底当前值；如果用户已经在移动端本地切过模型，则以 `session.modelMode` 为准。
+- 额外约束：当前值只用于“显示当前选中项”和“发送消息带上 model meta”，不会反向把未知 key 塞回候选列表。
+
+### 3. PC 没回传模型列表时：移动端只保留 `default`
+
+- 入口文件：`lib/features/session/domain/session_creation_options_modes.dart`
+- 规则：`modelOptionsForAgent(...)` 在 `metadata.models` 为空时，只返回单一默认项 `default`。
+- 含义：现在移动端不会在缺少 PC 模型元数据时，额外展示 codex / claude / gemini 的本地硬编码多模型列表。
+
+### 4. 新建会话页：当前不再用历史 session 或 machine metadata 动态改写模型列表
+
+- 入口文件：`lib/features/session/screens/new_session_flow_screen_logic.dart`
+- 规则：`newSessionModelOptionsForAgent(...)` 目前直接走 agent 的固定 fallback；对模型来说也就是单一 `default`。
+- 含义：新建会话入口当前不会因为某台 PC 最近上报过自定义模型，就把这些模型直接混入新建页候选项。
+
+### 5. 协议/工具层仍保留的提取能力
+
+- 入口文件：`lib/features/session/domain/session_creation_options_modes.dart`
+- 现状：`resolveModeMetadataForSessions(...)` 和 `resolveModeMetadataForMachines(...)` 仍然支持从最近会话 metadata、或 machine metadata 的 `agents/flavors/providers` 结构里提取 `models` / `operatingModes`。
+- 说明：这表示 PC 侧如果继续通过这些结构回传模式元数据，移动端工具层仍能识别；但 2026-03-30 当前 UI 真正生效的模型候选来源，仍以上面第 1 条的会话 `metadata.models` 为主。
+
 ## 根因定位
 
 ### 1. 新建会话流程没有接入模型模式

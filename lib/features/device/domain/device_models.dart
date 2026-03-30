@@ -5,10 +5,13 @@
 enum DeviceStatus {
   /// 空闲
   idle,
+
   /// 请求控制权
   requestingControl,
+
   /// 拥有控制权
   hasControl,
+
   /// 控制权被占用
   controlTaken,
 }
@@ -145,7 +148,8 @@ class ControlState {
     return ControlState(
       deviceStatus: deviceStatus ?? this.deviceStatus,
       controllingDeviceId: controllingDeviceId ?? this.controllingDeviceId,
-      controllingDeviceName: controllingDeviceName ?? this.controllingDeviceName,
+      controllingDeviceName:
+          controllingDeviceName ?? this.controllingDeviceName,
       controlAcquiredAt: controlAcquiredAt ?? this.controlAcquiredAt,
       pendingRequest: pendingRequest ?? this.pendingRequest,
     );
@@ -159,7 +163,7 @@ class ControlState {
   /// 检查是否需要响应
   bool needsResponse() {
     return deviceStatus == DeviceStatus.requestingControl ||
-           pendingRequest?.status == ControlRequestStatus.pending;
+        pendingRequest?.status == ControlRequestStatus.pending;
   }
 
   /// 计算控制权时长

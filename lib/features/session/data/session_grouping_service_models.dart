@@ -36,7 +36,9 @@ class SessionGroup {
 
   factory SessionGroup.fromJson(Map<String, dynamic> json) {
     final sessionIds = json['sessionIds'] is List
-        ? (json['sessionIds'] as List<dynamic>).map((value) => value.toString()).toList()
+        ? (json['sessionIds'] as List<dynamic>)
+            .map((value) => value.toString())
+            .toList()
         : const <String>[];
     return SessionGroup(
       id: json['id']?.toString() ?? '',
@@ -80,7 +82,8 @@ class SessionGroupingState {
               }
               if (value is Map) {
                 return SessionGroup.fromJson(
-                  value.map((key, groupValue) => MapEntry(key.toString(), groupValue)),
+                  value.map((key, groupValue) =>
+                      MapEntry(key.toString(), groupValue)),
                 );
               }
               return null;
@@ -93,11 +96,15 @@ class SessionGroupingState {
       groups: groups,
       ungroupedCollapsed: json['ungroupedCollapsed'] == true,
       collapsedDefaultGroups: _normalizeDefaultGroupLabels(
-        (json['collapsedDefaultGroups'] as List?)?.map((value) => value.toString()).toSet() ??
+        (json['collapsedDefaultGroups'] as List?)
+                ?.map((value) => value.toString())
+                .toSet() ??
             const <String>{},
       ),
       expandedDefaultGroups: _normalizeDefaultGroupLabels(
-        (json['expandedDefaultGroups'] as List?)?.map((value) => value.toString()).toSet() ??
+        (json['expandedDefaultGroups'] as List?)
+                ?.map((value) => value.toString())
+                .toSet() ??
             const <String>{},
       ),
     );
@@ -114,8 +121,10 @@ class SessionGroupingState {
       useCustomGroups: useCustomGroups ?? this.useCustomGroups,
       groups: groups ?? this.groups,
       ungroupedCollapsed: ungroupedCollapsed ?? this.ungroupedCollapsed,
-      collapsedDefaultGroups: collapsedDefaultGroups ?? this.collapsedDefaultGroups,
-      expandedDefaultGroups: expandedDefaultGroups ?? this.expandedDefaultGroups,
+      collapsedDefaultGroups:
+          collapsedDefaultGroups ?? this.collapsedDefaultGroups,
+      expandedDefaultGroups:
+          expandedDefaultGroups ?? this.expandedDefaultGroups,
     );
   }
 }

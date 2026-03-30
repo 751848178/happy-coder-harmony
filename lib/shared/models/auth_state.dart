@@ -12,21 +12,25 @@ class AuthState {
     required String qrId,
     required String qrData,
     required DateTime expiresAt,
-  }) => _QrCodeState(qrId, qrData, expiresAt);
+  }) =>
+      _QrCodeState(qrId, qrData, expiresAt);
   static AuthState backupSuccess({
     required String backupId,
     required String encryptedData,
-  }) => _BackupSuccessState(backupId, encryptedData);
+  }) =>
+      _BackupSuccessState(backupId, encryptedData);
   static AuthState error(String message) => _ErrorState(message);
 
   /// 账户认证轮询状态（Happy Coder 格式）
   static AuthState accountAuthPolling({
     required String publicKey,
     required DateTime expiresAt,
-  }) => _AccountAuthPollingState(publicKey: publicKey, expiresAt: expiresAt);
+  }) =>
+      _AccountAuthPollingState(publicKey: publicKey, expiresAt: expiresAt);
   static AuthState accountAuthAuthorized({required String token}) =>
       _AccountAuthAuthorizedState(token: token);
-  static AuthState accountAuthError(String message) => _AccountAuthErrorState(message: message);
+  static AuthState accountAuthError(String message) =>
+      _AccountAuthErrorState(message: message);
   static AuthState accountAuthNotFound() => _AccountAuthNotFoundState();
   static AuthState accountAuthCancelled() => _AccountAuthCancelledState();
 
@@ -36,12 +40,19 @@ class AuthState {
   bool get isLoading => this is _LoadingState;
   bool get isAuthenticated => this is _AuthenticatedState;
   bool get isError => this is _ErrorState;
-  String? get errorMessage => this is _ErrorState ? (this as _ErrorState).message : null;
+  String? get errorMessage =>
+      this is _ErrorState ? (this as _ErrorState).message : null;
   String? get qrId => this is _QrCodeState ? (this as _QrCodeState).qrId : null;
-  String? get qrData => this is _QrCodeState ? (this as _QrCodeState).qrData : null;
-  DateTime? get qrExpiresAt => this is _QrCodeState ? (this as _QrCodeState).expiresAt : null;
-  String? get backupId => this is _BackupSuccessState ? (this as _BackupSuccessState).backupId : null;
-  String? get encryptedData => this is _BackupSuccessState ? (this as _BackupSuccessState).encryptedData : null;
+  String? get qrData =>
+      this is _QrCodeState ? (this as _QrCodeState).qrData : null;
+  DateTime? get qrExpiresAt =>
+      this is _QrCodeState ? (this as _QrCodeState).expiresAt : null;
+  String? get backupId => this is _BackupSuccessState
+      ? (this as _BackupSuccessState).backupId
+      : null;
+  String? get encryptedData => this is _BackupSuccessState
+      ? (this as _BackupSuccessState).encryptedData
+      : null;
 
   T? maybeWhen<T>({
     T Function()? initial,
@@ -110,16 +121,14 @@ class _QrCodeState extends AuthState {
   final String qrData;
   final DateTime expiresAt;
 
-  const _QrCodeState(this.qrId, this.qrData, this.expiresAt)
-      : super._();
+  const _QrCodeState(this.qrId, this.qrData, this.expiresAt) : super._();
 }
 
 class _BackupSuccessState extends AuthState {
   final String backupId;
   final String encryptedData;
 
-  const _BackupSuccessState(this.backupId, this.encryptedData)
-      : super._();
+  const _BackupSuccessState(this.backupId, this.encryptedData) : super._();
 }
 
 class _ErrorState extends AuthState {
@@ -133,7 +142,8 @@ class _AccountAuthPollingState extends AuthState {
   final String publicKey;
   final DateTime expiresAt;
 
-  const _AccountAuthPollingState({required this.publicKey, required this.expiresAt})
+  const _AccountAuthPollingState(
+      {required this.publicKey, required this.expiresAt})
       : super._();
 }
 

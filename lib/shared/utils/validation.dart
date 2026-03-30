@@ -14,12 +14,14 @@ class Validation {
 
   /// 验证 URL
   static bool isValidUrl(String url) {
-    return Uri.tryParse(url) != null && (url.startsWith('http://') || url.startsWith('https://'));
+    return Uri.tryParse(url) != null &&
+        (url.startsWith('http://') || url.startsWith('https://'));
   }
 
   /// 验证机器 ID (UUID 格式)
   static bool isValidMachineId(String id) {
-    final uuidRegex = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');
+    final uuidRegex = RegExp(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');
     return uuidRegex.hasMatch(id);
   }
 

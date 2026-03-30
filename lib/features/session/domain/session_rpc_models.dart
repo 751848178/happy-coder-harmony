@@ -1,3 +1,17 @@
+class SessionAbortRequest {
+  const SessionAbortRequest({
+    required this.reason,
+  });
+
+  final String reason;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'reason': reason,
+    };
+  }
+}
+
 class SessionBashRequest {
   const SessionBashRequest({
     required this.command,

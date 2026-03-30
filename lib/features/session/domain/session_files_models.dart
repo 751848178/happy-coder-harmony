@@ -27,7 +27,8 @@ class SessionFile {
     required this.updatedAt,
   });
 
-  factory SessionFile.fromJson(Map<String, dynamic> json) => _$SessionFileFromJson(json);
+  factory SessionFile.fromJson(Map<String, dynamic> json) =>
+      _$SessionFileFromJson(json);
 
   Map<String, dynamic> toJson() => _$SessionFileToJson(this);
 
@@ -128,7 +129,8 @@ class FileOperation {
     required this.timestamp,
   });
 
-  factory FileOperation.fromJson(Map<String, dynamic> json) => _$FileOperationFromJson(json);
+  factory FileOperation.fromJson(Map<String, dynamic> json) =>
+      _$FileOperationFromJson(json);
 
   Map<String, dynamic> toJson() => _$FileOperationToJson(this);
 

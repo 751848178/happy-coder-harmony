@@ -26,6 +26,9 @@ extension _SessionScreenInlineCodePanelRender on _InlineCodePanelState {
         !_canHighlightLanguage(normalizedLanguage)) {
       return SelectableText(
         code,
+        contextMenuBuilder: _buildMessageActionContextMenuBuilder(
+          widget.onMessageAction,
+        ),
         style: TextStyle(
           fontFamily: AppTheme.fontFamilyMono,
           fontSize: 12.5,
@@ -76,6 +79,9 @@ extension _SessionScreenInlineCodePanelRender on _InlineCodePanelState {
                 const SizedBox(width: 12),
                 SelectableText(
                   lines[index],
+                  contextMenuBuilder: _buildMessageActionContextMenuBuilder(
+                    widget.onMessageAction,
+                  ),
                   style: TextStyle(
                     fontFamily: AppTheme.fontFamilyMono,
                     fontSize: 12.5,
@@ -115,6 +121,4 @@ extension _SessionScreenInlineCodePanelRender on _InlineCodePanelState {
     }
     return Colors.white;
   }
-
-
 }

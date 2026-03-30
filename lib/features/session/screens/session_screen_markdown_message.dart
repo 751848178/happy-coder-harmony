@@ -5,11 +5,13 @@ class _MarkdownMessageContent extends StatefulWidget {
     required this.content,
     required this.isUser,
     required this.textColor,
+    this.onMessageAction,
   });
 
   final String content;
   final bool isUser;
   final Color textColor;
+  final _SessionMessageActionHandler? onMessageAction;
 
   @override
   State<_MarkdownMessageContent> createState() =>
@@ -44,6 +46,7 @@ class _MarkdownMessageContentState extends State<_MarkdownMessageContent> {
               code: _blocks[index].text,
               language: _blocks[index].language,
               isUser: widget.isUser,
+              onMessageAction: widget.onMessageAction,
             )
           else if (_blocks[index].type == _MarkdownBlockType.table)
             _MarkdownTableBlock(
@@ -51,12 +54,14 @@ class _MarkdownMessageContentState extends State<_MarkdownMessageContent> {
               rows: _blocks[index].rows,
               isUser: widget.isUser,
               textColor: widget.textColor,
+              onMessageAction: widget.onMessageAction,
             )
           else
             _MarkdownTextBlock(
               content: _blocks[index].text,
               isUser: widget.isUser,
               textColor: widget.textColor,
+              onMessageAction: widget.onMessageAction,
             ),
           if (index != _blocks.length - 1) const SizedBox(height: 10),
         ],

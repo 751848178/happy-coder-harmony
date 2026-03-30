@@ -10,20 +10,19 @@ sealed class ProfileState {
   bool get isLoaded => this is ProfileLoaded;
 
   /// Get list of profiles
-  List<AIProfile> get profiles => this is ProfileLoaded
-      ? (this as ProfileLoaded).profiles
-      : const [];
+  List<AIProfile> get profiles =>
+      this is ProfileLoaded ? (this as ProfileLoaded).profiles : const [];
 
   /// Get active profile
-  AIProfile? get activeProfile => this is ProfileLoaded
-      ? (this as ProfileLoaded).activeProfile
-      : null;
+  AIProfile? get activeProfile =>
+      this is ProfileLoaded ? (this as ProfileLoaded).activeProfile : null;
 
   /// Get loading state
   bool get isLoading => this is ProfileLoading;
 
   /// Get error message
-  String? get error => this is ProfileErrorState ? (this as ProfileErrorState).message : null;
+  String? get error =>
+      this is ProfileErrorState ? (this as ProfileErrorState).message : null;
 }
 
 /// Initial state

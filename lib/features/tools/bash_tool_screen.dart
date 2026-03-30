@@ -87,7 +87,8 @@ class _BashToolScreenState extends ConsumerState<BashToolScreen> {
       _isExecuting = false;
       _selectedIndex = _commandHistory.length;
       _commandHistory.add(
-        BashCommand(command: command, timestamp: DateTime.now(), output: result),
+        BashCommand(
+            command: command, timestamp: DateTime.now(), output: result),
       );
       _outputControllers.add(TextEditingController(text: result));
       if (_selectedIndex == 0) {

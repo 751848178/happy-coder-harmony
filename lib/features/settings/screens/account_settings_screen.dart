@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../app/providers/app_providers.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../app/services/settings_service.dart' as settings;
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/auth/data/token_storage_service.dart';
+import '../../../features/encryption/domain/crypto_service.dart';
 import '../../../features/session/data/session_repository.dart';
+import '../../../shared/models/auth_models.dart';
 
 part 'account_settings_screen_actions.dart';
+part 'account_settings_screen_qr_dialog.dart';
+part 'account_settings_screen_user_info.dart';
 
 /// 账号设置屏幕
 class AccountSettingsScreen extends ConsumerWidget {

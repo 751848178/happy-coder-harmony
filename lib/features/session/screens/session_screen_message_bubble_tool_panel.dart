@@ -112,13 +112,15 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
       ),
     );
   }
+
   Widget _buildToolCallHeader({
     required ToolInfo tool,
     required ToolCallStatus status,
     required bool canCollapse,
     required String category,
     required String? primaryPath,
-  }) => _buildToolHeaderContent(
+  }) =>
+      _buildToolHeaderContent(
         tool: tool,
         status: status,
         canCollapse: canCollapse,

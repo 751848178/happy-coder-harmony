@@ -24,7 +24,9 @@ class SessionPreferences {
     Object? modelMode = _sentinel,
   }) {
     return SessionPreferences(
-      alias: identical(alias, _sentinel) ? this.alias : _normalize(alias as String?),
+      alias: identical(alias, _sentinel)
+          ? this.alias
+          : _normalize(alias as String?),
       permissionMode: identical(permissionMode, _sentinel)
           ? this.permissionMode
           : _normalize(permissionMode as String?),
@@ -58,13 +60,15 @@ class SessionPreferences {
     return trimmed.isEmpty ? null : trimmed;
   }
 
-  static bool _hasValue(String? value) => value != null && value.trim().isNotEmpty;
+  static bool _hasValue(String? value) =>
+      value != null && value.trim().isNotEmpty;
 }
 
 class SessionPreferencesService {
   SessionPreferencesService._();
 
-  static final SessionPreferencesService instance = SessionPreferencesService._();
+  static final SessionPreferencesService instance =
+      SessionPreferencesService._();
 
   static const String _storageKey = 'session_preferences_v1';
 

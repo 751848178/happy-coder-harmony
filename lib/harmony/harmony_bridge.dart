@@ -108,8 +108,7 @@ class HarmonyBridge {
     List<int> scanTypes,
     bool supportGallery,
   }) startQRCodeScan = _harmonyStartQRCodeScan;
-  static final Future<void> Function() stopQRCodeScan =
-      _harmonyStopQRCodeScan;
+  static final Future<void> Function() stopQRCodeScan = _harmonyStopQRCodeScan;
   static final Stream<Map<String, dynamic>> Function() qrScanEvents =
       _harmonyQrScanEvents;
   static final Stream<String?> Function() scanQRCode = _harmonyScanQRCode;

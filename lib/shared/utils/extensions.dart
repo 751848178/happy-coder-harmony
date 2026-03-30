@@ -43,4 +43,3 @@ extension StringExtension on String {
     return 'msg_$timestamp\_$random';
   }
 }
-

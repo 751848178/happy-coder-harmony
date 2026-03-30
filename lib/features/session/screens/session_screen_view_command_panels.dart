@@ -22,26 +22,23 @@ extension _SessionScreenViewCommandPanels on _SessionScreenState {
       _messageFocusNode.requestFocus();
       return;
     }
-    final value = _messageController.value;
-    final text = value.text;
-    final prefix = text.substring(0, triggerMatch.start);
-    final suffix = text.substring(triggerMatch.end);
-    final replacement = item.content;
-    final nextText = '$prefix$replacement$suffix';
-    final selectionOffset = prefix.length + replacement.length;
-    _messageController.value = TextEditingValue(
-      text: nextText,
-      selection: TextSelection.collapsed(offset: selectionOffset),
+    _replaceComposerSelection(
+      start: triggerMatch.start,
+      end: triggerMatch.end,
+      replacement: item.content,
     );
-    _messageFocusNode.requestFocus();
   }
 
   Future<void> _showInputTemplateEditor({
     _InputTemplateItem? existing,
+    String? initialLabel,
+    String? initialContent,
   }) async {
-    final labelController = TextEditingController(text: existing?.label ?? '');
+    final labelController = TextEditingController(
+      text: existing?.label ?? initialLabel ?? '',
+    );
     final contentController =
-        TextEditingController(text: existing?.content ?? '');
+        TextEditingController(text: existing?.content ?? initialContent ?? '');
     final result = await showDialog<SessionInputTemplate>(
       context: context,
       builder: (dialogContext) => AlertDialog(

@@ -6,12 +6,14 @@ class _MarkdownTableBlock extends StatelessWidget {
     required this.rows,
     required this.isUser,
     required this.textColor,
+    this.onMessageAction,
   });
 
   final List<String> headers;
   final List<List<String>> rows;
   final bool isUser;
   final Color textColor;
+  final _SessionMessageActionHandler? onMessageAction;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +63,7 @@ class _MarkdownTableBlock extends StatelessWidget {
                     text: header,
                     textColor: headerTextColor,
                     isHeader: true,
+                    onMessageAction: onMessageAction,
                   ),
               ],
             ),
@@ -76,6 +79,7 @@ class _MarkdownTableBlock extends StatelessWidget {
                     _MarkdownTableCell(
                       text: cell,
                       textColor: textColor,
+                      onMessageAction: onMessageAction,
                     ),
                 ],
               ),
@@ -91,11 +95,13 @@ class _MarkdownTableCell extends StatelessWidget {
     required this.text,
     required this.textColor,
     this.isHeader = false,
+    this.onMessageAction,
   });
 
   final String text;
   final Color textColor;
   final bool isHeader;
+  final _SessionMessageActionHandler? onMessageAction;
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +109,9 @@ class _MarkdownTableCell extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: SelectableText(
         text,
+        contextMenuBuilder: _buildMessageActionContextMenuBuilder(
+          onMessageAction,
+        ),
         style: TextStyle(
           color: textColor,
           fontSize: isHeader ? 12.5 : 13,
@@ -113,4 +122,3 @@ class _MarkdownTableCell extends StatelessWidget {
     );
   }
 }
-

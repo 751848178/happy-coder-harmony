@@ -114,7 +114,8 @@ extension _NewSessionScreenContent on _NewSessionScreenState {
                 ? const SizedBox(
                     height: 20,
                     width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
                   )
                 : const Text('创建会话'),
           ),
@@ -128,14 +129,17 @@ extension _NewSessionScreenContent on _NewSessionScreenState {
     try {
       final path = _pathController.text.trim();
       final description = _descriptionController.text.trim();
-      final sessionId = await ref.read(sessionStateProvider.notifier).createSession(
-            title: _titleController.text.trim().isEmpty
-                ? null
-                : _titleController.text.trim(),
-            tag: _selectedTag,
-            path: path.isNotEmpty ? path : null,
-            metadata: description.isNotEmpty ? {'description': description} : null,
-          );
+      final sessionId =
+          await ref.read(sessionStateProvider.notifier).createSession(
+                title: _titleController.text.trim().isEmpty
+                    ? null
+                    : _titleController.text.trim(),
+                tag: _selectedTag,
+                path: path.isNotEmpty ? path : null,
+                metadata: description.isNotEmpty
+                    ? {'description': description}
+                    : null,
+              );
       if (sessionId != null && mounted) {
         context.push(AppRoutes.sessionDetail(sessionId));
       }

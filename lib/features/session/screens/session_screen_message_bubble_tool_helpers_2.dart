@@ -126,6 +126,4 @@ extension _SessionScreenMessageBubbleToolHelpers2 on _MessageBubbleState {
     }
     return null;
   }
-
-
 }

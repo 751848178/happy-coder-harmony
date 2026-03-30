@@ -29,15 +29,18 @@ class _SessionMessageDetailScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(sessionStateProvider.notifier).loadSessionMessages(widget.sessionId);
+      ref
+          .read(sessionStateProvider.notifier)
+          .loadSessionMessages(widget.sessionId);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     ref.watch(sessionStateProvider);
-    final sessionMessages =
-        ref.read(sessionStateProvider.notifier).getSessionMessages(widget.sessionId);
+    final sessionMessages = ref
+        .read(sessionStateProvider.notifier)
+        .getSessionMessages(widget.sessionId);
     final matchingMessages = sessionMessages?.messages
             .where((item) => item.id == widget.messageId)
             .toList() ??
@@ -79,7 +82,8 @@ class _MetadataCard extends StatelessWidget {
       'createdAt': message.createdAt.toIso8601String(),
       if (message.text != null) 'textLength': message.text!.length,
       if (message.tool != null) 'tool': message.tool!.toJson(),
-      if (message.permission != null) 'permission': message.permission!.toJson(),
+      if (message.permission != null)
+        'permission': message.permission!.toJson(),
       if (message.turnClose != null) 'turnClose': message.turnClose!.toJson(),
       if (message.metadata != null) 'metadata': message.metadata,
     };

@@ -108,8 +108,7 @@ class SettingsState {
           commandPaletteEnabled ?? this.commandPaletteEnabled,
       markdownCopyV2: markdownCopyV2 ?? this.markdownCopyV2,
       enableBackgroundSessionRefresh:
-          enableBackgroundSessionRefresh ??
-              this.enableBackgroundSessionRefresh,
+          enableBackgroundSessionRefresh ?? this.enableBackgroundSessionRefresh,
       agentInputEnterToSend:
           agentInputEnterToSend ?? this.agentInputEnterToSend,
       voiceAssistantLanguage: voiceAssistantLanguage == _settingsSentinel

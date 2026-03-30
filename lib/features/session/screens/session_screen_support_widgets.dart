@@ -1,5 +1,46 @@
 part of 'session_screen.dart';
 
+EditableTextContextMenuBuilder _buildMessageActionContextMenuBuilder(
+  _SessionMessageActionHandler? onMessageAction,
+) {
+  return (context, editableTextState) {
+    final buttonItems = onMessageAction == null
+        ? editableTextState.contextMenuButtonItems
+        : buildSessionMessageContextMenuButtonItems(
+            baseItems: editableTextState.contextMenuButtonItems,
+            onForward: () => _triggerMessageSelectionAction(
+              editableTextState: editableTextState,
+              onMessageAction: onMessageAction,
+              choice: _SessionMessageActionChoice.forward,
+            ),
+            onSaveTemplate: () => _triggerMessageSelectionAction(
+              editableTextState: editableTextState,
+              onMessageAction: onMessageAction,
+              choice: _SessionMessageActionChoice.saveTemplate,
+            ),
+            onInsertIntoComposer: () => _triggerMessageSelectionAction(
+              editableTextState: editableTextState,
+              onMessageAction: onMessageAction,
+              choice: _SessionMessageActionChoice.insertIntoComposer,
+            ),
+          );
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: editableTextState.contextMenuAnchors,
+      buttonItems: buttonItems,
+    );
+  };
+}
+
+void _triggerMessageSelectionAction({
+  required EditableTextState editableTextState,
+  required _SessionMessageActionHandler onMessageAction,
+  required _SessionMessageActionChoice choice,
+}) {
+  editableTextState.hideToolbar();
+  ContextMenuController.removeAny();
+  unawaited(onMessageAction(choice));
+}
+
 class _TurnMetaChip extends StatelessWidget {
   const _TurnMetaChip({
     required this.label,

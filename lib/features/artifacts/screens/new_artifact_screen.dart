@@ -124,16 +124,17 @@ class _NewArtifactScreenState extends ConsumerState<NewArtifactScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final artifact = await ref.read(artifactStateProvider.notifier).createArtifact(
-            CreateArtifactRequest(
-              id: _generateArtifactId(),
-              header: jsonEncode({
-                if (title.isNotEmpty) 'title': title,
-              }),
-              body: body.isEmpty ? null : body,
-              dataEncryptionKey: _generateEncryptionKey(),
-            ),
-          );
+      final artifact =
+          await ref.read(artifactStateProvider.notifier).createArtifact(
+                CreateArtifactRequest(
+                  id: _generateArtifactId(),
+                  header: jsonEncode({
+                    if (title.isNotEmpty) 'title': title,
+                  }),
+                  body: body.isEmpty ? null : body,
+                  dataEncryptionKey: _generateEncryptionKey(),
+                ),
+              );
 
       if (!mounted) {
         return;
@@ -163,7 +164,8 @@ class _NewArtifactScreenState extends ConsumerState<NewArtifactScreen> {
 
   String _generateEncryptionKey() {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return base64.encode(List<int>.generate(32, (index) => (timestamp + index) % 256));
+    return base64
+        .encode(List<int>.generate(32, (index) => (timestamp + index) % 256));
   }
 }
 

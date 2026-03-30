@@ -25,9 +25,11 @@ class EncryptionState {
   static const EncryptionState initial = _InitialEncryptionState();
 
   static EncryptionState hasKeys() => const _HasKeysState();
-  static EncryptionState encrypting(bool isOwnKey) => _EncryptingState(isOwnKey);
+  static EncryptionState encrypting(bool isOwnKey) =>
+      _EncryptingState(isOwnKey);
   static EncryptionState decrypted(String data) => _DecryptedState(data);
-  static EncryptionState error(String message) => _EncryptionErrorState(message);
+  static EncryptionState error(String message) =>
+      _EncryptionErrorState(message);
 
   String? get decryptedData =>
       this is _DecryptedState ? (this as _DecryptedState).data : null;
@@ -37,8 +39,9 @@ class EncryptionState {
   bool get isHasKeys => this is _HasKeysState;
   bool get isDecrypted => this is _DecryptedState;
   bool get isError => this is _EncryptionErrorState;
-  String? get errorMessage =>
-      this is _EncryptionErrorState ? (this as _EncryptionErrorState).message : null;
+  String? get errorMessage => this is _EncryptionErrorState
+      ? (this as _EncryptionErrorState).message
+      : null;
   bool get isOwnKeyEncrypting =>
       this is _EncryptingState ? (this as _EncryptingState).isOwnKey : false;
 }

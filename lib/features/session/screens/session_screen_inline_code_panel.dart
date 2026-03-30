@@ -6,12 +6,14 @@ class _InlineCodePanel extends StatefulWidget {
     required this.language,
     required this.isUser,
     this.collapsedLines = 8,
+    this.onMessageAction,
   });
 
   final String code;
   final String language;
   final bool isUser;
   final int collapsedLines;
+  final _SessionMessageActionHandler? onMessageAction;
 
   @override
   State<_InlineCodePanel> createState() => _InlineCodePanelState();

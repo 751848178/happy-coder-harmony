@@ -1,6 +1,78 @@
 part of 'session_screen.dart';
 
 extension _SessionScreenStateActions on _SessionScreenState {
+  bool _canAbortCurrentResponse(
+    Session? session,
+    List<_MessageTurnGroup> turnGroups, {
+    required bool socketConnected,
+  }) {
+    if (session == null || !socketConnected || _isAborting || _isSending) {
+      return false;
+    }
+    final latestGroup = turnGroups.isNotEmpty ? turnGroups.last : null;
+    final latestMessages = latestGroup?.messages ?? const <ReducerMessage>[];
+    final thinking = sessionTurnIsThinkingStillBlocking(
+      session: session,
+      messages: latestMessages,
+      manualThinkingOverride: _manualThinkingOverride,
+    );
+    final hasActiveResponseMarker =
+        _hasEffectiveActiveResponseMarker(session, turnGroups);
+    return thinking ||
+        sessionTurnHasBlockingToolWork(latestMessages) ||
+        hasActiveResponseMarker;
+  }
+
+  Future<void> _handleAbortAction(
+    Session? session,
+    List<_MessageTurnGroup> turnGroups, {
+    required bool socketConnected,
+  }) async {
+    if (!_canAbortCurrentResponse(
+      session,
+      turnGroups,
+      socketConnected: socketConnected,
+    )) {
+      return;
+    }
+
+    _updateState(() => _isAborting = true);
+    try {
+      await ref.read(sessionStateProvider.notifier).abortSession(
+            sessionId: widget.sessionId,
+          );
+      if (mounted) {
+        _updateState(() {
+          _awaitingAbortRemoteSettle = true;
+        });
+      }
+      await _reconcileQueuedMessageState();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('已向 PC 发送停止请求'),
+          backgroundColor: AppTheme.successColor,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('停止失败: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        _updateState(() => _isAborting = false);
+      }
+    }
+  }
+
   Future<void> _maybeAutoApprovePendingTools() async {
     if (!ref.read(socketStateProvider).isConnected) {
       return;
@@ -126,6 +198,7 @@ extension _SessionScreenStateActions on _SessionScreenState {
       _isSending = true;
       _activeResponseLocalId = localId;
       _manualThinkingOverride = null;
+      _awaitingAbortRemoteSettle = false;
     });
 
     try {

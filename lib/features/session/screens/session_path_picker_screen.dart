@@ -14,7 +14,8 @@ class SessionPathPickerScreen extends StatefulWidget {
   final String? initialPath;
 
   @override
-  State<SessionPathPickerScreen> createState() => _SessionPathPickerScreenState();
+  State<SessionPathPickerScreen> createState() =>
+      _SessionPathPickerScreenState();
 }
 
 class _SessionPathPickerScreenState extends State<SessionPathPickerScreen> {

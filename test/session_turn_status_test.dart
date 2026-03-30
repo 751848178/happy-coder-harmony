@@ -106,6 +106,36 @@ void main() {
     );
   });
 
+  test('turn_aborted clears stale pending tool blockers', () {
+    final prompt = _userPrompt(localId: 'local-abort-tool');
+    final messages = <ReducerMessage>[
+      prompt,
+      _toolCall(ToolCallStatus.pending),
+      _agentEvent('turn_aborted'),
+    ];
+
+    expect(
+      sessionActiveResponseHasCompleted(
+        session: _session(thinking: true),
+        messages: messages,
+        userPrompt: prompt,
+        isSending: false,
+      ),
+      isTrue,
+    );
+    expect(
+      sessionConversationIsBusy(
+        session: _session(thinking: true),
+        latestTurnMessages: messages,
+        latestUserPrompt: prompt,
+        isSending: false,
+        isAutoSendingQueuedMessage: false,
+        activeResponseLocalId: null,
+      ),
+      isFalse,
+    );
+  });
+
   test('manual thinking override can unblock stuck conversation', () {
     final prompt = _userPrompt(localId: 'local-manual');
     final messages = <ReducerMessage>[
@@ -130,6 +160,24 @@ void main() {
         isAutoSendingQueuedMessage: false,
         activeResponseLocalId: null,
         manualThinkingOverride: false,
+      ),
+      isFalse,
+    );
+  });
+
+  test('completion signal overrides manual thinking=true', () {
+    final prompt = _userPrompt(localId: 'local-manual-complete');
+    final messages = <ReducerMessage>[
+      prompt,
+      _agentText('我还在思考', outputType: 'thinking'),
+      _agentEvent('turn_aborted'),
+    ];
+
+    expect(
+      sessionTurnIsThinkingStillBlocking(
+        session: _session(thinking: true),
+        messages: messages,
+        manualThinkingOverride: true,
       ),
       isFalse,
     );
@@ -162,6 +210,51 @@ void main() {
         activeResponseLocalId: null,
       ),
       isTrue,
+    );
+  });
+
+  test('abort settles once remote session stops even without final output', () {
+    final prompt = _userPrompt(localId: 'local-abort-idle');
+    final messages = <ReducerMessage>[
+      prompt,
+      _agentText('我还在思考', outputType: 'thinking'),
+    ];
+
+    expect(
+      sessionActiveResponseHasCompleted(
+        session: _session(thinking: false),
+        messages: messages,
+        userPrompt: prompt,
+        isSending: false,
+      ),
+      isFalse,
+    );
+    expect(
+      sessionAbortHasSettledRemotely(
+        session: _session(thinking: false),
+        messages: messages,
+        userPrompt: prompt,
+        isSending: false,
+      ),
+      isTrue,
+    );
+  });
+
+  test('abort does not settle while remote session still reports thinking', () {
+    final prompt = _userPrompt(localId: 'local-abort-still-thinking');
+    final messages = <ReducerMessage>[
+      prompt,
+      _agentText('我还在思考', outputType: 'thinking'),
+    ];
+
+    expect(
+      sessionAbortHasSettledRemotely(
+        session: _session(thinking: true),
+        messages: messages,
+        userPrompt: prompt,
+        isSending: false,
+      ),
+      isFalse,
     );
   });
 

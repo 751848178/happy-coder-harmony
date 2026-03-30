@@ -103,8 +103,9 @@ class _HappyLinkGateState extends ConsumerState<HappyLinkGate>
     }
 
     final authState = ref.read(authStateProvider);
-    final requiresAuthenticatedSession = targetRoute == AppRoutes.terminalConnect ||
-        targetRoute == AppRoutes.linkAccount;
+    final requiresAuthenticatedSession =
+        targetRoute == AppRoutes.terminalConnect ||
+            targetRoute == AppRoutes.linkAccount;
     if (requiresAuthenticatedSession && !authState.isAuthenticated) {
       if (_awaitingAuthentication) {
         return;

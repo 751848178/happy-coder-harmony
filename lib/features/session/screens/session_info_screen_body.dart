@@ -4,10 +4,12 @@ class _SessionInfoBody extends StatelessWidget {
   const _SessionInfoBody({
     required this.session,
     required this.stats,
+    required this.messages,
   });
 
   final Session session;
   final SessionStats stats;
+  final List<ReducerMessage> messages;
 
   @override
   Widget build(BuildContext context) {
@@ -25,9 +27,12 @@ class _SessionInfoBody extends StatelessWidget {
             const SizedBox(height: AppTheme.spacingMd),
             _SessionPresenceCard(session: session),
           ],
-          if (session.thinking != null) ...[
+          if (session.thinking != null || messages.isNotEmpty) ...[
             const SizedBox(height: AppTheme.spacingMd),
-            _SessionThinkingCard(session: session),
+            _SessionThinkingCard(
+              session: session,
+              messages: messages,
+            ),
           ],
           if (session.latestUsage != null) ...[
             const SizedBox(height: AppTheme.spacingMd),

@@ -9,7 +9,8 @@ extension _BashToolScreenOutput on _BashToolScreenState {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.terminal_outlined, size: 64, color: AppTheme.neutral600),
+              Icon(Icons.terminal_outlined,
+                  size: 64, color: AppTheme.neutral600),
               const SizedBox(height: 16),
               const Text(
                 '终端输出为空',
@@ -44,7 +45,8 @@ extension _BashToolScreenOutput on _BashToolScreenState {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppTheme.neutral800,
                         borderRadius: BorderRadius.circular(4),
@@ -73,7 +75,8 @@ extension _BashToolScreenOutput on _BashToolScreenState {
                     const SizedBox(width: 16),
                     Text(
                       _formatTimestamp(entry.timestamp),
-                      style: const TextStyle(fontSize: 11, color: AppTheme.neutral500),
+                      style: const TextStyle(
+                          fontSize: 11, color: AppTheme.neutral500),
                     ),
                   ],
                 ),
@@ -121,7 +124,8 @@ extension _BashToolScreenOutput on _BashToolScreenState {
                   border: InputBorder.none,
                   filled: true,
                   fillColor: AppTheme.neutral50,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
                 onSubmitted: (_) => _executeCommandFromInput(),
                 autofocus: true,

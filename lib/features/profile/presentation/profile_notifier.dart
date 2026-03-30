@@ -138,7 +138,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     try {
       final currentState = state;
       if (currentState is ProfileLoaded) {
-        final currentProfileIds = currentState.profiles.map((p) => p.id).toSet();
+        final currentProfileIds =
+            currentState.profiles.map((p) => p.id).toSet();
         final missingBuiltIns = BuiltInProfiles.all()
             .where((profile) => !currentProfileIds.contains(profile.id))
             .toList();

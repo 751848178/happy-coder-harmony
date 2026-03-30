@@ -80,4 +80,3 @@ class _MarkdownInlineParser {
     return spans;
   }
 }
-
