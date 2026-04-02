@@ -193,6 +193,69 @@ extension SessionServiceMessageOperations on SessionServiceNotifier {
     }
   }
 
+  /// Try to restore session messages from the local Hive cache.
+  ///
+  /// This is used when entering a session whose messages haven't been loaded
+  /// into memory yet (e.g., `_warmSessionPreviewData` hasn't reached it).
+  /// The Hive cache stores fully decrypted message JSON under the session's
+  /// metadata key `'__happyLocalSessionState'`, so no data keys or crypto
+  /// operations are needed — just JSON deserialization (~10-50ms).
+  ///
+  /// Returns `true` if messages were successfully restored.
+  Future<bool> restoreSessionMessagesFromCache(String sessionId) async {
+    // Already loaded in memory — nothing to do.
+    final existing = _repository.getSessionMessages(sessionId);
+    if (existing?.isLoaded == true) {
+      return true;
+    }
+
+    try {
+      // O(1) Hive box lookup.
+      final cached = await StorageService.instance.getSession(sessionId);
+      if (cached == null) {
+        return false;
+      }
+
+      // Extract the local snapshot from the session's metadata.
+      final localState = _extractLocalSessionStateFromMetadata(cached.metadata);
+      if (!localSnapshotHasLoadedMessages(localState)) {
+        return false;
+      }
+
+      // Deserialize messages (already decrypted, no data keys needed).
+      final messages = restoreMessagesFromLocalSnapshot(localState);
+      if (messages == null) {
+        return false;
+      }
+
+      // Apply to in-memory repository with isLoaded: true.
+      _repository.replaceMessages(
+        sessionId,
+        messages,
+        preserveOptimisticMessages: false,
+      );
+
+      // Restore lastSeq so subsequent incremental fetches use it.
+      final lastSeq = restoreSessionLastSeqFromLocalSnapshot(localState);
+      if (lastSeq != null && lastSeq > 0) {
+        _sessionLastSeq[sessionId] = lastSeq;
+      }
+
+      _scheduleEmitReadyState();
+
+      Logger.info(
+        'Session messages restored from local cache: $sessionId '
+        '(${messages.length} messages, lastSeq=$lastSeq)',
+      );
+      return true;
+    } catch (error) {
+      Logger.warning(
+        'Failed to restore session messages from cache: $sessionId: $error',
+      );
+      return false;
+    }
+  }
+
   Future<void> _warmSessionPreviewData(
     List<Session> sessions, {
     bool force = false,

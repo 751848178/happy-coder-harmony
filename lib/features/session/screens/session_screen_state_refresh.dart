@@ -1,6 +1,9 @@
 part of 'session_screen.dart';
 
 extension _SessionScreenStateRefresh on _SessionScreenState {
+  /// Refresh button: fetch latest messages incrementally + reconnect socket.
+  /// Uses force: false so only new messages after lastSeq are fetched,
+  /// not a full reload.  The "sync all" menu item does full reload.
   Future<void> _refreshSessionState() async {
     if (_isRefreshingSessionState) {
       return;
@@ -25,16 +28,18 @@ extension _SessionScreenStateRefresh on _SessionScreenState {
               token: credentials.token,
             ),
       ]);
+      // Incremental fetch — only pulls messages after lastSeq.
       await ref.read(sessionStateProvider.notifier).loadSessionMessages(
             widget.sessionId,
-            force: true,
             throwOnError: true,
           );
+      _scheduleScrollToLatest(force: true);
+      _scheduleViewportStateRefresh();
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('刷新连接状态失败: $error'),
+            content: Text('刷新失败: $error'),
             backgroundColor: AppTheme.errorColor,
           ),
         );
@@ -44,11 +49,15 @@ extension _SessionScreenStateRefresh on _SessionScreenState {
     }
   }
 
+  /// "Sync all messages" menu item: full reload from server.
+  /// Uses force: true (afterSeq = 0) to fetch every message.
+  /// Shows independent loading state so it doesn't conflict with refresh button.
   Future<void> _syncSessionMessagesFromRemote() async {
-    if (_isRefreshingSessionState) {
+    if (_isSyncingAllMessages) {
       return;
     }
 
+    _isSyncingAllMessages = true;
     _setSessionRefreshing(true);
     try {
       await ref
@@ -85,6 +94,7 @@ extension _SessionScreenStateRefresh on _SessionScreenState {
         );
       }
     } finally {
+      _isSyncingAllMessages = false;
       _setSessionRefreshing(false);
     }
   }

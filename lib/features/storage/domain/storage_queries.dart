@@ -1,6 +1,10 @@
 part of 'storage_service.dart';
 
 extension StorageQueries on StorageService {
+  Future<SessionStorageModel?> getSession(String id) async {
+    return _repository.getSession(id);
+  }
+
   Future<List<SessionStorageModel>> getAllSessions() async {
     return _repository.getAllSessions();
   }

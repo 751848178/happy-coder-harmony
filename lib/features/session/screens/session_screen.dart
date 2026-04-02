@@ -188,6 +188,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen>
   bool _awaitingAbortRemoteSettle = false;
   bool _isAutoSendingQueuedMessage = false;
   bool _isRefreshingSessionState = false;
+  bool _isSyncingAllMessages = false;
   bool _queueReconcileScheduled = false;
   bool _collapseAllTurns = false;
   bool _sessionOverviewCollapsed = true;

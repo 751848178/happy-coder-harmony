@@ -174,13 +174,22 @@ extension _SessionScreenStateAppBar on _SessionScreenState {
                 ],
               ),
             ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'sync_messages',
+              enabled: !_isSyncingAllMessages,
               child: Row(
                 children: [
-                  Icon(Icons.cloud_sync_outlined, size: 18),
-                  SizedBox(width: 12),
-                  Text('同步全部消息'),
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: _isSyncingAllMessages
+                        ? const CircularProgressIndicator(strokeWidth: 2)
+                        : const Icon(Icons.cloud_sync_outlined, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    _isSyncingAllMessages ? '同步中...' : '同步全部消息',
+                  ),
                 ],
               ),
             ),
