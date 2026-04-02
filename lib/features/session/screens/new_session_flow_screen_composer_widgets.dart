@@ -1,12 +1,40 @@
 part of 'new_session_flow_screen.dart';
 
+/// Resolve the model status label for the composer header.
+/// modelLoadStatus: 0 = loading, 1 = error, 2 = ready.
+String _resolveModelStatusLabel({
+  required SessionModeOption? selectedModel,
+  required List<SessionModeOption> modelOptions,
+  required int modelLoadStatus,
+  required String? modelMode,
+  required bool hasMachine,
+}) {
+  if (modelLoadStatus == 0) return '加载中...';
+  if (modelLoadStatus == 1) return '加载失败';
+  if (!hasMachine) return '未选择电脑';
+  if (modelOptions.isEmpty) return '暂无可用模型';
+  if (selectedModel != null) return selectedModel.label;
+  final currentKey = resolveModeKey([modelMode]);
+  if (currentKey == null || currentKey == 'default') return '按 PC/CLI 配置';
+  return currentKey;
+}
+
 Widget _buildSessionFlowComposerHeader(
   _NewSessionFlowScreenState state, {
   required SessionModeOption selectedPermission,
-  required SessionModeOption selectedModel,
+  required SessionModeOption? selectedModel,
+  required List<SessionModeOption> modelOptions,
+  required int modelLoadStatus,
   required Color connectionColor,
   required String connectionText,
 }) {
+  final modelLabel = _resolveModelStatusLabel(
+    selectedModel: selectedModel,
+    modelOptions: modelOptions,
+    modelLoadStatus: modelLoadStatus,
+    modelMode: state._modelMode,
+    hasMachine: state._selectedMachineId != null,
+  );
   return Padding(
     padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
     child: Row(
@@ -41,7 +69,7 @@ Widget _buildSessionFlowComposerHeader(
             ),
             const SizedBox(height: 2),
             Text(
-              selectedModel.label,
+              modelLabel,
               style: const TextStyle(
                 fontSize: 11,
                 color: AppTheme.neutral600,

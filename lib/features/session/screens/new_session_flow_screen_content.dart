@@ -1,7 +1,19 @@
 part of 'new_session_flow_screen.dart';
 
 Widget _buildNewSessionFlowScreen(_NewSessionFlowScreenState state) {
-  state.ref.watch(sessionStateProvider);
+  state.ref.watch(sessionStateProvider.select(
+    (s) => s.whenOrNull(
+      ready: (sessions, _, machines) => (sessions, machines),
+    ),
+  ));
+  final modelLoadStatus = state.ref.watch(sessionStateProvider.select(
+    (s) => s.whenOrNull<int>(
+      loading: () => 0,
+      initial: () => 0,
+      error: (_) => 1,
+      ready: (_, __, ___) => 2,
+    ) ?? 0,
+  ));
   final sessionNotifier = state.ref.read(sessionStateProvider.notifier);
   final settings = state.ref.watch(settingsStateProvider);
   final mediaQuery = MediaQuery.of(state.context);
@@ -31,6 +43,7 @@ Widget _buildNewSessionFlowScreen(_NewSessionFlowScreenState state) {
       .firstWhere((item) => item != null, orElse: () => null);
   final permissionOptions = _sessionFlowPermissionOptions(
     state,
+    machineId: effectiveMachineId,
   );
   final resolvedPermissionMode = resolveModeSelection(
     preferred: state._permissionMode,
@@ -50,23 +63,20 @@ Widget _buildNewSessionFlowScreen(_NewSessionFlowScreenState state) {
       permissionOptions.first;
   final modelOptions = _sessionFlowModelOptions(
     state,
+    machineId: effectiveMachineId,
   );
-  final resolvedModelMode = resolveListedModeSelection(
+  final resolvedModelMode = _resolveSessionFlowModelMode(
+    modelOptions,
     preferred: state._modelMode,
-    options: modelOptions,
-    fallback: _defaultSessionFlowModeKey(
-      modelOptions,
-      defaultModelModeForAgent(state._selectedAgent),
-    ),
+    fallback: defaultModelModeForAgent(state._selectedAgent),
   );
   final selectedModel = resolveCurrentModeOption(
-        modelOptions,
-        <String?>[
-          resolvedModelMode,
-          defaultModelModeForAgent(state._selectedAgent),
-        ],
-      ) ??
-      modelOptions.first;
+    modelOptions,
+    <String?>[
+      resolvedModelMode,
+      defaultModelModeForAgent(state._selectedAgent),
+    ],
+  );
   if (resolvedPermissionMode != state._permissionMode ||
       resolvedModelMode != state._modelMode) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -130,6 +140,8 @@ Widget _buildNewSessionFlowScreen(_NewSessionFlowScreenState state) {
                     selectedMachine: selectedMachine,
                     selectedPermission: selectedPermission,
                     selectedModel: selectedModel,
+                    modelOptions: modelOptions,
+                    modelLoadStatus: modelLoadStatus,
                     canCreate: canCreate,
                   ),
                 ),
@@ -181,7 +193,9 @@ Widget _buildSessionFlowComposer(
   _NewSessionFlowScreenState state, {
   required _MachineOption? selectedMachine,
   required SessionModeOption selectedPermission,
-  required SessionModeOption selectedModel,
+  required SessionModeOption? selectedModel,
+  required List<SessionModeOption> modelOptions,
+  required int modelLoadStatus,
   required bool canCreate,
 }) {
   final directory = _effectiveSessionFlowDirectory(state, selectedMachine);
@@ -201,6 +215,8 @@ Widget _buildSessionFlowComposer(
         state,
         selectedPermission: selectedPermission,
         selectedModel: selectedModel,
+        modelOptions: modelOptions,
+        modelLoadStatus: modelLoadStatus,
         connectionColor: connectionColor,
         connectionText: connectionText,
       ),

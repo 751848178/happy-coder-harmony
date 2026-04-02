@@ -33,10 +33,12 @@ class _SessionGitDiffBody extends StatelessWidget {
   const _SessionGitDiffBody({
     required this.state,
     required this.diff,
+    required this.displayMode,
   });
 
   final _SessionGitDiffScreenState state;
   final String diff;
+  final _GitFileDisplayMode displayMode;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +60,7 @@ class _SessionGitDiffBody extends StatelessWidget {
         ),
       );
     }
-    if (state._displayMode == _GitFileDisplayMode.file) {
+    if (displayMode == _GitFileDisplayMode.file) {
       return _SessionGitFileContentView(
         content: state._fileContent,
         isBinary: state._isBinary,

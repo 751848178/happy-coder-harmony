@@ -1,15 +1,6 @@
 part of 'voice_call_screen.dart';
 
 extension _VoiceCallScreenContent on _VoiceCallScreenState {
-  Widget _buildAudioVisualization(BuildContext context) {
-    return Center(
-      child: CustomPaint(
-        size: Size.infinite,
-        painter: _AudioWavePainter(_audioLevels),
-      ),
-    );
-  }
-
   Widget _buildTopInfo(BuildContext context) {
     return Positioned(
       top: 0,

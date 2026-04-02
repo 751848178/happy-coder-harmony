@@ -61,6 +61,12 @@ extension SessionRepositoryMessagesMerge on SessionRepository {
           previous.tool!.status ?? domain.ToolCallStatus.pending;
       final incomingStatus =
           incoming.tool!.status ?? domain.ToolCallStatus.pending;
+      // Preserve children: incoming may have newly nested children from
+      // _nestSidechainMessages; prefer incoming when non-empty, else keep
+      // previous so we never lose children across incremental merges.
+      final mergedChildren = incoming.children.isNotEmpty
+          ? incoming.children
+          : previous.children;
       return previous.copyWith(
         createdAt: previous.createdAt,
         metadata: {...?previous.metadata, ...?incoming.metadata},
@@ -72,6 +78,7 @@ extension SessionRepositoryMessagesMerge on SessionRepository {
           error: incoming.tool!.error ?? previous.tool!.error,
           description: incoming.tool!.description ?? previous.tool!.description,
         ),
+        children: mergedChildren,
       );
     }
     return incoming;

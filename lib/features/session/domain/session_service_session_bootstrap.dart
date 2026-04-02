@@ -11,8 +11,12 @@ extension SessionServiceSessionBootstrap on SessionServiceNotifier {
 
     await _preferencesService.update(
       sessionId: sessionId,
-      permissionMode: normalizedPermissionMode,
-      modelMode: normalizedModelMode,
+      permissionMode: normalizedPermissionMode == 'default'
+          ? null
+          : normalizedPermissionMode,
+      modelMode: normalizedModelMode == 'default'
+          ? null
+          : normalizedModelMode,
     );
 
     if (normalizedPermissionMode != null) {

@@ -17,40 +17,32 @@ extension _SessionScreenViewIndicators on _SessionScreenState {
     required bool collapsed,
   }) {
     final maxRise = _maxScrollActionRise(viewportHeight);
-    _updateState(() {
-      _scrollActionVerticalOffset =
-          (_scrollActionVerticalOffset + details.delta.dy)
-              .clamp(-maxRise, 0.0)
-              .toDouble();
-      if (!collapsed) {
-        _scrollActionDragDx = (_scrollActionDragDx + details.delta.dx)
-            .clamp(0.0, _sessionScrollActionDragTravel)
+    _scrollActionVerticalOffsetN.value =
+        (_scrollActionVerticalOffset + details.delta.dy)
+            .clamp(-maxRise, 0.0)
             .toDouble();
-      }
-    });
+    if (!collapsed) {
+      _scrollActionDragDxN.value = (_scrollActionDragDx + details.delta.dx)
+          .clamp(0.0, _sessionScrollActionDragTravel)
+          .toDouble();
+    }
   }
 
   void _resetScrollActionDrag() {
     if (_scrollActionDragDx == 0) {
       return;
     }
-    _updateState(() {
-      _scrollActionDragDx = 0;
-    });
+    _scrollActionDragDxN.value = 0;
   }
 
   void _collapseScrollActions() {
-    _updateState(() {
-      _scrollActionsCollapsed = true;
-      _scrollActionDragDx = 0;
-    });
+    _scrollActionsCollapsedN.value = true;
+    _scrollActionDragDxN.value = 0;
   }
 
   void _expandScrollActions() {
-    _updateState(() {
-      _scrollActionsCollapsed = false;
-      _scrollActionDragDx = 0;
-    });
+    _scrollActionsCollapsedN.value = false;
+    _scrollActionDragDxN.value = 0;
   }
 
   Widget _buildScrollActionsOverlay({

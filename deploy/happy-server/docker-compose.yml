@@ -5,9 +5,14 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        HAPPY_REPO: ${HAPPY_UPSTREAM_REPO:-https://gh-proxy.com/https://github.com/slopus/happy.git}
-        HAPPY_REF: ${HAPPY_UPSTREAM_REF:-d343330c86ab966969aecd82be4aecbad7ec4238}
-        HAPPY_ARCHIVE_URL: ${HAPPY_UPSTREAM_ARCHIVE_URL:-}
+        HAPPY_NODE_IMAGE: "${HAPPY_NODE_IMAGE:-m.daocloud.io/docker.io/library/node:20}"
+        HAPPY_NODE_SLIM_IMAGE: "${HAPPY_NODE_SLIM_IMAGE:-m.daocloud.io/docker.io/library/node:20-slim}"
+        HAPPY_APT_MIRROR: "${HAPPY_APT_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/debian}"
+        HAPPY_APT_SECURITY_MIRROR: "${HAPPY_APT_SECURITY_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/debian-security}"
+        HAPPY_NPM_REGISTRY: "${HAPPY_NPM_REGISTRY:-https://registry.npmmirror.com}"
+        HAPPY_REPO: "${HAPPY_UPSTREAM_REPO:-https://gh-proxy.com/https://github.com/slopus/happy.git}"
+        HAPPY_REF: "${HAPPY_UPSTREAM_REF:-d343330c86ab966969aecd82be4aecbad7ec4238}"
+        HAPPY_ARCHIVE_URL: "${HAPPY_UPSTREAM_ARCHIVE_URL:-}"
     restart: unless-stopped
     ports:
       - "${HAPPY_SERVER_PORT:-3005}:3005"

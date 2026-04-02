@@ -109,15 +109,21 @@ class _FriendsSearchScreenState extends ConsumerState<FriendsSearchScreen> {
               decoration: InputDecoration(
                 hintText: '输入用户名或 GitHub 用户名',
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isEmpty
-                    ? null
-                    : IconButton(
-                        onPressed: () {
-                          _searchController.clear();
-                          _searchUsers('');
-                        },
-                        icon: const Icon(Icons.close),
-                      ),
+                suffixIcon: ListenableBuilder(
+                  listenable: _searchController,
+                  builder: (context, _) {
+                    if (_searchController.text.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return IconButton(
+                      onPressed: () {
+                        _searchController.clear();
+                        _searchUsers('');
+                      },
+                      icon: const Icon(Icons.close),
+                    );
+                  },
+                ),
                 filled: true,
                 fillColor: AppTheme.neutral100,
                 border: OutlineInputBorder(
@@ -125,10 +131,7 @@ class _FriendsSearchScreenState extends ConsumerState<FriendsSearchScreen> {
                   borderSide: BorderSide.none,
                 ),
               ),
-              onChanged: (value) {
-                setState(() {});
-                _searchUsers(value);
-              },
+              onChanged: _searchUsers,
             ),
           ),
           Expanded(child: _buildBody()),

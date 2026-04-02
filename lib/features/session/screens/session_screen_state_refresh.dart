@@ -17,6 +17,9 @@ extension _SessionScreenStateRefresh on _SessionScreenState {
     try {
       await Future.wait([
         ref.read(sessionStateProvider.notifier).loadSessions(force: true),
+        ref
+            .read(sessionStateProvider.notifier)
+            .loadMachines(force: true, allowFailure: true),
         ref.read(socketStateProvider.notifier).initialize(
               machineId: credentials.machineId,
               token: credentials.token,

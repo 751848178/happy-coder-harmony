@@ -112,6 +112,7 @@ extension SessionServiceMessageParser on SessionServiceNotifier {
     final role = rawRecord['role']?.toString();
     final meta = _asStringMap(rawRecord['meta']);
     final content = _asStringMap(rawRecord['content']);
+    final subagentId = rawRecord['subagent']?.toString();
 
     switch (role) {
       case 'user':
@@ -129,6 +130,7 @@ extension SessionServiceMessageParser on SessionServiceNotifier {
               'role': 'user',
               if (localId != null && localId.isNotEmpty) 'localId': localId,
             },
+            subagentId: subagentId,
           ),
         ];
       case 'session':
@@ -148,6 +150,7 @@ extension SessionServiceMessageParser on SessionServiceNotifier {
             createdAt: createdAt,
             localId: localId,
             meta: meta,
+            subagentId: subagentId,
           );
         }
         if (contentType == 'codex') {
@@ -157,6 +160,7 @@ extension SessionServiceMessageParser on SessionServiceNotifier {
             createdAt: createdAt,
             localId: localId,
             meta: meta,
+            subagentId: subagentId,
           );
         }
         if (contentType == 'acp') {
@@ -167,6 +171,7 @@ extension SessionServiceMessageParser on SessionServiceNotifier {
             createdAt: createdAt,
             localId: localId,
             meta: meta,
+            subagentId: subagentId,
           );
         }
         if (contentType == 'output') {
@@ -176,6 +181,7 @@ extension SessionServiceMessageParser on SessionServiceNotifier {
             createdAt: createdAt,
             localId: localId,
             meta: meta,
+            subagentId: subagentId,
           );
         }
         return const <ReducerMessage>[];

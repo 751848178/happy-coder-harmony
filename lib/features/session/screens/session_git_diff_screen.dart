@@ -45,12 +45,19 @@ class _SessionGitDiffScreenState extends ConsumerState<SessionGitDiffScreen> {
   String? _diffContent;
   String? _fileContent;
   bool _isBinary = false;
-  _GitFileDisplayMode _displayMode = _GitFileDisplayMode.diff;
+  final ValueNotifier<_GitFileDisplayMode> _displayMode =
+      ValueNotifier(_GitFileDisplayMode.diff);
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _displayMode.dispose();
+    super.dispose();
   }
 
   void _setLoadingState() {
@@ -69,11 +76,11 @@ class _SessionGitDiffScreenState extends ConsumerState<SessionGitDiffScreen> {
       _diffContent = diff;
       _fileContent = fileContent;
       _isBinary = isBinary;
-      _displayMode = (diff != null && diff.trim().isNotEmpty)
-          ? _GitFileDisplayMode.diff
-          : _GitFileDisplayMode.file;
       _isLoading = false;
     });
+    _displayMode.value = (diff != null && diff.trim().isNotEmpty)
+        ? _GitFileDisplayMode.diff
+        : _GitFileDisplayMode.file;
   }
 
   void _setErrorState(Object error) {
@@ -84,9 +91,7 @@ class _SessionGitDiffScreenState extends ConsumerState<SessionGitDiffScreen> {
   }
 
   void _setDisplayMode(_GitFileDisplayMode mode) {
-    setState(() {
-      _displayMode = mode;
-    });
+    _displayMode.value = mode;
   }
 
   Future<void> _load() async {
@@ -153,8 +158,18 @@ class _SessionGitDiffScreenState extends ConsumerState<SessionGitDiffScreen> {
         children: [
           _DiffSummaryBar(file: widget.file),
           if ((diff).trim().isNotEmpty || _fileContent != null)
-            _buildDisplayModeBar(),
-          Expanded(child: _SessionGitDiffBody(state: this, diff: diff)),
+            ValueListenableBuilder<_GitFileDisplayMode>(
+              valueListenable: _displayMode,
+              builder: (context, mode, _) =>
+                  _buildDisplayModeBar(mode: mode),
+            ),
+          Expanded(
+            child: ValueListenableBuilder<_GitFileDisplayMode>(
+              valueListenable: _displayMode,
+              builder: (context, mode, _) =>
+                  _SessionGitDiffBody(state: this, diff: diff, displayMode: mode),
+            ),
+          ),
         ],
       ),
     );

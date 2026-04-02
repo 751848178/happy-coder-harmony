@@ -7,6 +7,7 @@ extension SessionServiceEventMessageReducer on SessionServiceNotifier {
     required DateTime createdAt,
     required String? localId,
     required Map<String, dynamic>? meta,
+    String? subagentId,
   }) {
     if (eventData == null) {
       return const <ReducerMessage>[];
@@ -28,6 +29,7 @@ extension SessionServiceEventMessageReducer on SessionServiceNotifier {
             createdAt: createdAt,
             text: '',
             metadata: metadata,
+            subagentId: subagentId,
           ),
         ];
       case 'message':
@@ -41,6 +43,7 @@ extension SessionServiceEventMessageReducer on SessionServiceNotifier {
             createdAt: createdAt,
             text: message!,
             metadata: metadata,
+            subagentId: subagentId,
           ),
         ];
       case 'switch':
@@ -56,6 +59,7 @@ extension SessionServiceEventMessageReducer on SessionServiceNotifier {
             createdAt: createdAt,
             text: text,
             metadata: metadata,
+            subagentId: subagentId,
           ),
         ];
       case 'limit-reached':
@@ -65,6 +69,7 @@ extension SessionServiceEventMessageReducer on SessionServiceNotifier {
             createdAt: createdAt,
             text: 'AI 使用额度已达上限',
             metadata: metadata,
+            subagentId: subagentId,
           ),
         ];
       default:

@@ -30,7 +30,7 @@ extension on _SessionGitDiffScreenState {
     ];
   }
 
-  Widget _buildDisplayModeBar() {
+  Widget _buildDisplayModeBar({required _GitFileDisplayMode mode}) {
     final hasDiff = (_diffContent ?? '').trim().isNotEmpty;
     final hasFile = _fileContent != null || _isBinary;
     return Container(
@@ -47,14 +47,14 @@ extension on _SessionGitDiffScreenState {
           if (hasDiff)
             _ModeButton(
               label: 'Diff',
-              selected: _displayMode == _GitFileDisplayMode.diff,
+              selected: mode == _GitFileDisplayMode.diff,
               onPressed: () => _setDisplayMode(_GitFileDisplayMode.diff),
             ),
           if (hasDiff && hasFile) const SizedBox(width: 8),
           if (hasFile)
             _ModeButton(
               label: '当前文件',
-              selected: _displayMode == _GitFileDisplayMode.file,
+              selected: mode == _GitFileDisplayMode.file,
               onPressed: () => _setDisplayMode(_GitFileDisplayMode.file),
             ),
         ],

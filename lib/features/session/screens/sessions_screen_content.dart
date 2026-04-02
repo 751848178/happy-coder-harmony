@@ -22,49 +22,77 @@ _SessionsScreenViewData _buildSessionsScreenViewForState(
       ),
     ),
   );
-  final settings = state.ref.watch(settingsStateProvider);
-  final hideInactiveByDefault =
-      state.widget.showAppBar && settings.hideInactiveSessions;
-  final filteredSessions = sessions.where((session) {
-    return state._matchesSessionFilters(
-      session,
-      selectedMachineId: state.widget.selectedMachineId,
-      hideInactiveByDefault: hideInactiveByDefault,
-    );
-  }).toList();
-
-  final statsBySessionId = state._resolveSessionStatsMap(
-    filteredSessions,
-    sessionNotifier,
-  );
-  final thinkingBySessionId = state._resolveSessionThinkingMap(
-    filteredSessions,
-    sessionNotifier,
-  );
-
-  final listContent = !state._groupingLoaded
-      ? const Center(child: CircularProgressIndicator())
-      : filteredSessions.isEmpty
-          ? state._buildRefreshableEmptyState(
-              hasSessions: sessions.isNotEmpty,
-              selectedMachineName: state.widget.selectedMachineName,
-            )
-          : RefreshIndicator(
-              onRefresh: state._refreshSessionList,
-              color: AppTheme.brandColor,
-              child: state._buildGroupedSessionList(
-                sessions: filteredSessions,
-                statsBySessionId: statsBySessionId,
-                thinkingBySessionId: thinkingBySessionId,
-              ),
-            );
+  final hideInactiveByDefault = state.widget.showAppBar &&
+      state.ref.watch(
+        settingsStateProvider.select((s) => s.hideInactiveSessions),
+      );
 
   return _SessionsScreenViewData(
     body: Column(
       children: [
-        if (state.widget.showSearchBar) state._buildSearchBar(),
-        state._buildGroupingToolbar(filteredSessions.isNotEmpty),
-        Expanded(child: listContent),
+        // Search bar: only rebuilds when the search query changes
+        // (for the clear-button visibility). The TextField's internal
+        // state (cursor, text) is preserved across rebuilds.
+        if (state.widget.showSearchBar)
+          ValueListenableBuilder<String>(
+            valueListenable: state._searchQueryN,
+            builder: (_, __, ___) => state._buildSearchBar(),
+          ),
+        // Toolbar + list: rebuild when any filter or grouping notifier
+        // changes. Search bar and AppBar are unaffected.
+        Expanded(
+          child: ListenableBuilder(
+            listenable: Listenable.merge([
+              state._searchQueryN,
+              state._showActiveOnlyN,
+              state._groupingStateN,
+              state._groupingLoadedN,
+            ]),
+            builder: (_, __) {
+              final filteredSessions = sessions.where((session) {
+                return state._matchesSessionFilters(
+                  session,
+                  selectedMachineId: state.widget.selectedMachineId,
+                  hideInactiveByDefault: hideInactiveByDefault,
+                );
+              }).toList();
+
+              final statsBySessionId = state._resolveSessionStatsMap(
+                filteredSessions,
+                sessionNotifier,
+              );
+              final thinkingBySessionId = state._resolveSessionThinkingMap(
+                filteredSessions,
+                sessionNotifier,
+              );
+
+              final listContent = !state._groupingLoaded
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredSessions.isEmpty
+                      ? state._buildRefreshableEmptyState(
+                          hasSessions: sessions.isNotEmpty,
+                          selectedMachineName:
+                              state.widget.selectedMachineName,
+                        )
+                      : RefreshIndicator(
+                          onRefresh: state._refreshSessionList,
+                          color: AppTheme.brandColor,
+                          child: state._buildGroupedSessionList(
+                            sessions: filteredSessions,
+                            statsBySessionId: statsBySessionId,
+                            thinkingBySessionId: thinkingBySessionId,
+                          ),
+                        );
+
+              return Column(
+                children: [
+                  state._buildGroupingToolbar(filteredSessions.isNotEmpty),
+                  Expanded(child: listContent),
+                ],
+              );
+            },
+          ),
+        ),
       ],
     ),
   );

@@ -10,10 +10,8 @@ extension on _SessionsScreenState {
         ? '未分组'
         : _groupNameForSession(session.id) ?? '未分组';
 
-    await showModalBottomSheet<void>(
+    await showBottomPopupSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) {
         final maxHeight = MediaQuery.of(context).size.height * 0.76;
         return Container(

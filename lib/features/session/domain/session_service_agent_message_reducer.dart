@@ -7,6 +7,7 @@ extension SessionServiceAgentMessageReducer on SessionServiceNotifier {
     required DateTime createdAt,
     required String? localId,
     required Map<String, dynamic>? meta,
+    String? subagentId,
   }) {
     if (codexData == null) {
       return const <ReducerMessage>[];
@@ -37,6 +38,7 @@ extension SessionServiceAgentMessageReducer on SessionServiceNotifier {
               ...metadata,
               if (codexType == 'reasoning') 'outputType': 'thinking',
             },
+            subagentId: subagentId,
           ),
         ];
       case 'tool-call':
@@ -52,6 +54,7 @@ extension SessionServiceAgentMessageReducer on SessionServiceNotifier {
             arguments: _asStringMap(codexData['input']) ?? const {},
             status: ToolCallStatus.pending,
             metadata: metadata,
+            subagentId: subagentId,
           ),
         ];
       case 'tool-call-result':
@@ -68,6 +71,7 @@ extension SessionServiceAgentMessageReducer on SessionServiceNotifier {
             status: ToolCallStatus.completed,
             metadata: metadata,
             result: _stringifyStructuredContent(codexData['output']),
+            subagentId: subagentId,
           ),
         ];
       default:

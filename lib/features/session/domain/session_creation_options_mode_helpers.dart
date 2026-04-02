@@ -59,6 +59,33 @@ Map<String, dynamic>? resolveModeMetadataForMachines(
   return null;
 }
 
+Map<String, dynamic>? resolveAvailableModeMetadata({
+  Map<String, dynamic>? preferredMetadata,
+  required Iterable<Session> sessions,
+  required Iterable<Machine> machines,
+  required String? machineId,
+  required String? agent,
+}) {
+  final directMetadata = _resolveDirectModeMetadata(
+    preferredMetadata,
+    agent: agent,
+  );
+  if (directMetadata != null) {
+    return directMetadata;
+  }
+
+  return resolveModeMetadataForSessions(
+        sessions,
+        machineId: machineId,
+        agent: agent,
+      ) ??
+      resolveModeMetadataForMachines(
+        machines,
+        machineId: machineId,
+        agent: agent,
+      );
+}
+
 String? resolveModeKey(List<String?> candidates) {
   for (final candidate in candidates) {
     final normalized = candidate?.trim();
@@ -91,6 +118,83 @@ String? resolveRemoteModeValue({
     explicitValue,
     preferredValue,
   ]);
+}
+
+String? resolveNonDefaultModeValue(List<String?> candidates) {
+  final normalized = resolveModeKey(candidates);
+  if (normalized == null || normalized == 'default') {
+    return null;
+  }
+  return normalized;
+}
+
+String defaultPermissionModeForMetadata(
+  Map<String, dynamic>? metadata, {
+  String? fallbackAgent,
+}) {
+  final sandbox = _asModeMetadataMap(metadata?['sandbox']);
+  final sandboxEnabled = sandbox?['enabled'] == true;
+  if (sandboxEnabled) {
+    return 'bypassPermissions';
+  }
+  return defaultPermissionModeForAgent(
+    metadata?['flavor']?.toString() ?? fallbackAgent,
+  );
+}
+
+String resolveSessionPermissionMode({
+  required Map<String, dynamic>? metadata,
+  String? localValue,
+  String? persistedValue,
+  String? explicitValue,
+  String? metadataValue,
+  String? fallbackAgent,
+}) {
+  final persistedChoice = resolveModeKey([persistedValue]);
+  if (persistedChoice != null) {
+    return persistedChoice;
+  }
+
+  final localOverride = resolveNonDefaultModeValue([localValue]);
+  if (localOverride != null) {
+    return localOverride;
+  }
+
+  return resolveRemoteModeValue(
+        metadataValue: metadataValue,
+        explicitValue: explicitValue,
+      ) ??
+      defaultPermissionModeForMetadata(
+        metadata,
+        fallbackAgent: fallbackAgent,
+      );
+}
+
+String resolveSessionModelMode({
+  required Map<String, dynamic>? metadata,
+  String? localValue,
+  String? persistedValue,
+  String? explicitValue,
+  String? metadataValue,
+  String? fallbackAgent,
+}) {
+  final persistedChoice = resolveNonDefaultModeValue([persistedValue]);
+  if (persistedChoice != null) {
+    return persistedChoice;
+  }
+
+  final localOverride = resolveNonDefaultModeValue([localValue]);
+  if (localOverride != null) {
+    return localOverride;
+  }
+
+  return resolveRemoteModeValue(
+        metadataValue: metadataValue,
+        explicitValue: explicitValue,
+      ) ??
+      defaultModelModeForAgent(
+        metadata?['flavor']?.toString() ?? fallbackAgent,
+      );
 }
 
 SessionModeOption? findModeOptionByKey(
@@ -126,24 +230,7 @@ SessionModeOption? resolveCurrentModeOption(
   List<SessionModeOption> options,
   List<String?> preferredKeys,
 ) {
-  for (final key in preferredKeys) {
-    final normalizedKey = resolveModeKey([key]);
-    if (normalizedKey == null) {
-      continue;
-    }
-    final option = findModeOptionByKey(options, normalizedKey);
-    if (option != null) {
-      return option;
-    }
-    return SessionModeOption(
-      key: normalizedKey,
-      label: normalizedKey,
-    );
-  }
-  if (options.isEmpty) {
-    return null;
-  }
-  return options.first;
+  return findPreferredListedModeOption(options, preferredKeys);
 }
 
 String resolveModeSelection({
@@ -258,6 +345,22 @@ Map<String, dynamic>? _resolveMachineModeMetadata(
   }
 
   return null;
+}
+
+Map<String, dynamic>? _resolveDirectModeMetadata(
+  Map<String, dynamic>? metadata, {
+  required String? agent,
+}) {
+  if (metadata == null || metadata.isEmpty) {
+    return null;
+  }
+  if (_mapContainsModeMetadata(metadata)) {
+    return metadata;
+  }
+  return _resolveMachineModeMetadata(
+    metadata,
+    agent: normalizeSessionAgent(agent),
+  );
 }
 
 Map<String, dynamic>? _asModeMetadataMap(dynamic value) {

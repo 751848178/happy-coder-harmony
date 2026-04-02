@@ -32,7 +32,7 @@ extension SocketRepositoryUpdates on SocketRepository {
     }
   }
 
-  void _handleUpdatePayload(dynamic data) {
+  Future<void> _handleUpdatePayload(dynamic data) async {
     try {
       final payload = _asStringMap(data);
       final body = _asStringMap(payload?['body']);
@@ -54,26 +54,47 @@ extension SocketRepositoryUpdates on SocketRepository {
           _sessionRepository.applySessions([Session.fromJson(sessionJson)]);
           break;
         case 'update-session':
-          final sessionId = body?['id'] as String?;
+          final sessionId = body?['id']?.toString() ?? body?['sid']?.toString();
           if (sessionId == null) return;
           final existing = _sessionRepository.getSession(sessionId);
           if (existing == null) return;
           final metadataUpdate = _asStringMap(body?['metadata']);
           final agentStateUpdate = _asStringMap(body?['agentState']);
-          final nextMetadata = _decodeMaybeJsonMap(metadataUpdate?['value']) ??
+          final nextMetadata = await decodeSessionUpdateJsonMap(
+                rawValue: metadataUpdate?['value'],
+                sessionKey: SessionDataKeyStore.instance.sessionKeyFor(
+                  sessionId,
+                ),
+                secretKey: await _tokenStorage.getSecretKey(),
+              ) ??
               existing.metadata;
-          final nextAgentState =
-              _decodeMaybeJsonMap(agentStateUpdate?['value']) ??
-                  existing.agentState;
+          final nextAgentState = await decodeSessionUpdateJsonMap(
+                rawValue: agentStateUpdate?['value'],
+                sessionKey: SessionDataKeyStore.instance.sessionKeyFor(
+                  sessionId,
+                ),
+                secretKey: await _tokenStorage.getSecretKey(),
+              ) ??
+              existing.agentState;
           final nextTitle = nextMetadata?['name']?.toString() ??
               nextMetadata?['title']?.toString() ??
               existing.title;
+          final nextModelMode = _resolveUpdatedMode(
+            existing.modelMode,
+            nextMetadata?['currentModelCode']?.toString(),
+          );
+          final nextPermissionMode = _resolveUpdatedMode(
+            existing.permissionMode,
+            nextMetadata?['currentOperatingModeCode']?.toString(),
+          );
           _sessionRepository.applySessions([
             existing.copyWith(
               title: nextTitle,
               metadata: nextMetadata,
               metadataVersion: metadataUpdate?['version'] as int? ??
                   existing.metadataVersion,
+              modelMode: nextModelMode,
+              permissionMode: nextPermissionMode,
               agentState: nextAgentState,
               agentStateVersion: agentStateUpdate?['version'] as int? ??
                   existing.agentStateVersion,
@@ -208,4 +229,14 @@ extension SocketRepositoryUpdates on SocketRepository {
     }
     return null;
   }
+}
+
+/// When a local mode is 'default' or null (meaning "use remote default"),
+/// adopt the metadata value from the PC. When the user explicitly chose a
+/// non-default mode, keep that choice.
+String? _resolveUpdatedMode(String? localValue, String? metadataValue) {
+  if (localValue != null && localValue != 'default') {
+    return localValue;
+  }
+  return metadataValue ?? localValue;
 }

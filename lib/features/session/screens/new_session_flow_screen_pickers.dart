@@ -54,6 +54,12 @@ Future<void> _showSessionFlowSettingsSheet(
   final modelOptions = _sessionFlowModelOptions(
     state,
   );
+  final modelLoadStatus = state.ref.read(sessionStateProvider).whenOrNull<int>(
+        loading: () => 0,
+        initial: () => 0,
+        error: (_) => 1,
+        ready: (_, __, ___) => 2,
+      ) ?? 0;
 
   await showModalBottomSheet<void>(
     context: state.context,
@@ -68,9 +74,10 @@ Future<void> _showSessionFlowSettingsSheet(
       return StatefulBuilder(
         builder: (context, setModalState) {
           final mediaHeight = MediaQuery.sizeOf(context).height;
+          final modelTileCount = modelOptions.isEmpty ? 1 : modelOptions.length;
           final sheetHeight = (236.0 +
                   (permissionOptions.length * 58.0) +
-                  (modelOptions.length * 58.0))
+                  (modelTileCount * 58.0))
               .clamp(320.0, mediaHeight * 0.78)
               .toDouble();
           return SafeArea(
@@ -116,23 +123,18 @@ Future<void> _showSessionFlowSettingsSheet(
                           const SizedBox(height: 12),
                           _SheetSection(
                             title: '模型',
-                            children: modelOptions
-                                .map(
-                                  (option) => _SheetOptionTile(
-                                    title: option.label,
-                                    subtitle: option.description,
-                                    selected: localModel == option.key,
-                                    onTap: () {
-                                      state._updateView(
-                                        () => state._modelMode = option.key,
-                                      );
-                                      setModalState(
-                                        () => localModel = option.key,
-                                      );
-                                    },
-                                  ),
-                                )
-                                .toList(),
+                            children: _buildModelSectionChildren(
+                              modelOptions: modelOptions,
+                              modelLoadStatus: modelLoadStatus,
+                              hasMachine: state._selectedMachineId != null,
+                              localModel: localModel,
+                              onModelSelected: (key) {
+                                state._updateView(
+                                  () => state._modelMode = key,
+                                );
+                                setModalState(() => localModel = key);
+                              },
+                            ),
                           ),
                         ],
                       ),
@@ -146,4 +148,43 @@ Future<void> _showSessionFlowSettingsSheet(
       );
     },
   );
+}
+
+List<Widget> _buildModelSectionChildren({
+  required List<SessionModeOption> modelOptions,
+  required int modelLoadStatus,
+  required bool hasMachine,
+  required String localModel,
+  required void Function(String key) onModelSelected,
+}) {
+  if (modelLoadStatus == 0) {
+    return const [
+      _SheetInfoTile(title: '加载中...', subtitle: '正在从电脑获取可用模型'),
+    ];
+  }
+  if (modelLoadStatus == 1) {
+    return const [
+      _SheetInfoTile(title: '加载失败', subtitle: '无法获取可用模型，请检查网络连接'),
+    ];
+  }
+  if (!hasMachine) {
+    return const [
+      _SheetInfoTile(title: '未选择电脑', subtitle: '请先选择一台电脑以获取可用模型'),
+    ];
+  }
+  if (modelOptions.isEmpty) {
+    return const [
+      _SheetInfoTile(title: '暂无可用模型', subtitle: '当前电脑未提供可选模型'),
+    ];
+  }
+  return modelOptions
+      .map(
+        (option) => _SheetOptionTile(
+          title: option.label,
+          subtitle: option.description,
+          selected: localModel == option.key,
+          onTap: () => onModelSelected(option.key),
+        ),
+      )
+      .toList();
 }

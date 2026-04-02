@@ -6,6 +6,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../domain/socket_service.dart';
 import '../../session/data/session_composer_queue_service.dart';
+import '../../session/data/session_data_key_store.dart';
 import '../../session/data/session_preferences_service.dart';
 import '../../session/data/session_repository.dart';
 import '../../session/data/session_ui_state_service.dart';
@@ -18,6 +19,7 @@ import '../../storage/domain/storage_service.dart';
 import '../../../shared/utils/extensions.dart';
 import '../../../core/config/app_config.dart';
 import '../../../harmony/harmony_bridge.dart';
+import 'socket_session_update_decoder.dart';
 
 part 'socket_repository_connection.dart';
 part 'socket_repository_connection_support.dart';

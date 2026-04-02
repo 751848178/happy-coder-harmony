@@ -4,13 +4,19 @@ List<SessionModeOption> permissionOptionsForAgent(
   String? agent, {
   dynamic metadataOptions,
 }) {
-  final mapped = _mapModeOptions(metadataOptions);
-  if (mapped.isNotEmpty) {
-    return mapped;
-  }
   switch (normalizeSessionAgent(agent)) {
     case 'codex':
+      return const [
+        SessionModeOption(key: 'default', label: '默认'),
+        SessionModeOption(key: 'read-only', label: '只读'),
+        SessionModeOption(key: 'safe-yolo', label: '安全自动'),
+        SessionModeOption(key: 'yolo', label: '全自动'),
+      ];
     case 'gemini':
+      final mapped = _mapModeOptions(metadataOptions);
+      if (mapped.isNotEmpty) {
+        return mapped;
+      }
       return const [
         SessionModeOption(key: 'default', label: '默认'),
         SessionModeOption(key: 'read-only', label: '只读'),
@@ -28,31 +34,39 @@ List<SessionModeOption> permissionOptionsForAgent(
   }
 }
 
-List<SessionModeOption> newSessionPermissionOptionsForAgent(String? agent) {
-  return permissionOptionsForAgent(agent);
+List<SessionModeOption> newSessionPermissionOptionsForAgent(
+  String? agent, {
+  dynamic metadataOptions,
+}) {
+  return permissionOptionsForAgent(
+    agent,
+    metadataOptions: metadataOptions,
+  );
 }
 
 List<SessionModeOption> modelOptionsForAgent(
   String? agent, {
   dynamic metadataOptions,
 }) {
-  final mapped = _mapModeOptions(metadataOptions);
-  if (mapped.isNotEmpty) {
-    return mapped;
-  }
-  return const [SessionModeOption(key: 'default', label: '默认')];
+  return _mapModeOptions(metadataOptions);
 }
 
-List<SessionModeOption> newSessionModelOptionsForAgent(String? agent) {
-  return modelOptionsForAgent(agent);
+List<SessionModeOption> newSessionModelOptionsForAgent(
+  String? agent, {
+  dynamic metadataOptions,
+}) {
+  return modelOptionsForAgent(
+    agent,
+    metadataOptions: metadataOptions,
+  );
 }
 
 String defaultPermissionModeForAgent(String? agent) {
   return permissionOptionsForAgent(agent).first.key;
 }
 
-String defaultModelModeForAgent(String? agent) {
-  return modelOptionsForAgent(agent).first.key;
+String defaultModelModeForAgent(String? _agent) {
+  return 'default';
 }
 
 List<SessionModeOption> _mapModeOptions(dynamic metadataOptions) {
@@ -64,3 +78,4 @@ List<SessionModeOption> _mapModeOptions(dynamic metadataOptions) {
       .whereType<SessionModeOption>()
       .toList();
 }
+

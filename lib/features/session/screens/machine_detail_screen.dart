@@ -32,7 +32,14 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(sessionStateProvider);
+    ref.watch(sessionStateProvider.select(
+      (s) => s.whenOrNull(
+        ready: (sessions, _, machines) => (
+          sessions,
+          machines,
+        ),
+      ),
+    ));
     final sessionNotifier = ref.read(sessionStateProvider.notifier);
     final sessions = sessionNotifier.sessions.where((session) {
       final metadataMachineId = session.metadata?['machineId']?.toString();

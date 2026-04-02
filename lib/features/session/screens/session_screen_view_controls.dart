@@ -5,13 +5,20 @@ extension _SessionScreenViewControls on _SessionScreenState {
     Session session,
     List<_MessageTurnGroup> turnGroups,
   ) {
-    final permissionOption = _resolveCurrentPermissionOption(session);
-    final modelOption = _resolveCurrentModelOption(session);
+    final modeMetadata = _watchModeMetadataForSession(session);
+    final permissionOption = _resolveCurrentPermissionOption(
+      session,
+      modeMetadata: modeMetadata,
+    );
+    final modelOption = _resolveCurrentModelOption(
+      session,
+      modeMetadata: modeMetadata,
+    );
     final permissionLabel = permissionOption?.label ??
         _currentExplicitPermissionKey(session) ??
         '未设置';
-    final modelLabel =
-        modelOption?.label ?? _currentExplicitModelKey(session) ?? '未设置';
+    final modelLabel = modelOption?.label ??
+        _displayModelKeyLabel(_currentExplicitModelKey(session));
     final isActive = session.active || session.presence?.isOnline == true;
     final statusText = isActive ? '已连接' : '离线';
 

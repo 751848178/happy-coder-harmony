@@ -21,7 +21,7 @@ class SessionServiceState {
   static SessionServiceState error(String message) =>
       _SessionServiceErrorState(message);
 
-  T whenOrNull<T>({
+  T? whenOrNull<T>({
     T Function()? initial,
     T Function()? loading,
     T Function(
@@ -44,7 +44,7 @@ class SessionServiceState {
     if (initial != null) {
       return initial();
     }
-    return null as T;
+    return null;
   }
 
   T when<T>({

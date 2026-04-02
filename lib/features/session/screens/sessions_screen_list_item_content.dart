@@ -1,5 +1,10 @@
 part of 'sessions_screen.dart';
 
+const Duration _sessionListImmediateLongPressDelay = Duration(
+  milliseconds: 480,
+);
+const double _sessionListLongPressMoveSlop = 36.0;
+
 class _SessionListItemContent extends StatelessWidget {
   const _SessionListItemContent({
     required this.dragExtent,
@@ -23,9 +28,18 @@ class _SessionListItemContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
+    return ImmediateLongPressRegion(
+      longPressDelay: _sessionListImmediateLongPressDelay,
+      moveSlop: _sessionListLongPressMoveSlop,
+      onLongPress: () {
+        if (dragExtent != 0) {
+          onCloseActions();
+          return;
+        }
+        onLongPress?.call();
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () {
           if (dragExtent != 0) {
             onCloseActions();
@@ -33,98 +47,99 @@ class _SessionListItemContent extends StatelessWidget {
           }
           onTap();
         },
-        onLongPress: dragExtent == 0 ? onLongPress : onCloseActions,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        child: Container(
-          padding: const EdgeInsets.all(AppTheme.spacingMd),
-          decoration: BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            border: Border.all(color: AppTheme.neutral200),
-          ),
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(right: 24),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SessionLeadingIcon(
-                      session: session,
-                      isActive: session.active,
-                      isThinking: statusSnapshot?.isThinking == true,
-                    ),
-                    const SizedBox(width: AppTheme.spacingSm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  titleText,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: session.active
-                                        ? AppTheme.neutral900
-                                        : AppTheme.neutral600,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: AppTheme.spacingSm),
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 180),
-                                switchInCurve: Curves.easeOutCubic,
-                                switchOutCurve: Curves.easeInCubic,
-                                child: _SessionListTimeView(
-                                  key: ValueKey<String>(
-                                    activitySnapshot.isSyncing
-                                        ? 'syncing'
-                                        : activitySnapshot.lastMessageAt
-                                                ?.millisecondsSinceEpoch
-                                                .toString() ??
-                                            'empty',
-                                  ),
-                                  activitySnapshot: activitySnapshot,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 180),
-                            switchInCurve: Curves.easeOutCubic,
-                            switchOutCurve: Curves.easeInCubic,
-                            child: _SessionListPreviewView(
-                              key: ValueKey<String>(
-                                '${statusSnapshot?.kind.name ?? "none"}:'
-                                '${activitySnapshot.phase.name}:'
-                                '${activitySnapshot.previewText}',
-                              ),
-                              activitySnapshot: activitySnapshot,
-                              statusSnapshot: statusSnapshot,
-                            ),
-                          ),
-                        ],
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(AppTheme.spacingMd),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              border: Border.all(color: AppTheme.neutral200),
+            ),
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 24),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SessionLeadingIcon(
+                        session: session,
+                        isActive: session.active,
+                        isThinking: statusSnapshot?.isThinking == true,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: AppTheme.spacingSm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    titleText,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: session.active
+                                          ? AppTheme.neutral900
+                                          : AppTheme.neutral600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: AppTheme.spacingSm),
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 180),
+                                  switchInCurve: Curves.easeOutCubic,
+                                  switchOutCurve: Curves.easeInCubic,
+                                  child: _SessionListTimeView(
+                                    key: ValueKey<String>(
+                                      activitySnapshot.isSyncing
+                                          ? 'syncing'
+                                          : activitySnapshot.lastMessageAt
+                                                  ?.millisecondsSinceEpoch
+                                                  .toString() ??
+                                              'empty',
+                                    ),
+                                    activitySnapshot: activitySnapshot,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 180),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              child: _SessionListPreviewView(
+                                key: ValueKey<String>(
+                                  '${statusSnapshot?.kind.name ?? "none"}:'
+                                  '${activitySnapshot.phase.name}:'
+                                  '${activitySnapshot.previewText}',
+                                ),
+                                activitySnapshot: activitySnapshot,
+                                statusSnapshot: statusSnapshot,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Positioned(
-                right: 0,
-                bottom: 0,
-                child: Icon(
-                  Icons.chevron_right,
-                  size: 20,
-                  color: AppTheme.neutral400,
+                const Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: AppTheme.neutral400,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

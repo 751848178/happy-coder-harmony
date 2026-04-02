@@ -34,6 +34,7 @@ extension _SessionScreenMessageBubbleToolHelpers2 on _MessageBubbleState {
       case 'WebSearch':
         return '网页检索';
       case 'Task':
+      case 'Agent':
         return '子任务';
       case 'TodoWrite':
         return '待办更新';

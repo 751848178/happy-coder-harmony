@@ -37,7 +37,12 @@ class _SessionMessageDetailScreenState
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(sessionStateProvider);
+    ref.watch(sessionStateProvider.select(
+      (s) => s.whenOrNull(
+        ready: (_, sessionMessages, __) =>
+            sessionMessages[widget.sessionId],
+      ),
+    ));
     final sessionMessages = ref
         .read(sessionStateProvider.notifier)
         .getSessionMessages(widget.sessionId);

@@ -3,15 +3,56 @@ part of 'new_session_flow_screen.dart';
 List<SessionModeOption> _sessionFlowPermissionOptions(
   _NewSessionFlowScreenState state, {
   String? agent,
+  String? machineId,
 }) {
-  return newSessionPermissionOptionsForAgent(agent ?? state._selectedAgent);
+  final resolvedAgent = agent ?? state._selectedAgent;
+  return newSessionPermissionOptionsForAgent(
+    resolvedAgent,
+  );
 }
 
 List<SessionModeOption> _sessionFlowModelOptions(
   _NewSessionFlowScreenState state, {
   String? agent,
+  String? machineId,
 }) {
-  return newSessionModelOptionsForAgent(agent ?? state._selectedAgent);
+  final resolvedAgent = agent ?? state._selectedAgent;
+  final resolvedMachineId = machineId ?? state._selectedMachineId;
+  // Fetch machine metadata which may contain PC-provided model options
+  dynamic metadataOptions;
+  if (resolvedMachineId != null) {
+    final notifier = state.ref.read(sessionStateProvider.notifier);
+    final machine = notifier.machines
+        .where((m) => m.id == resolvedMachineId)
+        .firstOrNull;
+    metadataOptions = machine?.metadata?['operatingModes']?['models'];
+  }
+  return newSessionModelOptionsForAgent(
+    resolvedAgent,
+    metadataOptions: metadataOptions,
+  );
+}
+
+String _resolveSessionFlowModelMode(
+  List<SessionModeOption> options, {
+  required String? preferred,
+  required String fallback,
+}) {
+  final normalizedPreferred = resolveModeKey([preferred]);
+  if (normalizedPreferred != null) {
+    for (final option in options) {
+      if (option.key == normalizedPreferred) {
+        return option.key;
+      }
+    }
+    if (options.isEmpty) {
+      return normalizedPreferred;
+    }
+  }
+  if (options.isNotEmpty) {
+    return options.first.key;
+  }
+  return fallback;
 }
 
 String _defaultSessionFlowModeKey(
@@ -27,17 +68,21 @@ String _defaultSessionFlowModeKey(
 void _syncSessionFlowModeSelections(
   _NewSessionFlowScreenState state, {
   String? agent,
+  String? machineId,
   String? preferredPermissionMode,
   String? preferredModelMode,
 }) {
   final resolvedAgent = agent ?? state._selectedAgent;
+  final resolvedMachineId = machineId ?? state._selectedMachineId;
   final permissionOptions = _sessionFlowPermissionOptions(
     state,
     agent: resolvedAgent,
+    machineId: resolvedMachineId,
   );
   final modelOptions = _sessionFlowModelOptions(
     state,
     agent: resolvedAgent,
+    machineId: resolvedMachineId,
   );
 
   state._permissionMode = resolveModeSelection(
@@ -48,13 +93,10 @@ void _syncSessionFlowModeSelections(
       defaultPermissionModeForAgent(resolvedAgent),
     ),
   );
-  state._modelMode = resolveListedModeSelection(
+  state._modelMode = _resolveSessionFlowModelMode(
+    modelOptions,
     preferred: preferredModelMode ?? state._modelMode,
-    options: modelOptions,
-    fallback: _defaultSessionFlowModeKey(
-      modelOptions,
-      defaultModelModeForAgent(resolvedAgent),
-    ),
+    fallback: defaultModelModeForAgent(resolvedAgent),
   );
 }
 

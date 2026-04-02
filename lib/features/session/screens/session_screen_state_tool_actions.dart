@@ -126,8 +126,15 @@ extension _SessionScreenStateToolActions on _SessionScreenState {
       return;
     }
 
-    final options = _permissionOptionsFor(session);
-    final current = _resolveCurrentPermissionOption(session);
+    final modeMetadata = _readModeMetadataForSession(session);
+    final options = _permissionOptionsFor(
+      session,
+      modeMetadata: modeMetadata,
+    );
+    final current = _resolveCurrentPermissionOption(
+      session,
+      modeMetadata: modeMetadata,
+    );
     _showModeSheet(
       title: '权限设置',
       options: options,

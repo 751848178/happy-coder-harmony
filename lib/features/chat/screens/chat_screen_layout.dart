@@ -89,9 +89,11 @@ extension _ChatScreenLayout on _ChatScreenState {
   }
 
   Widget _buildAppBar() {
-    final session = ref.watch(sessionStateProvider).whenOrNull(
-          ready: (sessions, _, __) => sessions[widget.sessionId],
-        );
+    final session = ref.watch(sessionStateProvider.select(
+      (state) => state.whenOrNull(
+        ready: (sessions, _, __) => sessions[widget.sessionId],
+      ),
+    ));
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

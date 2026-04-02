@@ -19,6 +19,8 @@ class ReducerMessage {
     this.tool,
     this.permission,
     this.turnClose,
+    this.subagentId,
+    this.children = const [],
   });
 
   final String id;
@@ -29,6 +31,18 @@ class ReducerMessage {
   final ToolInfo? tool;
   final PermissionRequest? permission;
   final TurnClose? turnClose;
+
+  /// CUID2 identifier for sub-agent messages.  Non-null when this message
+  /// was produced by a sub-agent (e.g. a Claude Task tool invocation).
+  final String? subagentId;
+
+  /// Child messages from a sub-agent.  Non-empty when this is a Task/Agent
+  /// tool call that spawned a sub-agent whose messages are nested here.
+  final List<ReducerMessage> children;
+
+  bool get isSubagentMessage => subagentId != null;
+
+  bool get hasChildren => children.isNotEmpty;
 
   bool get isText => kind == 'text';
   bool get isToolCall => kind == 'tool-call';
@@ -46,6 +60,8 @@ class ReducerMessage {
     ToolInfo? tool,
     PermissionRequest? permission,
     TurnClose? turnClose,
+    String? subagentId,
+    List<ReducerMessage>? children,
   }) {
     return ReducerMessage(
       id: id ?? this.id,
@@ -56,6 +72,8 @@ class ReducerMessage {
       tool: tool ?? this.tool,
       permission: permission ?? this.permission,
       turnClose: turnClose ?? this.turnClose,
+      subagentId: subagentId ?? this.subagentId,
+      children: children ?? this.children,
     );
   }
 
@@ -80,6 +98,12 @@ class ReducerMessage {
       turnClose: json['turnClose'] != null
           ? TurnClose.fromJson(json['turnClose'] as Map<String, dynamic>)
           : null,
+      subagentId: json['subagentId'] as String?,
+      children: json['children'] is List
+          ? (json['children'] as List)
+              .map((c) => ReducerMessage.fromJson(c as Map<String, dynamic>))
+              .toList()
+          : const [],
     );
   }
 
@@ -93,6 +117,9 @@ class ReducerMessage {
       if (tool != null) 'tool': tool!.toJson(),
       if (permission != null) 'permission': permission!.toJson(),
       if (turnClose != null) 'turnClose': turnClose!.toJson(),
+      if (subagentId != null) 'subagentId': subagentId,
+      if (children.isNotEmpty)
+        'children': children.map((c) => c.toJson()).toList(),
     };
   }
 }

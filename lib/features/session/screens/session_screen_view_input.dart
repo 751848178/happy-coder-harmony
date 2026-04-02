@@ -6,7 +6,8 @@ extension _SessionScreenViewInput on _SessionScreenState {
     List<_MessageTurnGroup> turnGroups, {
     required bool conversationBusy,
     required bool socketConnected,
-    required SettingsState settings,
+    required bool commandPaletteEnabled,
+    required bool agentInputEnterToSend,
     required List<_SlashCommandItem> slashCommands,
     required List<_InputTemplateItem> availableInputTemplates,
   }) {
@@ -34,7 +35,7 @@ extension _SessionScreenViewInput on _SessionScreenState {
           builder: (context, composerValue, _) {
             final visibleSlashCommands = _visibleSlashCommands(
               slashCommands,
-              enabled: settings.commandPaletteEnabled,
+              enabled: commandPaletteEnabled,
               value: composerValue,
             );
             final visibleInputTemplates = _visibleInputTemplates(
@@ -47,7 +48,7 @@ extension _SessionScreenViewInput on _SessionScreenState {
               turnGroups,
               socketConnected: socketConnected,
             );
-            final showingSuggestionPanel = (settings.commandPaletteEnabled &&
+            final showingSuggestionPanel = (commandPaletteEnabled &&
                     _shouldShowSlashCommands(
                       visibleSlashCommands,
                       value: composerValue,
@@ -60,17 +61,29 @@ extension _SessionScreenViewInput on _SessionScreenState {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (_queuedMessages.isNotEmpty) ...[
-                  _buildQueuedComposerPanel(
-                    busy: conversationBusy,
-                  ),
-                  const SizedBox(height: 10),
-                ],
+                ValueListenableBuilder<List<QueuedComposerMessage>>(
+                  valueListenable: _queuedMessagesN,
+                  builder: (_, queuedMessages, __) {
+                    if (queuedMessages.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildQueuedComposerPanel(
+                          queuedMessages: queuedMessages,
+                          busy: conversationBusy,
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    );
+                  },
+                ),
                 if (session != null) ...[
                   _buildSessionControls(session, turnGroups),
                   const SizedBox(height: 8),
                 ],
-                if (settings.commandPaletteEnabled &&
+                if (commandPaletteEnabled &&
                     _shouldShowSlashCommands(
                       visibleSlashCommands,
                       value: composerValue,
@@ -112,10 +125,10 @@ extension _SessionScreenViewInput on _SessionScreenState {
                           ),
                         ),
                         keyboardType: TextInputType.multiline,
-                        textInputAction: settings.agentInputEnterToSend
+                        textInputAction: agentInputEnterToSend
                             ? TextInputAction.send
                             : TextInputAction.newline,
-                        onSubmitted: settings.agentInputEnterToSend
+                        onSubmitted: agentInputEnterToSend
                             ? (_) => _handleSendAction(session, turnGroups)
                             : null,
                       ),
@@ -173,7 +186,7 @@ extension _SessionScreenViewInput on _SessionScreenState {
                     ),
                   ],
                 ),
-                if ((settings.commandPaletteEnabled &&
+                if ((commandPaletteEnabled &&
                         slashCommands.isNotEmpty) ||
                     availableInputTemplates.isNotEmpty)
                   if (!(keyboardVisible && showingSuggestionPanel))
@@ -183,7 +196,7 @@ extension _SessionScreenViewInput on _SessionScreenState {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           [
-                            if (settings.commandPaletteEnabled &&
+                            if (commandPaletteEnabled &&
                                 slashCommands.isNotEmpty)
                               '输入 `/` 查看 ${slashCommands.length} 个可用指令',
                             if (availableInputTemplates.isNotEmpty)

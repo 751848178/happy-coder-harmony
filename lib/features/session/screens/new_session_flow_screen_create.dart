@@ -42,6 +42,7 @@ Future<void> _createSessionFlowSession(
     final settingsNotifier = state.ref.read(settingsStateProvider.notifier);
     settingsNotifier.setLastUsedAgent(state._selectedAgent);
     settingsNotifier.setLastUsedPermissionMode(state._permissionMode);
+    settingsNotifier.setLastUsedModelMode(state._modelMode);
 
     final prompt = state._promptController.text.trim();
     Object? messageError;

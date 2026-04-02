@@ -10,13 +10,18 @@ extension SessionServiceMessageReducerHelpers on SessionServiceNotifier {
     required DateTime createdAt,
     required String text,
     required Map<String, dynamic>? metadata,
+    String? subagentId,
   }) {
     return ReducerMessage(
       id: id,
       kind: 'text',
       createdAt: createdAt,
       text: text,
-      metadata: metadata,
+      metadata: {
+        ...?metadata,
+        if (subagentId != null) 'subagentId': subagentId,
+      },
+      subagentId: subagentId,
     );
   }
 
@@ -25,13 +30,19 @@ extension SessionServiceMessageReducerHelpers on SessionServiceNotifier {
     required DateTime createdAt,
     required String text,
     required Map<String, dynamic>? metadata,
+    String? subagentId,
   }) {
     return ReducerMessage(
       id: id,
       kind: 'agent-event',
       createdAt: createdAt,
       text: text,
-      metadata: {...?metadata, 'role': 'agent'},
+      metadata: {
+        ...?metadata,
+        'role': 'agent',
+        if (subagentId != null) 'subagentId': subagentId,
+      },
+      subagentId: subagentId,
     );
   }
 
@@ -46,12 +57,18 @@ extension SessionServiceMessageReducerHelpers on SessionServiceNotifier {
     String? result,
     String? error,
     String? description,
+    String? subagentId,
   }) {
     return ReducerMessage(
       id: id,
       kind: 'tool-call',
       createdAt: createdAt,
-      metadata: {...?metadata, 'role': 'agent'},
+      metadata: {
+        ...?metadata,
+        'role': 'agent',
+        if (subagentId != null) 'subagentId': subagentId,
+      },
+      subagentId: subagentId,
       tool: ToolInfo(
         id: toolId,
         name: name,

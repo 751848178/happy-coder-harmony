@@ -1,5 +1,14 @@
 # 模型选项来源与会话列表消息同步延迟问题记录（2026-03-28）
 
+## 2026-03-31 修正说明
+
+- 本文里关于“模型候选只能来自 `metadata.models`”和“新建会话不再读取 `lastUsedModelMode`”的结论，已被 2026-03-31 的最新规则覆盖。
+- 当前正确规则是：
+  1. 模型候选：`metadata.models` 优先，没有时回退到 PC 自己的 fallback 列表
+  2. 新建会话：继续读取/写回 `lastUsedModelMode`
+  3. `session.modelMode` 的默认语义仍然是 `default`，不能和 UI 的默认高亮 key 混用
+- 这份文档保留为 2026-03-28 当时的排查历史，不再代表当前实现。
+
 ## 背景
 - 现象 A：模型选择和 PC 不一致。移动端在没有 PC `metadata.models` 时仍展示本地硬编码模型列表。
 - 现象 B：新建会话会带入本地 `lastUsedModelMode`，即使该 key 不在当前可选项中。

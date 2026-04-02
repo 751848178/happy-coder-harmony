@@ -137,3 +137,43 @@ class _SheetOptionTile extends StatelessWidget {
     );
   }
 }
+
+class _SheetInfoTile extends StatelessWidget {
+  const _SheetInfoTile({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppTheme.neutral600,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -1,7 +1,11 @@
 part of 'settings_screen.dart';
 
 Widget _buildSettingsScaffold(_SettingsScreenState state) {
-  state.ref.watch(sessionStateProvider);
+  state.ref.watch(sessionStateProvider.select(
+    (s) => s.whenOrNull(
+      ready: (sessions, _, machines) => (sessions, machines),
+    ),
+  ));
   final sessionNotifier = state.ref.read(sessionStateProvider.notifier);
   final machines = state._collectMachines(
     sessionNotifier.machines,

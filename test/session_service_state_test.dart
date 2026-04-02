@@ -6,6 +6,27 @@ import 'package:happy_coder_flutter/features/session/domain/session_models.dart'
 import 'package:happy_coder_flutter/features/session/domain/session_service.dart';
 
 void main() {
+  test('whenOrNull returns null for non-ready states instead of throwing', () {
+    expect(
+      SessionServiceState.initial.whenOrNull(
+        ready: (sessions, sessionMessages, machines) => sessions.length,
+      ),
+      isNull,
+    );
+    expect(
+      SessionServiceState.loading.whenOrNull(
+        ready: (sessions, sessionMessages, machines) => sessions.length,
+      ),
+      isNull,
+    );
+    expect(
+      SessionServiceState.error('boom').whenOrNull(
+        ready: (sessions, sessionMessages, machines) => sessions.length,
+      ),
+      isNull,
+    );
+  });
+
   test('message updates promote notifier from initial to ready', () async {
     final repository = SessionRepository.instance;
     repository.clearAll();

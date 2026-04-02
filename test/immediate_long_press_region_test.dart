@@ -1,14 +1,15 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:happy_coder_flutter/core/widgets/immediate_long_press_region.dart';
 
 void main() {
-  testWidgets('fires long press before finger lift and suppresses child long press',
+  testWidgets(
+      'fires long press before finger lift and suppresses child long press',
       (tester) async {
     var didLongPress = false;
     var didChildLongPress = false;
+    var didCancelPointer = false;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -19,12 +20,17 @@ void main() {
               onLongPress: () async {
                 didLongPress = true;
               },
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onLongPress: () {
-                  didChildLongPress = true;
+              child: Listener(
+                onPointerCancel: (_) {
+                  didCancelPointer = true;
                 },
-                child: const SizedBox(width: 120, height: 120),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onLongPress: () {
+                    didChildLongPress = true;
+                  },
+                  child: const SizedBox(width: 120, height: 120),
+                ),
               ),
             ),
           ),
@@ -32,15 +38,14 @@ void main() {
       ),
     );
 
-    final gesture =
-        await tester.startGesture(tester.getCenter(find.byType(SizedBox)));
+    await tester.startGesture(tester.getCenter(find.byType(SizedBox)));
     await tester.pump(const Duration(milliseconds: 90));
 
     expect(didLongPress, isTrue);
     expect(didChildLongPress, isFalse);
+    expect(didCancelPointer, isTrue);
 
     await tester.pump(const Duration(milliseconds: 600));
-    await gesture.up();
     await tester.pump();
 
     expect(didChildLongPress, isFalse);

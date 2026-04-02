@@ -7,6 +7,7 @@ extension SessionServiceOutputMessageReducer on SessionServiceNotifier {
     required DateTime createdAt,
     required String? localId,
     required Map<String, dynamic>? meta,
+    String? subagentId,
   }) {
     if (outputData == null) {
       return const <ReducerMessage>[];
@@ -37,6 +38,7 @@ extension SessionServiceOutputMessageReducer on SessionServiceNotifier {
               ...baseMetadata,
               if (outputType == 'reasoning') 'outputType': 'thinking',
             },
+            subagentId: subagentId,
           ),
         ];
       case 'summary':
@@ -50,6 +52,7 @@ extension SessionServiceOutputMessageReducer on SessionServiceNotifier {
             createdAt: createdAt,
             text: summary!,
             metadata: baseMetadata,
+            subagentId: subagentId,
           ),
         ];
       case 'assistant':
@@ -66,6 +69,7 @@ extension SessionServiceOutputMessageReducer on SessionServiceNotifier {
               if (outputType == 'user') 'sourceRole': 'user',
             },
             role: role,
+            subagentId: subagentId,
           );
         }
         final directText =
@@ -82,6 +86,7 @@ extension SessionServiceOutputMessageReducer on SessionServiceNotifier {
               ...baseMetadata,
               if (outputType == 'user') 'sourceRole': 'user',
             },
+            subagentId: subagentId,
           ),
         ];
       case 'user':
@@ -101,6 +106,7 @@ extension SessionServiceOutputMessageReducer on SessionServiceNotifier {
                 'role': 'user',
                 'sourceRole': 'user',
               },
+              subagentId: subagentId,
             ),
           ];
         }
@@ -116,6 +122,7 @@ extension SessionServiceOutputMessageReducer on SessionServiceNotifier {
               'sourceRole': 'user',
             },
             role: 'agent',
+            subagentId: subagentId,
           );
         }
         return const <ReducerMessage>[];
@@ -130,6 +137,7 @@ extension SessionServiceOutputMessageReducer on SessionServiceNotifier {
             createdAt: createdAt,
             meta: baseMetadata,
             role: 'agent',
+            subagentId: subagentId,
           );
         }
         return const <ReducerMessage>[];

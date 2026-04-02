@@ -5,10 +5,10 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "/Users/zhaoxingbo/.ohos/config/HapmonyChain-ordered.cer",
+          "certpath": "/Users/zhaoxingbo/.ohos/config/Hapmony-test.cer",
           "keyAlias": "debugKey",
           "keyPassword": "0000001B57C7EFDA04303E5BF4671EBF5072B7AEF947CA76C0FC0E8110CCB9BB6940623A76E211EFE4F892",
-          "profile": "/Users/zhaoxingbo/.ohos/config/HapmonyRelease.p7b",
+          "profile": "/Users/zhaoxingbo/.ohos/config/Hapmony-testDebug.p7b",
           "signAlg": "SHA256withECDSA",
           "storeFile": "/Users/zhaoxingbo/.ohos/config/default_ohos_AQmgImnweXj3CxVQRiO-WpgYa7cAERNmfZZUMJqt5UY=.p12",
           "storePassword": "0000001B87F3BE68A50EFE75804524E1B3D4C55A3635645D408AE33DD6D867B0384172E6454EEA433A054F"

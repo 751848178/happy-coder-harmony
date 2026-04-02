@@ -32,7 +32,11 @@ class _SessionMachinePickerScreenState
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(sessionStateProvider);
+    ref.watch(sessionStateProvider.select(
+      (s) => s.whenOrNull(
+        ready: (sessions, _, machines) => (sessions, machines),
+      ),
+    ));
     final sessionNotifier = ref.read(sessionStateProvider.notifier);
     final machines = <_MachineOption>[];
     final seenIds = <String>{};

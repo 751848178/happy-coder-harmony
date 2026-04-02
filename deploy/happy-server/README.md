@@ -35,6 +35,14 @@
 
 Dockerfile 也会自动识别这类“镜像前缀 + GitHub 仓库”的 URL，并继续优先下载对应的 archive 包，所以后续只改 `HAPPY_UPSTREAM_REF` 也能继续走镜像。
 
+为了适配国内服务器，构建阶段还额外做了三件事：
+
+- Node 基础镜像默认走 `DaoCloud` 公共镜像前缀，避免直接命中 `registry-1.docker.io`
+- `apt` 默认切到清华 Debian 镜像，并开启重试，减少 `apt-get update` 卡死
+- `yarn/npm` 默认切到 `npmmirror`，避免安装 Node 依赖时访问官方 npm 慢或超时
+
+如果你之前的 `.env` 里还残留 `hub.fastgit.xyz`，新 Dockerfile 也会在构建时自动改写到 `gh-proxy + github.com`，避免继续走已经不稳定的旧地址。
+
 ## 快速开始
 
 1. 复制环境变量模板。
@@ -53,13 +61,20 @@ cp .env.example .env
 3. 构建并启动。
 
 ```bash
-docker compose build --pull
+docker compose build
 docker compose up -d
 ```
 
-默认已经走镜像仓库。如果你想显式指定另一套镜像 archive，或者想切回官方源，可以在 `.env` 里这样改：
+默认已经走国内更友好的镜像源。如果你想显式指定另一套镜像 archive，或者想切回官方源，可以在 `.env` 里这样改：
 
 ```bash
+# 切回官方 Node 基础镜像与 npm
+HAPPY_NODE_IMAGE=node:20
+HAPPY_NODE_SLIM_IMAGE=node:20-slim
+HAPPY_NPM_REGISTRY=https://registry.npmjs.org
+HAPPY_APT_MIRROR=
+HAPPY_APT_SECURITY_MIRROR=
+
 # 显式指定 archive 镜像
 HAPPY_UPSTREAM_ARCHIVE_URL=https://your-mirror.example.com/happy.tar.gz
 
@@ -68,6 +83,12 @@ HAPPY_UPSTREAM_REPO=https://github.com/slopus/happy.git
 ```
 
 不设置 `HAPPY_UPSTREAM_ARCHIVE_URL` 时，会自动按 `HAPPY_UPSTREAM_REPO + HAPPY_UPSTREAM_REF` 推导 archive 地址；镜像前缀形式的 GitHub URL 也支持自动推导。
+
+只有在你明确想刷新基础镜像时，再额外执行：
+
+```bash
+docker compose build --pull
+```
 
 4. 查看启动日志，确认迁移完成并成功监听 `3005`。
 
@@ -86,6 +107,54 @@ curl http://127.0.0.1:3005/health
 ```bash
 curl https://your-domain.example.com/health
 ```
+
+## 国内服务器常见报错
+
+### 1. `hub.fastgit.xyz ... Couldn't connect to server`
+
+这通常说明服务器还在用旧版 `Dockerfile` 或旧版 `.env`。新版部署目录已经把默认仓库切到了：
+
+- `https://gh-proxy.com/https://github.com/slopus/happy.git`
+
+并且会自动把旧的 `hub.fastgit.xyz/...` 改写成新的 GitHub 镜像地址。最稳妥的做法还是把当前目录的最新 `Dockerfile`、`docker-compose.yml`、`.env.example` 同步到服务器后再重建。
+
+### 2. `Get "https://registry-1.docker.io/v2/" ... Client.Timeout exceeded`
+
+这说明基础镜像仍然在尝试直接访问 Docker Hub。新版默认会改为：
+
+- `m.daocloud.io/docker.io/library/node:20`
+- `m.daocloud.io/docker.io/library/node:20-slim`
+
+如果你的服务器日志里仍然显示 `docker.io/library/node:*`，先检查是否同步了最新 `docker-compose.yml`，以及 `.env` 里有没有把 `HAPPY_NODE_IMAGE` 覆盖回官方地址。
+
+如果宿主机层面的 Docker 拉取依然很慢，可以再额外给 Docker daemon 配一层镜像：
+
+```bash
+cat >/etc/docker/daemon.json <<'EOF'
+{
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io"
+  ]
+}
+EOF
+systemctl restart docker
+```
+
+### 3. `apt-get update` 或 `apt-get install ffmpeg` 卡很久
+
+新版 Dockerfile 已经把 Debian 源切到了清华镜像，并且加了重试。如果你还是卡在这里，通常是：
+
+- 服务器还在用旧版 Dockerfile
+- 服务器网络策略不允许访问所选镜像
+- 你在 `.env` 里把 `HAPPY_APT_MIRROR` 覆盖成了不可达地址
+
+### 4. `yarn install` 很慢或超时
+
+新版默认会把 npm registry 切到：
+
+- `https://registry.npmmirror.com`
+
+如果你有自建 npm 代理，也可以把 `HAPPY_NPM_REGISTRY` 改成自己的地址。
 
 ## 现有 Postgres 的使用建议
 

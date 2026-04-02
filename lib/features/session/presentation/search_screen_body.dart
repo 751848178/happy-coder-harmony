@@ -1,7 +1,21 @@
 part of 'search_screen.dart';
 
 Widget _buildSessionSearchScaffold(_SessionSearchScreenState state) {
-  final sessionState = state.ref.watch(sessionStateProvider);
+  final (sessions, isLoading) = state.ref.watch(sessionStateProvider.select(
+    (s) {
+      var sessions = <Session>[];
+      var loading = false;
+      s.whenOrNull(
+        ready: (sMap, _, __) {
+          sessions = sMap.values.toList();
+        },
+        loading: () {
+          loading = true;
+        },
+      );
+      return (sessions, loading);
+    },
+  ));
   return Scaffold(
     backgroundColor: AppTheme.surface,
     appBar: AppBar(
@@ -16,7 +30,9 @@ Widget _buildSessionSearchScaffold(_SessionSearchScreenState state) {
     body: Column(
       children: [
         _buildSessionSearchBar(state),
-        Expanded(child: _buildSessionSearchResults(state, sessionState)),
+        Expanded(
+            child:
+                _buildSessionSearchResults(state, sessions, isLoading)),
       ],
     ),
   );
@@ -65,13 +81,8 @@ Widget _buildSessionSearchBar(_SessionSearchScreenState state) {
 }
 
 Widget _buildSessionSearchResults(
-    _SessionSearchScreenState state, dynamic sessionState) {
-  final sessions = sessionState.maybeWhen(
-    orElse: () => <Session>[],
-    loading: () => <Session>[],
-    ready: (sessions, _, __) => sessions,
-  );
-  if (sessionState.maybeWhen(orElse: () => false, loading: () => true)) {
+    _SessionSearchScreenState state, List<Session> sessions, bool isLoading) {
+  if (isLoading) {
     return const Center(child: CircularProgressIndicator());
   }
   if (sessions.isEmpty) {

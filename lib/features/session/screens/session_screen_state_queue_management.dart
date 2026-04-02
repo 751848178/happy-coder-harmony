@@ -21,8 +21,8 @@ extension _SessionScreenStateQueueManagement on _SessionScreenState {
 
     _updateState(() {
       _isAutoSendingQueuedMessage = true;
-      _queuedMessages = remaining;
     });
+    _queuedMessagesN.value = remaining;
 
     try {
       try {
@@ -33,9 +33,7 @@ extension _SessionScreenStateQueueManagement on _SessionScreenState {
             nextMessage,
             ..._queuedMessages,
           ];
-          _updateState(() {
-            _queuedMessages = restoredQueue;
-          });
+          _queuedMessagesN.value = restoredQueue;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('更新待发送消息失败: $error'),
@@ -54,9 +52,7 @@ extension _SessionScreenStateQueueManagement on _SessionScreenState {
           nextMessage,
           ..._queuedMessages,
         ];
-        _updateState(() {
-          _queuedMessages = restoredQueue;
-        });
+        _queuedMessagesN.value = restoredQueue;
         await _composerQueueService.replace(widget.sessionId, restoredQueue);
       }
     } finally {

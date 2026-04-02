@@ -107,42 +107,48 @@ extension _BashToolScreenOutput on _BashToolScreenState {
   }
 
   Widget _buildCommandInput() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        border: Border(top: BorderSide(color: AppTheme.neutral200, width: 1)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _commandController,
-                decoration: const InputDecoration(
-                  hintText: '输入 bash 命令...',
-                  border: InputBorder.none,
-                  filled: true,
-                  fillColor: AppTheme.neutral50,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isExecuting,
+      builder: (context, isExecuting, _) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppTheme.surface,
+            border:
+                Border(top: BorderSide(color: AppTheme.neutral200, width: 1)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commandController,
+                    decoration: const InputDecoration(
+                      hintText: '输入 bash 命令...',
+                      border: InputBorder.none,
+                      filled: true,
+                      fillColor: AppTheme.neutral50,
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    onSubmitted: (_) => _executeCommandFromInput(),
+                    autofocus: true,
+                  ),
                 ),
-                onSubmitted: (_) => _executeCommandFromInput(),
-                autofocus: true,
-              ),
+                IconButton(
+                  icon: const Icon(Icons.send),
+                  onPressed: isExecuting ? null : _executeCommandFromInput,
+                  style: IconButton.styleFrom(
+                    backgroundColor:
+                        isExecuting ? AppTheme.neutral300 : AppTheme.brandColor,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
             ),
-            IconButton(
-              icon: const Icon(Icons.send),
-              onPressed: _isExecuting ? null : _executeCommandFromInput,
-              style: IconButton.styleFrom(
-                backgroundColor:
-                    _isExecuting ? AppTheme.neutral300 : AppTheme.brandColor,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

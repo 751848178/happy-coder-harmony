@@ -2,17 +2,38 @@
 # Default ref is pinned for reproducibility and can be overridden in .env.
 # For public GitHub repos we prefer the archive download because fetching a
 # detached commit SHA over git is flaky in some Docker/network environments.
+# Defaults favor China-friendly mirrors, but every image/source/registry can be
+# overridden from .env when the deployment environment has direct global access.
 # Mirror-prefixed GitHub URLs are supported as long as they preserve the
 # upstream path in the final URL, for example:
 # https://gh-proxy.com/https://github.com/slopus/happy.git
 
-FROM node:20 AS source
+ARG HAPPY_NODE_IMAGE=m.daocloud.io/docker.io/library/node:20
+ARG HAPPY_NODE_SLIM_IMAGE=m.daocloud.io/docker.io/library/node:20-slim
+ARG HAPPY_APT_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/debian
+ARG HAPPY_APT_SECURITY_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/debian-security
+ARG HAPPY_NPM_REGISTRY=https://registry.npmmirror.com
 
+FROM ${HAPPY_NODE_IMAGE} AS source
+
+ARG HAPPY_APT_MIRROR
+ARG HAPPY_APT_SECURITY_MIRROR
 ARG HAPPY_REPO=https://gh-proxy.com/https://github.com/slopus/happy.git
 ARG HAPPY_REF=d343330c86ab966969aecd82be4aecbad7ec4238
 ARG HAPPY_ARCHIVE_URL=
 
-RUN apt-get update \
+RUN set -eux; \
+  printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-retries; \
+  printf 'Acquire::http::Pipeline-Depth "0";\n' > /etc/apt/apt.conf.d/99nopipelining; \
+  if [ -n "${HAPPY_APT_MIRROR}" ] && [ -n "${HAPPY_APT_SECURITY_MIRROR}" ]; then \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -ri "s#https?://deb.debian.org/debian#${HAPPY_APT_MIRROR%/}#g; s#https?://security.debian.org/debian-security#${HAPPY_APT_SECURITY_MIRROR%/}#g; s#https?://deb.debian.org/debian-security#${HAPPY_APT_SECURITY_MIRROR%/}#g" /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    if [ -f /etc/apt/sources.list ]; then \
+      sed -ri "s#https?://deb.debian.org/debian#${HAPPY_APT_MIRROR%/}#g; s#https?://security.debian.org/debian-security#${HAPPY_APT_SECURITY_MIRROR%/}#g; s#https?://deb.debian.org/debian-security#${HAPPY_APT_SECURITY_MIRROR%/}#g" /etc/apt/sources.list; \
+    fi; \
+  fi; \
+  apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl git \
   && rm -rf /var/lib/apt/lists/*
 
@@ -20,6 +41,15 @@ WORKDIR /src
 
 RUN set -eux; \
   repo_url="${HAPPY_REPO%/}"; \
+  case "${repo_url}" in \
+    https://hub.fastgit.xyz/*|http://hub.fastgit.xyz/*|https://hub.fastgit.org/*|http://hub.fastgit.org/*) \
+      repo_path="${repo_url#https://hub.fastgit.xyz/}"; \
+      [ "${repo_path}" != "${repo_url}" ] || repo_path="${repo_url#http://hub.fastgit.xyz/}"; \
+      [ "${repo_path}" != "${repo_url}" ] || repo_path="${repo_url#https://hub.fastgit.org/}"; \
+      [ "${repo_path}" != "${repo_url}" ] || repo_path="${repo_url#http://hub.fastgit.org/}"; \
+      repo_url="https://gh-proxy.com/https://github.com/${repo_path}"; \
+      ;; \
+  esac; \
   repo_base="${repo_url%.git}"; \
   archive_url=""; \
   if [ -n "${HAPPY_ARCHIVE_URL}" ]; then \
@@ -32,14 +62,29 @@ RUN set -eux; \
       | tar -xzf - --strip-components=1 -C /src; \
   else \
     git init; \
-    git remote add origin "${HAPPY_REPO}"; \
+    git remote add origin "${repo_url}"; \
     git fetch --depth 1 origin "${HAPPY_REF}"; \
     git checkout --detach FETCH_HEAD; \
   fi
 
-FROM node:20 AS deps
+FROM ${HAPPY_NODE_IMAGE} AS deps
 
-RUN apt-get update \
+ARG HAPPY_APT_MIRROR
+ARG HAPPY_APT_SECURITY_MIRROR
+ARG HAPPY_NPM_REGISTRY
+
+RUN set -eux; \
+  printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-retries; \
+  printf 'Acquire::http::Pipeline-Depth "0";\n' > /etc/apt/apt.conf.d/99nopipelining; \
+  if [ -n "${HAPPY_APT_MIRROR}" ] && [ -n "${HAPPY_APT_SECURITY_MIRROR}" ]; then \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -ri "s#https?://deb.debian.org/debian#${HAPPY_APT_MIRROR%/}#g; s#https?://security.debian.org/debian-security#${HAPPY_APT_SECURITY_MIRROR%/}#g; s#https?://deb.debian.org/debian-security#${HAPPY_APT_SECURITY_MIRROR%/}#g" /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    if [ -f /etc/apt/sources.list ]; then \
+      sed -ri "s#https?://deb.debian.org/debian#${HAPPY_APT_MIRROR%/}#g; s#https?://security.debian.org/debian-security#${HAPPY_APT_SECURITY_MIRROR%/}#g; s#https?://deb.debian.org/debian-security#${HAPPY_APT_SECURITY_MIRROR%/}#g" /etc/apt/sources.list; \
+    fi; \
+  fi; \
+  apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ build-essential \
   && rm -rf /var/lib/apt/lists/*
 
@@ -62,7 +107,12 @@ COPY --from=source /src/packages/happy-server/prisma packages/happy-server/prism
 COPY --from=source /src/packages/happy-cli/scripts packages/happy-cli/scripts
 COPY --from=source /src/packages/happy-cli/tools packages/happy-cli/tools
 
-RUN SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines
+RUN set -eux; \
+  if [ -n "${HAPPY_NPM_REGISTRY}" ]; then \
+    yarn config set registry "${HAPPY_NPM_REGISTRY}"; \
+    npm config set registry "${HAPPY_NPM_REGISTRY}"; \
+  fi; \
+  SKIP_HAPPY_WIRE_BUILD=1 yarn install --frozen-lockfile --ignore-engines
 
 FROM deps AS builder
 
@@ -72,11 +122,25 @@ COPY --from=source /src/packages/happy-server ./packages/happy-server
 RUN yarn workspace @slopus/happy-wire build
 RUN yarn workspace happy-server build
 
-FROM node:20-slim AS runner
+FROM ${HAPPY_NODE_SLIM_IMAGE} AS runner
 
 WORKDIR /repo
 
-RUN apt-get update \
+ARG HAPPY_APT_MIRROR
+ARG HAPPY_APT_SECURITY_MIRROR
+
+RUN set -eux; \
+  printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-retries; \
+  printf 'Acquire::http::Pipeline-Depth "0";\n' > /etc/apt/apt.conf.d/99nopipelining; \
+  if [ -n "${HAPPY_APT_MIRROR}" ] && [ -n "${HAPPY_APT_SECURITY_MIRROR}" ]; then \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -ri "s#https?://deb.debian.org/debian#${HAPPY_APT_MIRROR%/}#g; s#https?://security.debian.org/debian-security#${HAPPY_APT_SECURITY_MIRROR%/}#g; s#https?://deb.debian.org/debian-security#${HAPPY_APT_SECURITY_MIRROR%/}#g" /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    if [ -f /etc/apt/sources.list ]; then \
+      sed -ri "s#https?://deb.debian.org/debian#${HAPPY_APT_MIRROR%/}#g; s#https?://security.debian.org/debian-security#${HAPPY_APT_SECURITY_MIRROR%/}#g; s#https?://deb.debian.org/debian-security#${HAPPY_APT_SECURITY_MIRROR%/}#g" /etc/apt/sources.list; \
+    fi; \
+  fi; \
+  apt-get update \
   && apt-get install -y --no-install-recommends ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 

@@ -116,3 +116,15 @@ const double _sessionMessageLongPressMoveSlop = 36.0;
 ## 相关历史
 
 - `issues/session-message-long-press-actions-blocked-by-selectable-text.md`：前次修复尝试（使用 `Listener` + `cancelPointer`），解决了菜单被吃掉的问题，但引入了本 issue 的缩放和误触问题
+
+## 2026-03-31 补充
+
+后续再次排查发现，仅仅“参与手势竞技场并获胜”还不够。
+
+- 文件：`lib/core/widgets/immediate_long_press_region.dart`
+- 现象：菜单已经能弹出，但同一次长按序列没有被 `cancelPointer(...)` 中断时，HarmonyOS 真机上仍可能继续出现页面缩放效果。
+- 最新约束：
+  1. `ImmediateLongPressRegion` 既要赢得竞技场
+  2. 也要在长按达标后取消当前 pointer
+
+否则问题会从“菜单弹不出来”变成“菜单弹出来了，但页面还是缩放”。详见 `issues/session-message-long-press-must-cancel-pointer-2026-03-31.md`。

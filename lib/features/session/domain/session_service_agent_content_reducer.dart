@@ -7,6 +7,7 @@ extension SessionServiceAgentContentReducer on SessionServiceNotifier {
     required DateTime createdAt,
     required Map<String, dynamic>? meta,
     required String role,
+    String? subagentId,
   }) {
     final messages = <ReducerMessage>[];
 
@@ -22,6 +23,7 @@ extension SessionServiceAgentContentReducer on SessionServiceNotifier {
               createdAt: createdAt,
               text: text!,
               metadata: {...?meta, 'role': role},
+              subagentId: subagentId,
             ));
           }
           break;
@@ -33,6 +35,7 @@ extension SessionServiceAgentContentReducer on SessionServiceNotifier {
               createdAt: createdAt,
               text: thinking!,
               metadata: {...?meta, 'role': role, 'outputType': 'thinking'},
+              subagentId: subagentId,
             ));
           }
           break;
@@ -50,6 +53,7 @@ extension SessionServiceAgentContentReducer on SessionServiceNotifier {
             status: ToolCallStatus.pending,
             metadata: meta,
             description: part['description']?.toString(),
+            subagentId: null,
           ));
           break;
         case 'tool_result':
@@ -82,6 +86,7 @@ extension SessionServiceAgentContentReducer on SessionServiceNotifier {
                         : part['output'],
                   )
                 : null,
+            subagentId: null,
           ));
           break;
         case 'summary':
@@ -92,6 +97,7 @@ extension SessionServiceAgentContentReducer on SessionServiceNotifier {
               createdAt: createdAt,
               text: summary!,
               metadata: {...?meta, 'role': role},
+              subagentId: subagentId,
             ));
           }
           break;
@@ -101,6 +107,7 @@ extension SessionServiceAgentContentReducer on SessionServiceNotifier {
             createdAt: createdAt,
             text: '子任务分支',
             metadata: meta,
+            subagentId: null,
           ));
           break;
       }

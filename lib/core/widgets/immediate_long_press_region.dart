@@ -76,6 +76,7 @@ class _ArenaLongPressGestureRecognizer extends LongPressGestureRecognizer {
 
   final double movementThreshold;
 
+  int? _trackedPointer;
   Offset? _previousPosition;
   Duration? _previousTimestamp;
   int _scrollLikeMoveCount = 0;
@@ -91,6 +92,7 @@ class _ArenaLongPressGestureRecognizer extends LongPressGestureRecognizer {
 
   @override
   void addAllowedPointer(PointerDownEvent event) {
+    _trackedPointer = event.pointer;
     _previousPosition = event.position;
     _previousTimestamp = event.timeStamp;
     _scrollLikeMoveCount = 0;
@@ -98,12 +100,20 @@ class _ArenaLongPressGestureRecognizer extends LongPressGestureRecognizer {
   }
 
   @override
+  void didExceedDeadline() {
+    final pointer = _trackedPointer;
+    super.didExceedDeadline();
+    if (pointer != null) {
+      GestureBinding.instance.cancelPointer(pointer);
+    }
+  }
+
+  @override
   void handleEvent(PointerEvent event) {
     if (event is PointerMoveEvent &&
         _previousPosition != null &&
         _previousTimestamp != null) {
-      final dtMicros =
-          (event.timeStamp - _previousTimestamp!).inMicroseconds;
+      final dtMicros = (event.timeStamp - _previousTimestamp!).inMicroseconds;
       if (dtMicros > 0) {
         final distance = (event.position - _previousPosition!).distance;
         final velocity = distance * 1000000 / dtMicros;
@@ -136,6 +146,7 @@ class _ArenaLongPressGestureRecognizer extends LongPressGestureRecognizer {
   }
 
   void _reset() {
+    _trackedPointer = null;
     _previousPosition = null;
     _previousTimestamp = null;
     _scrollLikeMoveCount = 0;

@@ -15,7 +15,7 @@ extension _ChatScreenMessages on _ChatScreenState {
 
   void _handleSessionTap(String sessionId) {
     ref.read(currentSessionProvider.notifier).state =
-        ref.read(sessionStateProvider).whenOrNull(
+        ref.read(sessionStateProvider).whenOrNull<Session?>(
               ready: (sessions, _, __) => sessions[sessionId],
             );
   }
@@ -85,13 +85,16 @@ extension _ChatScreenMessages on _ChatScreenState {
   }
 
   List<ReducerMessage> _currentMessages() {
-    List<ReducerMessage> messages = const [];
-    ref.watch(sessionStateProvider).whenOrNull(
-      ready: (_, sessionMessages, __) {
-        messages = sessionMessages[widget.sessionId]?.messages ?? const [];
-      },
-    );
-    return messages;
+    return ref.watch(
+          sessionStateProvider.select(
+            (state) => state.whenOrNull(
+              ready: (_, sessionMessages, __) =>
+                  sessionMessages[widget.sessionId]?.messages ??
+                  const <ReducerMessage>[],
+            ),
+          ),
+        ) ??
+        const <ReducerMessage>[];
   }
 
   Widget _buildInputArea() {

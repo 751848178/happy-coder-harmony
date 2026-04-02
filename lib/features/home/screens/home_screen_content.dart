@@ -2,7 +2,22 @@ part of 'home_screen.dart';
 
 Widget _buildHomeScreen(_HomeScreenState state) {
   final authState = state.ref.watch(authStateProvider);
-  state.ref.watch(sessionStateProvider);
+  // Only watch a fingerprint of session state for the machine filter drawer.
+  // Individual session list content is handled by SessionsScreen internally.
+  state.ref.watch(
+    sessionStateProvider.select<(int, int, int)>(
+      (s) => s.when(
+        initial: () => const (0, 0, 0),
+        loading: () => const (0, 0, 0),
+        ready: (sessions, _, machines) => (
+          sessions.length,
+          machines.length,
+          Object.hashAllUnordered(machines.keys),
+        ),
+        error: (_) => const (0, 0, 0),
+      ),
+    ),
+  );
   Logger.info(
     'HomeScreen.build authenticated=${authState.isAuthenticated} activeTab=${state._activeTab}',
   );
@@ -45,8 +60,6 @@ Widget _buildHomeScreen(_HomeScreenState state) {
       children: [
         _HomeHeader(
           activeTab: state._activeTab,
-          status:
-              _buildHomeConnectionStatus(state.ref.watch(socketStateProvider)),
           isRefreshingStatus: state._isRefreshingSessionsStatus,
           selectedMachineLabel: state._activeTab == HomeTab.sessions
               ? (selectedMachine?.label ?? '全部设备')

@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/providers/app_providers.dart';
 import '../../../app/routes/app_routes.dart';
+import '../../../core/widgets/bottom_popup_sheet.dart';
+import '../../../core/widgets/immediate_long_press_region.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/extensions.dart';
 import '../../../shared/widgets/session_history_list.dart';
@@ -79,11 +81,21 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       <String, DateTime>{};
   final Set<String> _sessionPreviewRefreshInFlight = <String>{};
 
-  String _searchQuery = '';
-  bool _showActiveOnly = false;
-  bool _isRefreshingSessions = false;
-  bool _groupingLoaded = false;
-  SessionGroupingState _groupingState = const SessionGroupingState();
+  // --- Filter / grouping / refresh state backed by ValueNotifiers ---
+  // These change independently and each should only rebuild the UI
+  // section that depends on it, not the entire screen.
+  final ValueNotifier<String> _searchQueryN = ValueNotifier('');
+  final ValueNotifier<bool> _showActiveOnlyN = ValueNotifier(false);
+  final ValueNotifier<bool> _isRefreshingSessionsN = ValueNotifier(false);
+  final ValueNotifier<bool> _groupingLoadedN = ValueNotifier(false);
+  final ValueNotifier<SessionGroupingState> _groupingStateN =
+      ValueNotifier(const SessionGroupingState());
+
+  String get _searchQuery => _searchQueryN.value;
+  bool get _showActiveOnly => _showActiveOnlyN.value;
+  bool get _isRefreshingSessions => _isRefreshingSessionsN.value;
+  bool get _groupingLoaded => _groupingLoadedN.value;
+  SessionGroupingState get _groupingState => _groupingStateN.value;
   StreamSubscription<SocketEvent>? _socketEventSubscription;
   Timer? _visibleSnapshotRefreshDebounce;
   Timer? _sessionListAutoSyncTimer;
@@ -118,10 +130,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     if (!mounted) {
       return;
     }
-    setState(() {
-      _groupingState = state;
-      _groupingLoaded = true;
-    });
+    _groupingStateN.value = state;
+    _groupingLoadedN.value = true;
   }
 
   Future<void> _updateGroupingState(
@@ -131,28 +141,20 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     if (!mounted) {
       return;
     }
-    setState(() {
-      _groupingState = nextState;
-      _groupingLoaded = true;
-    });
+    _groupingStateN.value = nextState;
+    _groupingLoadedN.value = true;
   }
 
   void _updateSearchQuery(String value) {
-    setState(() {
-      _searchQuery = value;
-    });
+    _searchQueryN.value = value;
   }
 
   void _toggleShowActiveOnly() {
-    setState(() {
-      _showActiveOnly = !_showActiveOnly;
-    });
+    _showActiveOnlyN.value = !_showActiveOnlyN.value;
   }
 
   void _setRefreshingSessions(bool value) {
-    setState(() {
-      _isRefreshingSessions = value;
-    });
+    _isRefreshingSessionsN.value = value;
   }
 
   void _rebuildView() {
@@ -405,6 +407,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     _sessionPreviewRefreshDebounce.clear();
     _sessionPreviewLastRefreshAt.clear();
     _sessionPreviewRefreshInFlight.clear();
+    _searchQueryN.dispose();
+    _showActiveOnlyN.dispose();
+    _isRefreshingSessionsN.dispose();
+    _groupingLoadedN.dispose();
+    _groupingStateN.dispose();
     super.dispose();
   }
 
@@ -418,11 +425,20 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: AppTheme.neutral50,
-      appBar: _buildSessionsAppBar(),
-      body: view.body,
-      floatingActionButton: widget.showFab ? _buildNewSessionFab() : null,
+    // Only the Scaffold (AppBar) rebuilds when refresh/active-only state
+    // changes. The body's internal builders are unaffected because their
+    // notifiers haven't changed — Flutter reuses their Elements.
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        _isRefreshingSessionsN,
+        _showActiveOnlyN,
+      ]),
+      builder: (_, __) => Scaffold(
+        backgroundColor: AppTheme.neutral50,
+        appBar: _buildSessionsAppBar(),
+        body: view.body,
+        floatingActionButton: widget.showFab ? _buildNewSessionFab() : null,
+      ),
     );
   }
 }

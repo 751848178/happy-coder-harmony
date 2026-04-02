@@ -4,40 +4,65 @@
 
 本次问题表现为移动端的模型列表、当前模型显示和实际发送时使用的模型，与 PC 端不一致；同时从 PC 创建或克隆过来的会话，在移动端也可能出现模型模式错位。
 
-## 2026-03-30 当前生效规则
+## 2026-03-31 当前生效规则
 
 以下内容用于整理“现在 PC 支持的让移动端获取实际可用模型的方式”；如果和下文历史排查记录有冲突，以这一节为准。
 
-### 1. 会话详情里的候选模型列表：直接看 PC 会话 metadata
+### 1. PC 当前的模型候选来源是“metadata 优先，fallback 次之”
 
-- 入口文件：`lib/features/session/screens/session_screen_view_metadata.dart`
-- 规则：会话详情和模型弹层只使用 `session.metadata['models']` 作为候选列表来源。
-- 含义：只要 PC 在会话 metadata 里回传了 `models`，移动端就直接展示这组真实可用模型，不再自己拼一套本地多模型列表。
+- 参考文件：
+  - `/Users/zhaoxingbo/Workspace/ai-driven/happy/packages/happy-app/sources/components/modelModeOptions.ts`
+  - `/Users/zhaoxingbo/Workspace/ai-driven/happy/packages/happy-cli/src/agent/acp/runAcp.ts`
+  - `/Users/zhaoxingbo/Workspace/ai-driven/happy/packages/happy-cli/src/agent/acp/sessionConfigMetadata.ts`
+- 规则：
+  1. 有 `metadata.models`：直接使用这份真实列表
+  2. 没有 `metadata.models`：按 agent 使用 PC 自己的硬编码 fallback 列表
+- 说明：
+  - Flutter 端之前一版把 fallback 全砍掉，错误地改成了“只允许 metadata”。
+  - 这会让移动端在没有 metadata 时出现空态提示，和 PC 实际行为不一致。
 
-### 2. 当前正在使用的模型：优先看本地会话态，再回退到 PC metadata 当前值
+### 2. `session.modelMode` 的默认语义和“UI 默认高亮项”不是一回事
 
-- 入口文件：`lib/features/session/screens/session_screen_view_metadata.dart`
+- 参考文件：`/Users/zhaoxingbo/Workspace/ai-driven/happy/packages/happy-app/sources/-session/SessionView.tsx`
 - 解析顺序：`session.modelMode -> metadata.currentModelCode -> defaultModelKey(flavor)`。
-- 含义：PC 回传的 `currentModelCode` 负责兜底当前值；如果用户已经在移动端本地切过模型，则以 `session.modelMode` 为准。
-- 额外约束：当前值只用于“显示当前选中项”和“发送消息带上 model meta”，不会反向把未知 key 塞回候选列表。
+- 关键约束：
+  - `session.modelMode` 里的默认语义仍然是 `default`
+  - `defaultModelKey(flavor)` 只用于“当前高亮项/新建会话默认选项”的 UI fallback
+  - 不能把 `gpt-5-codex-high / gemini-2.5-pro` 这类 UI fallback key 直接当成会话默认 `modelMode`
+- 含义：如果把“UI 默认高亮 key”和“实际持久化的默认 mode”混成一个值，移动端会在模型展示、保存和发消息时一起跑偏。
 
-### 3. PC 没回传模型列表时：移动端只保留 `default`
+### 3. PC 对“当前选中项”的要求也很明确
 
-- 入口文件：`lib/features/session/domain/session_creation_options_modes.dart`
-- 规则：`modelOptionsForAgent(...)` 在 `metadata.models` 为空时，只返回单一默认项 `default`。
-- 含义：现在移动端不会在缺少 PC 模型元数据时，额外展示 codex / claude / gemini 的本地硬编码多模型列表。
+- 参考文件：`/Users/zhaoxingbo/Workspace/ai-driven/happy/packages/happy-app/sources/components/modelModeOptions.ts`
+- 规则：`resolveCurrentOption(...)` 只会返回候选列表里真实命中的项；如果所有 key 都没命中，就返回 `null`。
+- 含义：移动端不能把未知 key 塞回候选列表，也不能在未命中时偷偷改成第一项已选中。
 
-### 4. 新建会话页：当前不再用历史 session 或 machine metadata 动态改写模型列表
+### 4. 新建会话要继续对齐 PC 的历史选择逻辑
 
-- 入口文件：`lib/features/session/screens/new_session_flow_screen_logic.dart`
-- 规则：`newSessionModelOptionsForAgent(...)` 目前直接走 agent 的固定 fallback；对模型来说也就是单一 `default`。
-- 含义：新建会话入口当前不会因为某台 PC 最近上报过自定义模型，就把这些模型直接混入新建页候选项。
+- 参考文件：`/Users/zhaoxingbo/Workspace/ai-driven/happy/packages/happy-app/sources/app/(app)/new/index.tsx`
+- 规则：
+  1. 新建会话候选列表沿用 PC fallback 列表
+  2. 初始选中项继续读取 `lastUsedModelMode`
+  3. 创建成功后继续写回 `lastUsedModelMode`
+- 说明：Flutter 端之前一版把这条链路直接删掉了，导致新建会话页一边没有 PC fallback，一边还丢了最近使用模型。
 
-### 5. 协议/工具层仍保留的提取能力
+## 2026-03-31 新增补充
 
-- 入口文件：`lib/features/session/domain/session_creation_options_modes.dart`
-- 现状：`resolveModeMetadataForSessions(...)` 和 `resolveModeMetadataForMachines(...)` 仍然支持从最近会话 metadata、或 machine metadata 的 `agents/flavors/providers` 结构里提取 `models` / `operatingModes`。
-- 说明：这表示 PC 侧如果继续通过这些结构回传模式元数据，移动端工具层仍能识别；但 2026-03-30 当前 UI 真正生效的模型候选来源，仍以上面第 1 条的会话 `metadata.models` 为主。
+### 6. 候选列表来源修对了，不代表当前模型状态恢复也自动正确
+
+- 文件：`lib/features/session/domain/session_service_session_parsing.dart`
+- 文件：`lib/features/session/domain/session_service.dart`
+- 说明：即使移动端已经按 PC 规则拿到了正确的候选列表，如果远端会话刷新时仍直接用 `metadata.currentModelCode` 重建 `session.modelMode`，用户在移动端刚选好的模型依然会被冲回远端默认值。
+- 含义：模型问题至少要拆成两层处理：
+  1. 候选列表从哪里来
+  2. 当前选中的本地模型如何跨刷新保留
+
+### 7. `session.modelMode` 必须按“本地当前覆盖值”处理
+
+- 参考文件：`/Users/zhaoxingbo/Workspace/ai-driven/happy/packages/happy-app/sources/-session/SessionView.tsx`
+- 参考文件：`/Users/zhaoxingbo/Workspace/ai-driven/happy/packages/happy-app/sources/sync/messageMeta.ts`
+- 规则：PC 当前展示和发消息都优先使用本地 `session.modelMode`，这说明它不是远端 metadata 的镜像字段，而是本地当前覆盖值。
+- 约束：移动端在远端刷新、缓存恢复、冷启动恢复时，都必须先保留本地显式模型选择，再回退到远端 metadata 当前值。
 
 ## 根因定位
 
@@ -85,10 +110,12 @@
 
 ## 本次修复
 
-- 新建会话流程补齐了模型状态、模型设置 UI、`lastUsedModelMode` 读取与保存、以及 `spawnSession(modelMode)` 传参。
-- 会话页当前模型解析改为优先使用 `session.modelMode`，再退回 `metadata.currentModelCode`。
-- 发送消息时的 `meta.model` 改为只基于 `session.modelMode` 决定。
-- 克隆会话时改为优先传递 `session.modelMode`，避免旧 metadata 覆盖本地选择。
+- 恢复 `modelOptionsForAgent(...)` 与 `newSessionModelOptionsForAgent(...)` 的 PC fallback 列表。
+- 新增“UI 默认高亮 key”与“默认 `modelMode` 语义”的分离：
+  - `defaultModelOptionKeyForAgent(...)` 只用于候选项选中态与新建会话默认项
+  - `defaultModelModeForAgent(...)` 继续保留 `default` 语义
+- 新建会话恢复 `lastUsedModelMode` 的读取与保存，不再显示“等待 PC/CLI 同步模型列表”的额外空态文案。
+- 会话页当前模型解析继续遵守 `session.modelMode -> metadata.currentModelCode -> defaultModelKey(flavor)`。
 
 ## 后续开发约束
 

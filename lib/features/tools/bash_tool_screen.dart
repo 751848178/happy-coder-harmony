@@ -18,8 +18,10 @@ class _BashToolScreenState extends ConsumerState<BashToolScreen> {
   final List<BashCommand> _commandHistory = [];
   final List<TextEditingController> _outputControllers = [];
 
-  bool _isExecuting = false;
+  final ValueNotifier<bool> _isExecuting = ValueNotifier(false);
   int _selectedIndex = -1;
+
+  bool get _executing => _isExecuting.value;
 
   @override
   void initState() {
@@ -29,6 +31,7 @@ class _BashToolScreenState extends ConsumerState<BashToolScreen> {
 
   @override
   void dispose() {
+    _isExecuting.dispose();
     _commandController.dispose();
     _scrollController.dispose();
     for (final controller in _outputControllers) {
@@ -38,10 +41,10 @@ class _BashToolScreenState extends ConsumerState<BashToolScreen> {
   }
 
   Future<void> _executeCommand(String command) async {
-    if (_isExecuting) {
+    if (_executing) {
       return;
     }
-    setState(() => _isExecuting = true);
+    _isExecuting.value = true;
     try {
       await Future<void>.delayed(const Duration(milliseconds: 500));
       final result = await _executeBashCommand(command);
@@ -56,7 +59,7 @@ class _BashToolScreenState extends ConsumerState<BashToolScreen> {
         );
       }
     } catch (e) {
-      setState(() => _isExecuting = false);
+      _isExecuting.value = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -84,7 +87,6 @@ class _BashToolScreenState extends ConsumerState<BashToolScreen> {
 
   void _addCommandResult(String command, String result) {
     setState(() {
-      _isExecuting = false;
       _selectedIndex = _commandHistory.length;
       _commandHistory.add(
         BashCommand(
@@ -95,6 +97,7 @@ class _BashToolScreenState extends ConsumerState<BashToolScreen> {
         _scrollController.jumpTo(0.0);
       }
     });
+    _isExecuting.value = false;
   }
 
   void _clearTerminal() {
@@ -106,6 +109,7 @@ class _BashToolScreenState extends ConsumerState<BashToolScreen> {
       _outputControllers.clear();
       _selectedIndex = -1;
     });
+    _isExecuting.value = false;
   }
 
   @override

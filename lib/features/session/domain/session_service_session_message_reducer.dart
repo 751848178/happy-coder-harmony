@@ -15,6 +15,7 @@ extension SessionServiceSessionMessageReducer on SessionServiceNotifier {
     final event = _asStringMap(envelope['ev']);
     final eventType = event?['t']?.toString();
     final envelopeRole = envelope['role']?.toString() ?? 'agent';
+    final subagentId = envelope['subagent']?.toString();
     final metadata = {
       ...?meta,
       'role': envelopeRole,
@@ -36,6 +37,7 @@ extension SessionServiceSessionMessageReducer on SessionServiceNotifier {
               createdAt: createdAt,
               text: text!,
               metadata: metadata,
+              subagentId: subagentId,
             ),
           ];
         }
@@ -48,6 +50,7 @@ extension SessionServiceSessionMessageReducer on SessionServiceNotifier {
               ...metadata,
               if (event?['thinking'] == true) 'outputType': 'thinking',
             },
+            subagentId: subagentId,
           ),
         ];
       case 'service':
@@ -61,10 +64,15 @@ extension SessionServiceSessionMessageReducer on SessionServiceNotifier {
             createdAt: createdAt,
             text: text!,
             metadata: metadata,
+            subagentId: subagentId,
           ),
         ];
       case 'start':
+      case 'subagent-start':
         final title = event?['title']?.toString();
+        final agentId =
+            event?['agentId']?.toString() ?? subagentId;
+        final agentType = event?['agentType']?.toString();
         return _isBlankReducerText(title)
             ? const <ReducerMessage>[]
             : <ReducerMessage>[
@@ -72,16 +80,33 @@ extension SessionServiceSessionMessageReducer on SessionServiceNotifier {
                   id: '$id:session:start',
                   createdAt: createdAt,
                   text: title!,
-                  metadata: metadata,
+                  metadata: {
+                    ...metadata,
+                    'subagentLifecycle': 'start',
+                    if (agentId != null) 'subagentId': agentId,
+                    if (agentType != null) 'subagentType': agentType,
+                  },
+                  subagentId: agentId,
                 ),
               ];
       case 'stop':
+      case 'subagent-stop':
+        final agentId =
+            event?['agentId']?.toString() ?? subagentId;
+        final status = event?['status']?.toString();
+        final isFailed = status == 'failed' || status == 'cancelled';
         return <ReducerMessage>[
           _buildEventReducerMessage(
             id: '$id:session:stop',
             createdAt: createdAt,
-            text: '任务已结束',
-            metadata: metadata,
+            text: isFailed ? '子任务已中止' : '子任务已完成',
+            metadata: {
+              ...metadata,
+              'subagentLifecycle': 'stop',
+              if (agentId != null) 'subagentId': agentId,
+              if (isFailed) 'subagentStatus': 'failed',
+            },
+            subagentId: agentId,
           ),
         ];
       case 'turn-start':
@@ -102,6 +127,7 @@ extension SessionServiceSessionMessageReducer on SessionServiceNotifier {
               event?['description']?.toString(),
               event?['title']?.toString(),
             ]),
+            subagentId: subagentId,
           ),
         ];
       case 'tool-call-end':
@@ -115,6 +141,9 @@ extension SessionServiceSessionMessageReducer on SessionServiceNotifier {
             arguments: const <String, dynamic>{},
             status: ToolCallStatus.completed,
             metadata: metadata,
+            result: _stringifyStructuredContent(event?['result']),
+            error: event?['error']?.toString(),
+            subagentId: subagentId,
           ),
         ];
       case 'file':
@@ -132,6 +161,7 @@ extension SessionServiceSessionMessageReducer on SessionServiceNotifier {
             },
             status: ToolCallStatus.completed,
             metadata: metadata,
+            subagentId: subagentId,
           ),
         ];
       case 'turn-end':

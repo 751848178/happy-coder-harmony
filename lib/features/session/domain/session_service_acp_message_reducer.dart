@@ -8,6 +8,7 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
     required DateTime createdAt,
     required String? localId,
     required Map<String, dynamic>? meta,
+    String? subagentId,
   }) {
     if (acpData == null) {
       return const <ReducerMessage>[];
@@ -38,6 +39,7 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
               ...metadata,
               if (acpType == 'reasoning') 'outputType': 'thinking',
             },
+            subagentId: subagentId,
           ),
         ];
       case 'thinking':
@@ -51,6 +53,7 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
             createdAt: createdAt,
             text: text!,
             metadata: {...metadata, 'outputType': 'thinking'},
+            subagentId: subagentId,
           ),
         ];
       case 'tool-call':
@@ -65,6 +68,7 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
             arguments: _asStringMap(acpData['input']) ?? const {},
             status: ToolCallStatus.pending,
             metadata: metadata,
+            subagentId: subagentId,
           ),
         ];
       case 'tool-result':
@@ -85,6 +89,7 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
             result: _stringifyStructuredContent(acpData['output']),
             error:
                 isError ? _stringifyStructuredContent(acpData['output']) : null,
+            subagentId: subagentId,
           ),
         ];
       case 'file-edit':
@@ -106,6 +111,7 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
             status: ToolCallStatus.completed,
             metadata: metadata,
             description: acpData['description']?.toString(),
+            subagentId: subagentId,
           ),
         ];
       case 'terminal-output':
@@ -119,6 +125,7 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
           id: id,
           createdAt: createdAt,
           metadata: metadata,
+          subagentId: subagentId,
         );
       default:
         return const <ReducerMessage>[];
@@ -131,6 +138,7 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
     required String id,
     required DateTime createdAt,
     required Map<String, dynamic> metadata,
+    String? subagentId,
   }) {
     switch (acpType) {
       case 'terminal-output':
@@ -145,6 +153,7 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
             status: ToolCallStatus.completed,
             metadata: metadata,
             result: acpData['data']?.toString(),
+            subagentId: subagentId,
           ),
         ];
       case 'permission-request':
@@ -159,6 +168,7 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
             status: ToolCallStatus.pending,
             metadata: metadata,
             description: acpData['description']?.toString(),
+            subagentId: subagentId,
           ),
         ];
       case 'task_started':
@@ -167,7 +177,11 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
             id: '$id:acp:task-started',
             createdAt: createdAt,
             text: '子任务开始',
-            metadata: metadata,
+            metadata: {
+              ...metadata,
+              if (subagentId != null) 'subagentLifecycle': 'start',
+            },
+            subagentId: subagentId,
           ),
         ];
       case 'task_complete':
@@ -176,7 +190,11 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
             id: '$id:acp:task-complete',
             createdAt: createdAt,
             text: '子任务完成',
-            metadata: metadata,
+            metadata: {
+              ...metadata,
+              if (subagentId != null) 'subagentLifecycle': 'stop',
+            },
+            subagentId: subagentId,
           ),
         ];
       case 'turn_aborted':
@@ -186,6 +204,7 @@ extension SessionServiceAcpMessageReducer on SessionServiceNotifier {
             createdAt: createdAt,
             text: '回合已中止',
             metadata: metadata,
+            subagentId: subagentId,
           ),
         ];
       default:

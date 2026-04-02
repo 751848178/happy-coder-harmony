@@ -163,6 +163,7 @@ extension SessionServiceSessionUpdates on SessionServiceNotifier {
 
   Future<void> _purgeLocalSession(String sessionId) async {
     _sessionDataKeys.remove(sessionId);
+    SessionDataKeyStore.instance.removeSessionKey(sessionId);
     _sessionLastSeq.remove(sessionId);
     await _composerQueueService.clearSession(sessionId);
     await _preferencesService.clearSession(sessionId);

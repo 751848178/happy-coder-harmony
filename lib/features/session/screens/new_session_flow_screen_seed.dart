@@ -17,10 +17,12 @@ void _seedSessionFlowInitialState(
   final permissionOptions = _sessionFlowPermissionOptions(
     state,
     agent: initialAgent,
+    machineId: initialMachineId,
   );
   final modelOptions = _sessionFlowModelOptions(
     state,
     agent: initialAgent,
+    machineId: initialMachineId,
   );
   final initialPermission = resolveModeSelection(
     preferred:
@@ -31,13 +33,10 @@ void _seedSessionFlowInitialState(
       defaultPermissionModeForAgent(initialAgent),
     ),
   );
-  final initialModel = resolveListedModeSelection(
-    preferred: state.widget.initialModelMode,
-    options: modelOptions,
-    fallback: _defaultSessionFlowModeKey(
-      modelOptions,
-      defaultModelModeForAgent(initialAgent),
-    ),
+  final initialModel = _resolveSessionFlowModelMode(
+    modelOptions,
+    preferred: state.widget.initialModelMode ?? settings.lastUsedModelMode,
+    fallback: defaultModelModeForAgent(initialAgent),
   );
 
   state._updateView(() {

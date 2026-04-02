@@ -1,11 +1,15 @@
 part of 'session_screen.dart';
 
 extension _SessionScreenViewQueuePanel on _SessionScreenState {
-  Widget _buildQueuedComposerPanel({required bool busy}) {
+  Widget _buildQueuedComposerPanel({
+    required List<QueuedComposerMessage> queuedMessages,
+    required bool busy,
+  }) {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 180),
       child: SizedBox(
-        key: ValueKey<String>('queued-panel-${_queuedMessages.length}-$busy'),
+        key: ValueKey<String>(
+            'queued-panel-${queuedMessages.length}-$busy'),
         width: double.infinity,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -29,7 +33,7 @@ extension _SessionScreenViewQueuePanel on _SessionScreenState {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '待发送消息 ${_queuedMessages.length}',
+                  '待发送消息 ${queuedMessages.length}',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -61,16 +65,16 @@ extension _SessionScreenViewQueuePanel on _SessionScreenState {
               constraints: const BoxConstraints(maxHeight: 112),
               child: ListView.separated(
                 shrinkWrap: true,
-                physics: _queuedMessages.length > 2
+                physics: queuedMessages.length > 2
                     ? const BouncingScrollPhysics()
                     : const NeverScrollableScrollPhysics(),
-                itemCount: _queuedMessages.length,
+                itemCount: queuedMessages.length,
                 separatorBuilder: (_, __) => Divider(
                   height: 1,
                   color: AppTheme.neutral200,
                 ),
                 itemBuilder: (context, index) {
-                  final item = _queuedMessages[index];
+                  final item = queuedMessages[index];
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(

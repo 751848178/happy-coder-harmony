@@ -6,7 +6,6 @@ void _selectSessionFlowAgent(_NewSessionFlowScreenState state, String agent) {
     return;
   }
 
-  final notifier = state.ref.read(sessionStateProvider.notifier);
   final permissionOptions = _sessionFlowPermissionOptions(
     state,
     agent: normalized,
@@ -30,7 +29,7 @@ void _selectSessionFlowAgent(_NewSessionFlowScreenState state, String agent) {
       state,
       agent: normalized,
       preferredPermissionMode: currentPermission?.key,
-      preferredModelMode: currentModel?.key,
+      preferredModelMode: currentModel?.key ?? state._modelMode,
     );
   });
 }
