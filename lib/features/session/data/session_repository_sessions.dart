@@ -131,9 +131,11 @@ extension SessionRepositorySessions on SessionRepository {
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
-  Map<String, Session> get sessionsMap => Map.from(_sessions);
+  Map<String, Session> get sessionsMap =>
+      UnmodifiableMapView(_sessions);
 
-  Map<String, Machine> get machinesMap => Map.from(_machines);
+  Map<String, Machine> get machinesMap =>
+      UnmodifiableMapView(_machines);
 
   void clearAll() {
     _sessions.clear();

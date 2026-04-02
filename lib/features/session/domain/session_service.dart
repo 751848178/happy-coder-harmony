@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/session_composer_queue_service.dart';
+import '../data/session_data_key_store.dart';
 import '../data/session_preferences_service.dart';
 import '../data/session_repository.dart';
 import '../data/session_ui_state_service.dart';
@@ -43,6 +44,7 @@ part 'session_service_session_creation.dart';
 part 'session_service_session_message_reducer.dart';
 part 'session_service_session_parsing.dart';
 part 'session_service_session_updates.dart';
+part 'session_service_sidechain_reducer.dart';
 part 'session_service_sessions.dart';
 part 'session_service_state.dart';
 
@@ -89,6 +91,7 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   Future<void>? _loadMachinesInFlight;
   DateTime? _lastSessionsLoadedAt;
   DateTime? _lastMachinesLoadedAt;
+  bool _emitScheduled = false;
 
   void _subscribeToChanges() {
     _stateSubscription = _repository.stateChanges.listen(_handleStateChange);
@@ -100,6 +103,20 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
       sessionMessages: _repository.sessionMessagesMap,
       machines: _repository.machinesMap,
     );
+  }
+
+  /// Schedule a coalesced _emitReadyState via microtask.
+  /// Multiple rapid mutations (e.g. session restore fires applySessions +
+  /// replaceMessages × N) will result in a single _emitReadyState call
+  /// at the end of the current microtask queue, avoiding N+1 redundant
+  /// state emissions and rebuilds.
+  void _scheduleEmitReadyState() {
+    if (_emitScheduled) return;
+    _emitScheduled = true;
+    scheduleMicrotask(() {
+      _emitScheduled = false;
+      _emitReadyState();
+    });
   }
 
   void _emitLoadingState() {
@@ -117,21 +134,22 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
       case SessionChangeType.modelModeUpdated:
       case SessionChangeType.draftUpdated:
       case SessionChangeType.sessionDeleted:
-        _emitReadyState();
+        _scheduleEmitReadyState();
         _schedulePersistCachedSessions();
         break;
       case SessionChangeType.messagesUpdated:
-        _emitReadyState();
+        _scheduleEmitReadyState();
         _schedulePersistCachedSessions();
         break;
       case SessionChangeType.agentStateUpdated:
       case SessionChangeType.machinesUpdated:
       case SessionChangeType.toolCallApproved:
       case SessionChangeType.toolCallRejected:
-        _emitReadyState();
+        _scheduleEmitReadyState();
         break;
       case SessionChangeType.cleared:
         _cachePersistDebounce?.cancel();
+        SessionDataKeyStore.instance.clear();
         state = SessionServiceState.initial;
         break;
     }
@@ -213,15 +231,16 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
         localState,
         fallbackTimestamp: cached.updatedAt,
       ),
-      permissionMode: resolveLocalModeValue(
-        preferredValue: localState?['permissionMode']?.toString(),
-        explicitValue: null,
+      permissionMode: resolveSessionPermissionMode(
+        metadata: metadata,
+        persistedValue: localState?['permissionMode']?.toString(),
         metadataValue: metadata?['currentOperatingModeCode']?.toString(),
       ),
-      modelMode: resolveLocalModeValue(
-        preferredValue: localState?['modelMode']?.toString(),
-        explicitValue: null,
+      modelMode: resolveSessionModelMode(
+        metadata: metadata,
+        persistedValue: localState?['modelMode']?.toString(),
         metadataValue: metadata?['currentModelCode']?.toString(),
+        fallbackAgent: metadata?['flavor']?.toString(),
       ),
       draft: _normalizeOptionalValue(localState?['draft']?.toString()),
     );

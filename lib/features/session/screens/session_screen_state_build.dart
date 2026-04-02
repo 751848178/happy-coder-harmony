@@ -6,12 +6,16 @@ extension _SessionScreenStateBuild on _SessionScreenState {
       sessionStateProvider.select(
         (state) =>
             state.whenOrNull(
-              ready: (sessions, sessionMessages, _) => _SessionScreenSelection(
-                session: sessions[widget.sessionId],
-                messages: sessionMessages[widget.sessionId]?.messages,
-                hasLoadedSessions: sessions.isNotEmpty,
-                isReady: true,
-              ),
+              ready: (sessions, sessionMessages, _) {
+                final currentMessages = sessionMessages[widget.sessionId];
+                return _SessionScreenSelection(
+                  session: sessions[widget.sessionId],
+                  messages: currentMessages?.messages,
+                  hasLoadedSessions: sessions.isNotEmpty,
+                  hasLoadedMessages: currentMessages?.isLoaded == true,
+                  isReady: true,
+                );
+              },
             ) ??
             const _SessionScreenSelection.initial(),
       ),
@@ -41,14 +45,26 @@ extension _SessionScreenStateBuild on _SessionScreenState {
 
   Widget _buildSessionScreen(BuildContext context) {
     final selection = _watchSessionSelection();
-    final settings = ref.watch(settingsStateProvider);
+    final (commandPaletteEnabled, agentInputEnterToSend) = ref.watch(
+      settingsStateProvider.select(
+        (s) => (s.commandPaletteEnabled, s.agentInputEnterToSend),
+      ),
+    );
     final session = selection.session;
     final messages = selection.messages ?? const <ReducerMessage>[];
+    final showMessageLoading =
+        session != null && !selection.hasLoadedMessages && messages.isEmpty;
     final socketConnected =
         ref.watch(socketStateProvider.select((state) => state.isConnected));
     final turnGroups = _resolveTurnGroups(messages);
-    final sessionStats = _resolveSessionStats(session, messages);
-    if (messages.isNotEmpty && !_hasScrolledToLatest) {
+    // Skip expensive stats computation when the overview panel is collapsed.
+    // SessionStatsCalculator.fromSession() iterates every message and parses
+    // text for patch summaries — O(n) per build with 264 messages.
+    // When overview is collapsed (the default), this is pure waste.
+    final sessionStats = _sessionOverviewCollapsed
+        ? null
+        : _resolveSessionStats(session, messages);
+    if (messages.isNotEmpty && !_hasScrolledToLatest && !_userHasScrolledUp) {
       _scheduleScrollToLatest();
     }
     if (session != null &&
@@ -64,14 +80,29 @@ extension _SessionScreenStateBuild on _SessionScreenState {
     }
     final slashCommands = _resolveSlashCommands(session);
     final availableInputTemplates = _allInputTemplates();
-    final conversationBusy = _isConversationBusy(session, turnGroups);
-    final hasActiveResponseMarker =
-        _hasEffectiveActiveResponseMarker(session, turnGroups);
+    // Cache the thinking snapshot once per build to avoid 3 redundant
+    // resolveSessionThinkingSnapshot calls, each of which copies
+    // the entire message list and traverses it.
+    final thinkingSnapshot = resolveSessionThinkingSnapshot(
+      session: session,
+      messages: messages,
+    );
+    final conversationBusy = _isConversationBusy(
+      session,
+      turnGroups,
+      thinkingSnapshot: thinkingSnapshot,
+    );
+    final hasActiveResponseMarker = _hasEffectiveActiveResponseMarker(
+      session,
+      turnGroups,
+      thinkingSnapshot: thinkingSnapshot,
+    );
     final suppressStaleLiveState =
         _isRefreshingSessionState && !hasActiveResponseMarker;
     final effectiveConversationBusy =
         suppressStaleLiveState ? false : conversationBusy;
-    final effectiveThinking = _isThinkingActive(session, turnGroups);
+    final effectiveThinking =
+        thinkingSnapshot.isThinking && !suppressStaleLiveState;
     final shouldKeepScreenAwake =
         session != null && (hasActiveResponseMarker || effectiveThinking);
     _updateScreenAwakePolicy(keepAwake: shouldKeepScreenAwake);
@@ -82,7 +113,11 @@ extension _SessionScreenStateBuild on _SessionScreenState {
         messages.isNotEmpty && effectiveThinking && !suppressStaleLiveState;
     final hasLoadedSessions = selection.hasLoadedSessions;
     _visibleTurnGroups = turnGroups;
-    _hasStickyTurnCandidates = !_collapseAllTurns &&
+    // Only compute sticky turn candidates after initial load completes.
+    // During loading, the message list is incomplete and the computation
+    // traverses all turn groups for no visual benefit.
+    _hasStickyTurnCandidates = _initialLoadComplete &&
+        !_collapseAllTurns &&
         turnGroups.any(
           (group) => group.userPrompt != null && group.messages.length > 1,
         );
@@ -90,7 +125,11 @@ extension _SessionScreenStateBuild on _SessionScreenState {
         (_hasStickyTurnCandidates || _stickyTurnId != null)) {
       _scheduleViewportStateRefresh();
     }
-    _scheduleQueuedMessageReconciliation(session, messages);
+    // Skip queue reconciliation during initial load — session data is still
+    // loading and reconciling against stale/empty state is wasteful.
+    if (_initialLoadComplete) {
+      _scheduleQueuedMessageReconciliation(session, messages);
+    }
 
     return PopScope(
       canPop: false,
@@ -106,7 +145,7 @@ extension _SessionScreenStateBuild on _SessionScreenState {
           context,
           session,
           turnGroups: turnGroups,
-          showOverviewToggle: sessionStats != null,
+          showOverviewToggle: true, // always show toggle when session loaded
         ),
         body: session == null && !hasLoadedSessions
             ? const Center(child: CircularProgressIndicator())
@@ -122,26 +161,39 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                         child: LayoutBuilder(
                           builder: (context, constraints) => Stack(
                             children: [
-                              Positioned.fill(
-                                child: messages.isEmpty
-                                    ? _buildEmptyState()
-                                    : _buildMessageList(
-                                        messages: messages,
-                                        turnGroups: turnGroups,
-                                        autoApproveEnabled: session != null
-                                            ? _shouldAutoApprove(session)
-                                            : false,
-                                      ),
-                              ),
-                              if (messages.isNotEmpty &&
-                                  _stickyTurnId != null &&
-                                  !_collapseAllTurns)
-                                Positioned(
-                                  key: const ValueKey('session-sticky-turn'),
-                                  left: AppTheme.spacingMd,
-                                  top: 8,
-                                  right: showLiveReplyBadge ? 132 : 16,
-                                  child: _buildStickyTurnPrompt(),
+                              // Message list — non-positioned child fills the Stack.
+                              // Using Positioned.fill caused the entire area to render
+                              // blank on HarmonyOS (see issue doc for details).
+                              showMessageLoading
+                                  ? const Center(
+                                      child: CircularProgressIndicator(),
+                                    )
+                                  : messages.isEmpty
+                                      ? _buildEmptyState()
+                                      : _buildMessageList(
+                                          messages: messages,
+                                          turnGroups: turnGroups,
+                                          autoApproveEnabled: session != null
+                                              ? _shouldAutoApprove(session)
+                                              : false,
+                                        ),
+                              // Sticky turn prompt — isolated rebuild via ValueNotifier.
+                              if (messages.isNotEmpty && !_collapseAllTurns)
+                                ValueListenableBuilder<String?>(
+                                  valueListenable: _stickyTurnIdN,
+                                  builder: (_, stickyTurnId, __) {
+                                    if (stickyTurnId == null) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Positioned(
+                                      key:
+                                          const ValueKey('session-sticky-turn'),
+                                      left: AppTheme.spacingMd,
+                                      top: 8,
+                                      right: showLiveReplyBadge ? 132 : 16,
+                                      child: _buildStickyTurnPrompt(),
+                                    );
+                                  },
                                 ),
                               if (showLiveReplyBadge)
                                 Positioned(
@@ -153,22 +205,42 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                                     latestTurnMessages,
                                   ),
                                 ),
-                              if (messages.isNotEmpty && _hasUnreadMessages)
-                                Positioned(
-                                  key: const ValueKey(
-                                      'session-unread-indicator'),
-                                  left: AppTheme.spacingMd,
-                                  right: AppTheme.spacingMd,
-                                  bottom: 112,
-                                  child: Center(
-                                    child: _buildNewMessageIndicator(),
-                                  ),
-                                ),
+                              // Unread indicator — isolated rebuild via ValueNotifier.
                               if (messages.isNotEmpty)
-                                _buildScrollActionsOverlay(
-                                  viewportHeight: constraints.maxHeight,
-                                  session: session,
-                                  turnGroups: turnGroups,
+                                ValueListenableBuilder<bool>(
+                                  valueListenable: _hasUnreadMessagesN,
+                                  builder: (_, hasUnread, __) {
+                                    if (!hasUnread) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Positioned(
+                                      key: const ValueKey(
+                                          'session-unread-indicator'),
+                                      left: AppTheme.spacingMd,
+                                      right: AppTheme.spacingMd,
+                                      bottom: 112,
+                                      child: Center(
+                                        child: _buildNewMessageIndicator(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              // Scroll actions overlay — isolated rebuild via merged ValueNotifiers.
+                              if (messages.isNotEmpty)
+                                ListenableBuilder(
+                                  listenable: Listenable.merge([
+                                    _canScrollToTopN,
+                                    _canScrollToBottomN,
+                                    _scrollActionsCollapsedN,
+                                    _scrollActionDragDxN,
+                                    _scrollActionVerticalOffsetN,
+                                  ]),
+                                  builder: (_, __) =>
+                                      _buildScrollActionsOverlay(
+                                    viewportHeight: constraints.maxHeight,
+                                    session: session,
+                                    turnGroups: turnGroups,
+                                  ),
                                 ),
                             ],
                           ),
@@ -179,7 +251,8 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                         turnGroups,
                         conversationBusy: effectiveConversationBusy,
                         socketConnected: socketConnected,
-                        settings: settings,
+                        commandPaletteEnabled: commandPaletteEnabled,
+                        agentInputEnterToSend: agentInputEnterToSend,
                         slashCommands: slashCommands,
                         availableInputTemplates: availableInputTemplates,
                       ),

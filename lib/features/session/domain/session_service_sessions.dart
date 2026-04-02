@@ -44,7 +44,8 @@ extension SessionServiceSessionLoaders on SessionServiceNotifier {
         responseRecognized: remoteLoad.responseRecognized,
         rawCount: remoteLoad.sessionItems.length,
       );
-      _emitReadyState();
+      // Note: _applyLoadedSessions fires sessionsUpdated → _handleStateChange
+      // → _emitReadyState(). No need to call _emitReadyState() again here.
       await machinesFuture;
       unawaited(_warmSessionPreviewData(parsed.sessionsMap.values.toList()));
       _logSessionParseFailures(parsed);
@@ -80,7 +81,9 @@ extension SessionServiceSessionLoaders on SessionServiceNotifier {
       );
     }
     _sessionLastSeq.addAll(restored.lastSeqBySessionId);
-    _emitReadyState();
+    // applySessions + replaceMessages already triggered coalesced emissions.
+    // Schedule one final emission to ensure the UI sees the complete state.
+    _scheduleEmitReadyState();
     return true;
   }
 

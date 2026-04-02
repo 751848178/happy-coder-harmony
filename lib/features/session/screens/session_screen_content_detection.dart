@@ -92,12 +92,16 @@ String _detectStructuredLanguage(String content) {
 }
 
 bool _canDecodeJson(String value) {
-  try {
-    jsonDecode(value);
-    return true;
-  } catch (_) {
-    return false;
-  }
+  // Lightweight bracket-matching heuristic instead of trial jsonDecode.
+  // jsonDecode on non-JSON input is expensive: allocates a parser, scans the
+  // full string, throws an exception, and catches it.  This runs for every
+  // text segment in every markdown block in every text message — potentially
+  // hundreds of times per first frame.
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return false;
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) return true;
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) return true;
+  return false;
 }
 
 bool _looksLikeDiff(String value) =>

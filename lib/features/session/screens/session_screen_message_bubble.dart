@@ -12,6 +12,8 @@ class _MessageBubble extends StatefulWidget {
     required this.isToolActionPending,
     required this.onApproveTool,
     required this.onRejectTool,
+    required this.onMessageActionChoice,
+    required this.onShowMessageActionSheet,
   });
 
   final ReducerMessage message;
@@ -19,6 +21,14 @@ class _MessageBubble extends StatefulWidget {
   final bool isToolActionPending;
   final Future<void> Function(String) onApproveTool;
   final Future<void> Function(String, String?) onRejectTool;
+  final Future<void> Function(
+    _SessionMessageActionChoice choice,
+    String actionText,
+  ) onMessageActionChoice;
+  final Future<void> Function(
+    ReducerMessage message,
+    String actionText,
+  ) onShowMessageActionSheet;
 
   @override
   State<_MessageBubble> createState() => _MessageBubbleState();
@@ -27,9 +37,13 @@ class _MessageBubble extends StatefulWidget {
 class _MessageBubbleState extends State<_MessageBubble>
     with AutomaticKeepAliveClientMixin<_MessageBubble> {
   bool _collapsed = true;
+  // Lazily computed — only resolved when the user actually long-presses.
+  // Avoids running jsonEncode on every tool message during first frame.
   String? _actionText;
+  bool _actionTextComputed = false;
   _SessionMessageActionHandler? _onMessageAction;
   Future<void> Function()? _onLongPressMessage;
+  _ToolPresentationCache? _toolPresentationCache;
 
   ReducerMessage get message => widget.message;
   bool get autoApproveEnabled => widget.autoApproveEnabled;
@@ -43,8 +57,9 @@ class _MessageBubbleState extends State<_MessageBubble>
   @override
   void initState() {
     super.initState();
+    _toolPresentationCache = _computeToolPresentation(message)?.._owner = this;
     _collapsed = _shouldStartCollapsed(message);
-    _updateActionState();
+    _ensureActionState();
     updateKeepAlive();
   }
 
@@ -52,7 +67,9 @@ class _MessageBubbleState extends State<_MessageBubble>
   void didUpdateWidget(covariant _MessageBubble oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.message, widget.message)) {
-      _updateActionState();
+      _toolPresentationCache = _computeToolPresentation(message)?.._owner = this;
+      _actionTextComputed = false;
+      _ensureActionState();
     }
     if (_shouldResetCollapsedState(oldWidget.message, message)) {
       _collapsed = _shouldStartCollapsed(message);
@@ -60,12 +77,11 @@ class _MessageBubbleState extends State<_MessageBubble>
     }
   }
 
-  void _updateActionState() {
-    final newText = resolveSessionMessageActionText(message);
-    if (newText == _actionText) {
-      return;
-    }
-    _actionText = newText;
+  /// Resolve action text lazily — only when needed for display or interaction.
+  void _ensureActionState() {
+    if (_actionTextComputed) return;
+    _actionTextComputed = true;
+    _actionText = resolveSessionMessageActionText(message);
     if (_actionText == null) {
       _onMessageAction = null;
       _onLongPressMessage = null;
@@ -74,23 +90,57 @@ class _MessageBubbleState extends State<_MessageBubble>
     final actionText = _actionText!;
     final msg = message;
     _onMessageAction = (choice) async {
-      final screen = context.findAncestorStateOfType<_SessionScreenState>();
-      if (screen != null && screen.mounted) {
-        await screen._handleMessageActionChoice(
-          choice: choice,
-          actionText: actionText,
-        );
-      }
+      await widget.onMessageActionChoice(choice, actionText);
     };
     _onLongPressMessage = () async {
-      final screen = context.findAncestorStateOfType<_SessionScreenState>();
-      if (screen != null && screen.mounted) {
-        await screen._showMessageActionSheet(
-          message: msg,
-          actionText: actionText,
-        );
-      }
+      await widget.onShowMessageActionSheet(msg, actionText);
     };
+  }
+
+  _ToolPresentationCache? _computeToolPresentation(ReducerMessage msg) {
+    final tool = msg.tool;
+    if (tool == null) return null;
+    final command = _extractCommand(tool.arguments);
+    final diffPreview = _extractDiff(tool);
+    // Use lightweight size heuristics for canCollapse decision instead of
+    // running expensive _formatToolArguments / _formatToolResult (which do
+    // jsonEncode/jsonDecode).  We only need to know IF it's large, not the
+    // actual formatted string — that can be deferred to when the bubble is
+    // actually expanded.
+    final canCollapse = _looksLarge(command) ||
+        _looksLarge(diffPreview) ||
+        _rawArgumentsLookLarge(tool.arguments) ||
+        _rawResultLooksLarge(tool.result);
+    return _ToolPresentationCache(
+      command: command,
+      diffPreview: diffPreview,
+      canCollapse: canCollapse,
+      // Defer expensive formatting — computed on first access via getters.
+      argumentsPreview: null,
+      resultPreview: null,
+    );
+  }
+
+  /// Lightweight check: are the raw tool arguments large enough to warrant
+  /// collapsing, without formatting them as JSON?
+  bool _rawArgumentsLookLarge(Map<String, dynamic> arguments) {
+    if (arguments.isEmpty) return false;
+    // Approximate: sum key+value string lengths.
+    var total = 0;
+    for (final entry in arguments.entries) {
+      total += entry.key.length + (entry.value?.toString().length ?? 0);
+      if (total > 240) return true;
+    }
+    return false;
+  }
+
+  /// Lightweight check: is the raw tool result large enough to warrant
+  /// collapsing, without JSON-decode+re-encode?
+  bool _rawResultLooksLarge(String? result) {
+    if (result == null || result.trim().isEmpty) return false;
+    final trimmed = result.trimRight();
+    final lineCount = '\n'.allMatches(trimmed).length + 1;
+    return trimmed.length > 240 || lineCount > 6;
   }
 
   @override
@@ -119,14 +169,7 @@ class _MessageBubbleState extends State<_MessageBubble>
   }
 
   bool _shouldCollapseToolMessage(ToolInfo tool) {
-    final command = _extractCommand(tool.arguments);
-    final diff = _extractDiff(tool);
-    final argumentsPreview = _formatToolArguments(tool.arguments);
-    final result = _formatToolResult(tool.result);
-    return _looksLarge(command) ||
-        _looksLarge(diff) ||
-        _looksLarge(argumentsPreview) ||
-        _looksLarge(result);
+    return _toolPresentationCache?.canCollapse ?? false;
   }
 
   bool _looksLarge(String? value) {
@@ -259,5 +302,61 @@ class _MessageBubbleState extends State<_MessageBubble>
       onLongPress: onLongPressMessage!,
       child: child,
     );
+  }
+}
+
+class _ToolPresentationCache {
+  _ToolPresentationCache({
+    required this.command,
+    required this.diffPreview,
+    required this.canCollapse,
+    required String? argumentsPreview,
+    required String? resultPreview,
+  })  : _argumentsPreview = argumentsPreview,
+        _resultPreview = resultPreview;
+
+  final String? command;
+  final String? diffPreview;
+  final bool canCollapse;
+
+  // Expensive fields — may be lazily computed on first access.
+  String? _argumentsPreview;
+  String? _resultPreview;
+  bool _argumentsComputed = false;
+  bool _resultComputed = false;
+
+  /// The _MessageBubbleState that owns this cache (set after construction).
+  _MessageBubbleState? _owner;
+
+  String? get argumentsPreview {
+    if (!_argumentsComputed) {
+      _argumentsComputed = true;
+      if (_owner != null && _argumentsPreview == null) {
+        final tool = _owner!.message.tool;
+        if (tool != null &&
+            _owner!._shouldShowRawArguments(
+              tool.arguments,
+              command: command,
+              diff: diffPreview,
+            ) &&
+            _owner!._shouldDisplayArguments(tool.name)) {
+          _argumentsPreview = _owner!._formatToolArguments(tool.arguments);
+        }
+      }
+    }
+    return _argumentsPreview;
+  }
+
+  String? get resultPreview {
+    if (!_resultComputed) {
+      _resultComputed = true;
+      if (_owner != null && _resultPreview == null) {
+        final tool = _owner!.message.tool;
+        if (tool != null) {
+          _resultPreview = _owner!._formatToolResult(tool.result);
+        }
+      }
+    }
+    return _resultPreview;
   }
 }

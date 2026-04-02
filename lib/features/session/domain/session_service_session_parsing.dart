@@ -62,6 +62,8 @@ extension SessionServiceSessionParsing on SessionServiceNotifier {
       }
     }
 
+    SessionDataKeyStore.instance.replaceAll(_sessionDataKeys);
+
     return _ParsedRemoteSessionsResult(
       sessionsMap: sessionsMap,
       remoteSessionIds: remoteSessionIds,
@@ -130,20 +132,31 @@ extension SessionServiceSessionParsing on SessionServiceNotifier {
         session: baseSession,
         loadedMessageCount: loadedMessageCount,
       ),
-      permissionMode: resolveRemoteModeValue(
-        metadataValue: nextMetadata?['currentOperatingModeCode']?.toString(),
+      permissionMode: resolveSessionPermissionMode(
+        metadata: nextMetadata,
+        localValue: existingSession?.permissionMode,
+        persistedValue: preferences?.permissionMode,
         explicitValue: parsedSession.permissionMode,
+        metadataValue: nextMetadata?['currentOperatingModeCode']?.toString(),
       ),
-      modelMode: resolveRemoteModeValue(
-        metadataValue: nextMetadata?['currentModelCode']?.toString(),
+      modelMode: resolveSessionModelMode(
+        metadata: nextMetadata,
+        localValue: existingSession?.modelMode,
+        persistedValue: preferences?.modelMode,
         explicitValue: parsedSession.modelMode,
+        metadataValue: nextMetadata?['currentModelCode']?.toString(),
+        fallbackAgent: nextMetadata?['flavor']?.toString(),
       ),
       draft: _resolveSessionDraft(
         remoteDraft: parsedSession.draft,
         cachedDraft: existingSession?.draft,
       ),
     );
-    _sessionDataKeys[session.id] = dataKey;
+    if (dataKey == null) {
+      _sessionDataKeys.remove(session.id);
+    } else {
+      _sessionDataKeys[session.id] = dataKey;
+    }
     return session;
   }
 
@@ -200,7 +213,7 @@ extension SessionServiceSessionParsing on SessionServiceNotifier {
     }
 
     if (_repository.sessionsMap.isNotEmpty) {
-      _emitReadyState();
+      _scheduleEmitReadyState();
       Logger.warning('Load sessions failed, using cached sessions: $error');
       return;
     }

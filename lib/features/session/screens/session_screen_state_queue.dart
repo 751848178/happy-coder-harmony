@@ -19,8 +19,9 @@ extension _SessionScreenStateQueue on _SessionScreenState {
 
   bool _hasEffectiveActiveResponseMarker(
     Session? session,
-    List<_MessageTurnGroup> turnGroups,
-  ) {
+    List<_MessageTurnGroup> turnGroups, {
+    SessionThinkingSnapshot? thinkingSnapshot,
+  }) {
     final activeLocalId = _activeResponseLocalId;
     if (activeLocalId == null) {
       return false;
@@ -156,20 +157,41 @@ extension _SessionScreenStateQueue on _SessionScreenState {
 
   bool _isConversationBusy(
     Session? session,
-    List<_MessageTurnGroup> turnGroups,
-  ) {
+    List<_MessageTurnGroup> turnGroups, {
+    SessionThinkingSnapshot? thinkingSnapshot,
+  }) {
+    if (_isSending || _isAutoSendingQueuedMessage) {
+      return true;
+    }
+    if (_manualThinkingOverride == false) {
+      return false;
+    }
     final latestGroup = turnGroups.isNotEmpty ? turnGroups.last : null;
-    return sessionConversationIsBusy(
-      session: session,
-      latestTurnMessages: latestGroup?.messages ?? const <ReducerMessage>[],
-      latestUserPrompt: latestGroup?.userPrompt,
-      isSending: _isSending,
-      isAutoSendingQueuedMessage: _isAutoSendingQueuedMessage,
-      activeResponseLocalId:
-          _hasEffectiveActiveResponseMarker(session, turnGroups)
-              ? _activeResponseLocalId
-              : null,
-      manualThinkingOverride: _manualThinkingOverride,
-    );
+    final activeLocalId =
+        _hasEffectiveActiveResponseMarker(session, turnGroups)
+            ? _activeResponseLocalId
+            : null;
+    if (activeLocalId != null) {
+      return true;
+    }
+    // Use cached snapshot when available to avoid redundant message list copies.
+    final isThinking = thinkingSnapshot != null
+        ? thinkingSnapshot.isThinking
+        : sessionTurnIsThinkingStillBlocking(
+            session: session,
+            messages: latestGroup?.messages ?? const <ReducerMessage>[],
+            manualThinkingOverride: _manualThinkingOverride,
+          );
+    if (isThinking) {
+      return true;
+    }
+    if (sessionTurnHasBlockingToolWork(
+        latestGroup?.messages ?? const <ReducerMessage>[])) {
+      return true;
+    }
+    if (latestGroup?.userPrompt?.metadata?['optimistic'] == true) {
+      return true;
+    }
+    return false;
   }
 }

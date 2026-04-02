@@ -181,7 +181,7 @@ extension SessionRepositoryStateMutations on SessionRepository {
   }
 
   Map<String, SessionMessages> get sessionMessagesMap =>
-      Map.from(_sessionMessages);
+      UnmodifiableMapView(_sessionMessages);
 }
 
 class SessionMessages {

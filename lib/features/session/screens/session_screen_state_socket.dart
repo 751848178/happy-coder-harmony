@@ -6,7 +6,9 @@ extension _SessionScreenStateSocket on _SessionScreenState {
     _messagePollingTimer = Timer.periodic(
       const Duration(seconds: 8),
       (_) {
-        _scheduleMessageRefresh(autoScroll: _shouldStickToLatest);
+        // Never auto-scroll during polling if the user has manually scrolled up.
+        // Show the "new messages" indicator instead.
+        _scheduleMessageRefresh(autoScroll: !_userHasScrolledUp && _shouldStickToLatest);
       },
     );
   }
@@ -17,23 +19,34 @@ extension _SessionScreenStateSocket on _SessionScreenState {
       event.when(
         connecting: () {},
         connected: (_) {
-          _scheduleMessageRefresh(autoScroll: _shouldStickToLatest);
+          final sessionNotifier = ref.read(sessionStateProvider.notifier);
+          unawaited(sessionNotifier.loadSessions(force: true));
+          unawaited(
+            sessionNotifier.loadMachines(force: true, allowFailure: true),
+          );
+          _scheduleMessageRefresh(autoScroll: !_userHasScrolledUp && _shouldStickToLatest);
           unawaited(_maybeAutoApprovePendingTools());
         },
         disconnected: (_) {},
         error: (_) {},
         messageReceived: (message) {
           if (message.sessionId == widget.sessionId) {
-            final shouldAutoScroll = _shouldStickToLatest;
+            // Suppress auto-scroll if user has manually scrolled up.
+            // Instead, show the "new messages" indicator.
+            final shouldAutoScroll = !_userHasScrolledUp && _shouldStickToLatest;
             _scheduleMessageRefresh(autoScroll: shouldAutoScroll);
             if (!shouldAutoScroll && mounted) {
-              _updateState(() {
-                _hasUnreadMessages = true;
-              });
+              _hasUnreadMessagesN.value = true;
             }
           }
         },
-        reconnecting: (_) {},
+        reconnecting: (_) {
+          final sessionNotifier = ref.read(sessionStateProvider.notifier);
+          unawaited(sessionNotifier.loadSessions(force: true));
+          unawaited(
+            sessionNotifier.loadMachines(force: true, allowFailure: true),
+          );
+        },
       );
     });
   }
@@ -50,9 +63,7 @@ extension _SessionScreenStateSocket on _SessionScreenState {
         if (autoScroll) {
           _scheduleScrollToLatest(animate: true, force: true);
           if (mounted) {
-            _updateState(() {
-              _hasUnreadMessages = false;
-            });
+            _hasUnreadMessagesN.value = false;
           }
         } else {
           _scheduleViewportStateRefresh();
@@ -83,6 +94,16 @@ extension _SessionScreenStateSocket on _SessionScreenState {
     final nextCanScrollToBottom = distanceToBottom > 32;
     final nextIsNearBottom = distanceToBottom < 72;
     final nextShouldStickToLatest = distanceToBottom <= 8;
+    // Detect user scrolling up: if we're far from bottom and haven't set
+    // the flag yet, mark it so auto-scroll is suppressed.
+    if (distanceToBottom > 72 && !_userHasScrolledUp && _hasScrolledToLatest) {
+      _userHasScrolledUp = true;
+    }
+    // When user scrolls back near bottom, clear the user-scroll flag so
+    // auto-scroll resumes naturally.
+    if (nextShouldStickToLatest && _userHasScrolledUp) {
+      _userHasScrolledUp = false;
+    }
     final shouldUpdate = nextCanScrollToTop != _canScrollToTop ||
         nextCanScrollToBottom != _canScrollToBottom ||
         nextIsNearBottom != _isNearBottom ||
@@ -96,14 +117,13 @@ extension _SessionScreenStateSocket on _SessionScreenState {
     if (!mounted) {
       return;
     }
-    _updateState(() {
-      _canScrollToTop = nextCanScrollToTop;
-      _canScrollToBottom = nextCanScrollToBottom;
-      _isNearBottom = nextIsNearBottom;
-      _shouldStickToLatest = nextShouldStickToLatest;
-      if (nextIsNearBottom) {
-        _hasUnreadMessages = false;
-      }
-    });
+    // Update ValueNotifiers directly — no full-screen setState needed.
+    _canScrollToTopN.value = nextCanScrollToTop;
+    _canScrollToBottomN.value = nextCanScrollToBottom;
+    _isNearBottomN.value = nextIsNearBottom;
+    _shouldStickToLatestN.value = nextShouldStickToLatest;
+    if (nextIsNearBottom) {
+      _hasUnreadMessagesN.value = false;
+    }
   }
 }

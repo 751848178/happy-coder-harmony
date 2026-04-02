@@ -50,11 +50,10 @@ bool sessionTurnHasPendingToolWork(Iterable<ReducerMessage> messages) {
 }
 
 bool sessionTurnHasBlockingToolWork(Iterable<ReducerMessage> messages) {
-  final allMessages = List<ReducerMessage>.from(messages, growable: false);
-  if (sessionTurnHasCompletionSignal(allMessages)) {
+  if (sessionTurnHasCompletionSignal(messages)) {
     return false;
   }
-  return sessionTurnHasPendingToolWork(allMessages);
+  return sessionTurnHasPendingToolWork(messages);
 }
 
 bool sessionTurnHasRenderableAgentOutput(Iterable<ReducerMessage> messages) {
@@ -99,7 +98,7 @@ DateTime? _resolveThinkingStartedAt(
   if (session?.thinkingAt != null) {
     return session!.thinkingAt;
   }
-  for (final message in messages.toList(growable: false).reversed) {
+  for (final message in (messages is List<ReducerMessage> ? messages : messages.toList(growable: false)).reversed) {
     if (!message.isText || sessionMessageIsUserAuthored(message)) {
       continue;
     }
@@ -115,31 +114,36 @@ SessionThinkingSnapshot resolveSessionThinkingSnapshot({
   required Iterable<ReducerMessage> messages,
   bool? manualThinkingOverride,
 }) {
-  final allMessages = List<ReducerMessage>.from(messages, growable: false);
   if (manualThinkingOverride == false) {
     return const SessionThinkingSnapshot(isThinking: false);
   }
-  if (sessionTurnHasCompletionSignal(allMessages)) {
-    return const SessionThinkingSnapshot(isThinking: false);
-  }
   if (manualThinkingOverride == true) {
+    if (sessionTurnHasCompletionSignal(messages)) {
+      return const SessionThinkingSnapshot(isThinking: false);
+    }
     return SessionThinkingSnapshot(
       isThinking: true,
-      since: _resolveThinkingStartedAt(session, allMessages),
+      since: _resolveThinkingStartedAt(session, messages),
     );
   }
   if (session?.thinking == true) {
-    // 修复会话中断后思考状态无法清除的问题：
-    // 如果会话思考时间超过阈值（如 2 分钟），认为可能已中断，不应阻塞新消息
+    if (sessionTurnHasCompletionSignal(messages)) {
+      return const SessionThinkingSnapshot(isThinking: false);
+    }
     if (_isThinkingTimedOut(session)) {
       return const SessionThinkingSnapshot(isThinking: false);
     }
     return SessionThinkingSnapshot(
       isThinking: true,
-      since: _resolveThinkingStartedAt(session, allMessages),
+      since: _resolveThinkingStartedAt(session, messages),
     );
   }
-  for (final message in allMessages.reversed) {
+  // Fast path: session is not thinking and no manual override.
+  // Only need to check the last non-user text message.
+  final list = messages is List<ReducerMessage>
+      ? messages
+      : messages.toList(growable: false);
+  for (final message in list.reversed) {
     if (!message.isText) {
       continue;
     }
@@ -193,7 +197,9 @@ bool sessionActiveResponseHasCompleted({
     return false;
   }
 
-  final allMessages = List<ReducerMessage>.from(messages, growable: false);
+  final allMessages = messages is List<ReducerMessage>
+      ? messages
+      : messages.toList(growable: false);
   if (sessionTurnHasCompletionSignal(allMessages)) {
     return true;
   }
@@ -222,8 +228,7 @@ bool sessionAbortHasSettledRemotely({
     return false;
   }
 
-  final allMessages = List<ReducerMessage>.from(messages, growable: false);
-  if (sessionTurnHasCompletionSignal(allMessages)) {
+  if (sessionTurnHasCompletionSignal(messages)) {
     return true;
   }
 

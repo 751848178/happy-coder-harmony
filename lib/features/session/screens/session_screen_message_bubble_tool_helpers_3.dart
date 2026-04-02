@@ -1,6 +1,11 @@
 part of 'session_screen.dart';
 
 extension _SessionScreenMessageBubbleToolHelpers3 on _MessageBubbleState {
+  static const _excludedArgumentKeys = <String>{
+    'command', 'cmd', 'patch', 'diff',
+    'old_string', 'new_string', 'oldText', 'newText', 'edits',
+  };
+
   bool _shouldShowRawArguments(
     Map<String, dynamic> arguments, {
     required String? command,
@@ -12,17 +17,12 @@ extension _SessionScreenMessageBubbleToolHelpers3 on _MessageBubbleState {
     if (command == null && diff == null) {
       return true;
     }
-    final remaining = Map<String, dynamic>.from(arguments)
-      ..remove('command')
-      ..remove('cmd')
-      ..remove('patch')
-      ..remove('diff')
-      ..remove('old_string')
-      ..remove('new_string')
-      ..remove('oldText')
-      ..remove('newText')
-      ..remove('edits');
-    return remaining.isNotEmpty;
+    for (final key in arguments.keys) {
+      if (!_excludedArgumentKeys.contains(key)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   String? _formatToolResult(String? result) {

@@ -73,11 +73,10 @@ extension _SessionScreenViewMessages on _SessionScreenState {
               key: _turnReplyAnchorKey(group.id),
               height: 0,
             ),
-          for (var index = firstReplyIndex;
-              index < group.messages.length;
-              index++)
+          // Iterate with index skip instead of sublist() to avoid list copy.
+          for (var i = firstReplyIndex; i < group.messages.length; i++)
             _buildMessageBubble(
-              group.messages[index],
+              group.messages[i],
               autoApproveEnabled: autoApproveEnabled,
             ),
         ],
@@ -105,6 +104,10 @@ extension _SessionScreenViewMessages on _SessionScreenState {
             _toolActionsInFlight.contains(message.tool!.id),
         onApproveTool: _approveToolCall,
         onRejectTool: _rejectToolCall,
+        onMessageActionChoice: (choice, actionText) =>
+            _handleMessageActionChoice(choice: choice, actionText: actionText),
+        onShowMessageActionSheet: (message, actionText) =>
+            _showMessageActionSheet(message: message, actionText: actionText),
       ),
     );
   }
@@ -160,9 +163,9 @@ extension _SessionScreenViewMessages on _SessionScreenState {
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
               child: Column(
                 children: [
-                  for (final message in group.messages)
+                  for (final msg in group.messages)
                     _buildMessageBubble(
-                      message,
+                      msg,
                       autoApproveEnabled: autoApproveEnabled,
                     ),
                 ],

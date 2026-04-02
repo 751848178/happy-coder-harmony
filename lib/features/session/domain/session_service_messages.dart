@@ -41,25 +41,34 @@ extension SessionServiceMessageOperations on SessionServiceNotifier {
         final responseMap = _asStringMap(response);
         var maxSeq = afterSeq;
 
-        for (final item in messageItems) {
-          final messageJson = _asStringMap(item);
-          if (messageJson == null) {
-            continue;
-          }
-          final seq = _parseSeq(messageJson['seq']);
+        // Parse messages in parallel within the page to reduce total
+        // decryption time (sequential await per message was 264 individual
+        // yields; parallel cuts wall-clock to ~page_size/floor(parallelism)).
+        final pageResults = await Future.wait(
+          messageItems.map((item) async {
+            final messageJson = _asStringMap(item);
+            if (messageJson == null) return null;
+            final seq = _parseSeq(messageJson['seq']);
+            try {
+              final parsedMessages = await _parseServerMessages(
+                messageJson,
+                sessionKey: sessionKey,
+                secretKey: _accountSecret,
+              );
+              return (seq, parsedMessages);
+            } catch (error) {
+              Logger.warning('Failed to parse message: $error');
+              return null;
+            }
+          }),
+        );
+        for (final result in pageResults) {
+          if (result == null) continue;
+          final (seq, parsedMessages) = result;
           if (seq != null && seq > maxSeq) {
             maxSeq = seq;
           }
-          try {
-            final parsedMessages = await _parseServerMessages(
-              messageJson,
-              sessionKey: sessionKey,
-              secretKey: _accountSecret,
-            );
-            messages.addAll(parsedMessages);
-          } catch (error) {
-            Logger.warning('Failed to parse message: $error');
-          }
+          messages.addAll(parsedMessages);
         }
 
         final responseHasMore =
@@ -80,11 +89,25 @@ extension SessionServiceMessageOperations on SessionServiceNotifier {
 
       _sessionLastSeq[sessionId] = afterSeq;
       if (force) {
-        _repository.replaceMessages(
-          sessionId,
-          messages,
-          preserveOptimisticMessages: preserveOptimisticMessages,
-        );
+        // When force-reloading produces zero parsed messages but the server
+        // response contained message items (i.e. decryption failed silently),
+        // keep the existing messages instead of replacing them with an empty
+        // list.  This prevents the UI from showing an empty-state placeholder
+        // when the actual cause is a missing/stale session data key.
+        if (messages.isEmpty &&
+            existing != null &&
+            existing.messages.isNotEmpty) {
+          Logger.warning(
+            'Session messages force-reload produced empty result for $sessionId; '
+            'keeping ${existing.messages.length} existing messages to avoid data loss',
+          );
+        } else {
+          _repository.replaceMessages(
+            sessionId,
+            messages,
+            preserveOptimisticMessages: preserveOptimisticMessages,
+          );
+        }
       } else if (messages.isNotEmpty ||
           existing == null ||
           existing.isLoaded == false) {

@@ -18,7 +18,8 @@ import '../../../app/routes/app_routes.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../app/providers/app_providers.dart';
-import '../../../app/services/settings_service.dart' show SettingsState;
+import '../../../shared/utils/extensions.dart';
+import '../../../core/widgets/bottom_popup_sheet.dart';
 import '../../../harmony/src/harmony_platform.dart';
 import '../../../core/widgets/immediate_long_press_region.dart';
 import '../data/session_composer_queue_service.dart';
@@ -111,6 +112,7 @@ class _SessionScreenSelection {
     required this.session,
     required this.messages,
     required this.hasLoadedSessions,
+    required this.hasLoadedMessages,
     required this.isReady,
   });
 
@@ -119,12 +121,14 @@ class _SessionScreenSelection {
           session: null,
           messages: null,
           hasLoadedSessions: false,
+          hasLoadedMessages: false,
           isReady: false,
         );
 
   final Session? session;
   final List<ReducerMessage>? messages;
   final bool hasLoadedSessions;
+  final bool hasLoadedMessages;
   final bool isReady;
 
   @override
@@ -133,6 +137,7 @@ class _SessionScreenSelection {
         identical(session, other.session) &&
         identical(messages, other.messages) &&
         hasLoadedSessions == other.hasLoadedSessions &&
+        hasLoadedMessages == other.hasLoadedMessages &&
         isReady == other.isReady;
   }
 
@@ -141,6 +146,7 @@ class _SessionScreenSelection {
         session,
         messages,
         hasLoadedSessions,
+        hasLoadedMessages,
         isReady,
       );
 }
@@ -186,18 +192,38 @@ class _SessionScreenState extends ConsumerState<SessionScreen>
   bool _collapseAllTurns = false;
   bool _sessionOverviewCollapsed = true;
   bool _hasScrolledToLatest = false;
-  bool _canScrollToTop = false;
-  bool _canScrollToBottom = false;
-  bool _isNearBottom = true;
-  bool _shouldStickToLatest = true;
-  bool _hasUnreadMessages = false;
+  // Track whether the initial session data load is done so that build()
+  // can skip non-essential computation during the loading phase.
+  bool _initialLoadComplete = false;
+  bool _userHasScrolledUp = false;
   bool _viewportUpdateScheduled = false;
   bool _hasStickyTurnCandidates = false;
-  bool _scrollActionsCollapsed = false;
   bool _scrollToLatestScheduled = false;
   String? _activeResponseLocalId;
   bool? _manualThinkingOverride;
-  String? _stickyTurnId;
+
+  // --- Scroll / overlay state backed by ValueNotifiers ---
+  // These change at high frequency during scrolling and drag gestures.
+  // Using ValueNotifiers ensures only the specific overlay widgets rebuild,
+  // not the entire screen (message list, input area, AppBar, etc.).
+  final ValueNotifier<bool> _canScrollToTopN = ValueNotifier(false);
+  final ValueNotifier<bool> _canScrollToBottomN = ValueNotifier(false);
+  final ValueNotifier<bool> _isNearBottomN = ValueNotifier(true);
+  final ValueNotifier<bool> _shouldStickToLatestN = ValueNotifier(true);
+  final ValueNotifier<bool> _hasUnreadMessagesN = ValueNotifier(false);
+  final ValueNotifier<String?> _stickyTurnIdN = ValueNotifier(null);
+  final ValueNotifier<bool> _scrollActionsCollapsedN = ValueNotifier(false);
+  final ValueNotifier<double> _scrollActionVerticalOffsetN = ValueNotifier(0.0);
+  final ValueNotifier<double> _scrollActionDragDxN = ValueNotifier(0.0);
+
+  bool get _canScrollToTop => _canScrollToTopN.value;
+  bool get _canScrollToBottom => _canScrollToBottomN.value;
+  bool get _isNearBottom => _isNearBottomN.value;
+  bool get _shouldStickToLatest => _shouldStickToLatestN.value;
+  String? get _stickyTurnId => _stickyTurnIdN.value;
+  bool get _scrollActionsCollapsed => _scrollActionsCollapsedN.value;
+  double get _scrollActionVerticalOffset => _scrollActionVerticalOffsetN.value;
+  double get _scrollActionDragDx => _scrollActionDragDxN.value;
   Session? _cachedStatsSession;
   List<ReducerMessage>? _cachedStatsMessages;
   SessionStats? _cachedSessionStats;
@@ -211,9 +237,9 @@ class _SessionScreenState extends ConsumerState<SessionScreen>
   bool _queuedReconcileIsAutoSending = false;
   bool? _queuedReconcileManualThinkingOverride;
   int _scrollToLatestRequestId = 0;
-  double _scrollActionVerticalOffset = 0;
-  double _scrollActionDragDx = 0;
-  List<QueuedComposerMessage> _queuedMessages = const <QueuedComposerMessage>[];
+  final ValueNotifier<List<QueuedComposerMessage>> _queuedMessagesN =
+      ValueNotifier(const <QueuedComposerMessage>[]);
+  List<QueuedComposerMessage> get _queuedMessages => _queuedMessagesN.value;
   List<SessionInputTemplate> _customInputTemplates =
       const <SessionInputTemplate>[];
   List<_MessageTurnGroup> _visibleTurnGroups = const <_MessageTurnGroup>[];
@@ -231,8 +257,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen>
     _scrollController.addListener(_handleScrollMetricsChanged);
     _messageController.addListener(_handleComposerChanged);
     _loadQueuedComposerMessages();
-    _loadCustomInputTemplates();
-    _loadSessionUiState();
+    _loadNonCriticalUiData();
     _loadSessionData();
     _subscribeToSocketEvents();
   }
@@ -249,6 +274,16 @@ class _SessionScreenState extends ConsumerState<SessionScreen>
     _messagePollingTimer?.cancel();
     _socketRefreshDebounce?.cancel();
     _refreshIconController.dispose();
+    _canScrollToTopN.dispose();
+    _canScrollToBottomN.dispose();
+    _isNearBottomN.dispose();
+    _shouldStickToLatestN.dispose();
+    _hasUnreadMessagesN.dispose();
+    _stickyTurnIdN.dispose();
+    _scrollActionsCollapsedN.dispose();
+    _scrollActionVerticalOffsetN.dispose();
+    _scrollActionDragDxN.dispose();
+    _queuedMessagesN.dispose();
     super.dispose();
   }
 

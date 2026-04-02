@@ -46,41 +46,46 @@ class _MessageTurnGroup {
     }
 
     final groups = <_MessageTurnGroup>[];
-    final currentMessages = <ReducerMessage>[];
+    var groupStart = 0;
     ReducerMessage? currentPrompt;
 
-    void flushCurrent() {
-      if (currentMessages.isEmpty) {
+    void flushCurrent(int end) {
+      if (groupStart >= end) {
         return;
       }
+      final groupMessages =
+          List<ReducerMessage>.unmodifiable(messages.sublist(groupStart, end));
+      final first = messages[groupStart];
       groups.add(
         _MessageTurnGroup(
-          id: currentPrompt?.id ?? currentMessages.first.id,
-          messages: List<ReducerMessage>.from(currentMessages),
+          id: currentPrompt?.id ?? first.id,
+          messages: groupMessages,
           preview: _previewFor(
             currentPrompt,
-            fallback: currentMessages.first,
+            fallback: first,
           ),
-          createdAt: currentMessages.first.createdAt,
+          createdAt: first.createdAt,
           userPrompt: currentPrompt,
         ),
       );
-      currentMessages.clear();
+      groupStart = end;
       currentPrompt = null;
     }
 
-    for (final message in messages) {
+    for (var i = 0; i < messages.length; i++) {
+      final message = messages[i];
       final isUserText = startsNewTurn(message);
       if (isUserText) {
-        flushCurrent();
+        flushCurrent(i);
         currentPrompt = message;
       }
-      currentMessages.add(message);
     }
-    flushCurrent();
+    flushCurrent(messages.length);
 
     return groups;
   }
+
+  static final RegExp _whitespacePattern = RegExp(r'\s+');
 
   static String _previewFor(
     ReducerMessage? prompt, {
@@ -90,7 +95,7 @@ class _MessageTurnGroup {
     if (source.isEmpty) {
       return '空消息';
     }
-    final normalized = source.replaceAll(RegExp(r'\s+'), ' ');
+    final normalized = source.replaceAll(_whitespacePattern, ' ');
     if (normalized.length <= 56) {
       return normalized;
     }

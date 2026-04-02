@@ -37,10 +37,8 @@ extension _SessionScreenStateStickyPrompt on _SessionScreenState {
         _collapseAllTurns ||
         !_hasStickyTurnCandidates ||
         _visibleTurnGroups.isEmpty) {
-      if (_stickyTurnId != null && mounted) {
-        _updateState(() {
-          _stickyTurnId = null;
-        });
+      if (_stickyTurnIdN.value != null && mounted) {
+        _stickyTurnIdN.value = null;
       }
       return;
     }
@@ -78,12 +76,6 @@ extension _SessionScreenStateStickyPrompt on _SessionScreenState {
       }
     }
 
-    if (nextStickyTurnId == _stickyTurnId) {
-      return;
-    }
-
-    _updateState(() {
-      _stickyTurnId = nextStickyTurnId;
-    });
+    _stickyTurnIdN.value = nextStickyTurnId;
   }
 }

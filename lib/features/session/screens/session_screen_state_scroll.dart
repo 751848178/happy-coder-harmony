@@ -2,6 +2,7 @@ part of 'session_screen.dart';
 
 extension _SessionScreenStateScroll on _SessionScreenState {
   void _scrollToBottom() {
+    _userHasScrolledUp = false;
     _scheduleScrollToLatest(animate: true, force: true);
   }
 
@@ -90,11 +91,12 @@ extension _SessionScreenStateScroll on _SessionScreenState {
       return;
     }
 
-    _updateState(() {
-      _hasScrolledToLatest = true;
-      _shouldStickToLatest = true;
-      _hasUnreadMessages = false;
-    });
+    // Update ValueNotifiers directly — no full-screen setState needed.
+    _shouldStickToLatestN.value = true;
+    _hasUnreadMessagesN.value = false;
+    // Set _hasScrolledToLatest without setState. The build() method only reads
+    // this flag to decide whether to schedule scroll, which is already done.
+    _hasScrolledToLatest = true;
     _handleScrollMetricsChanged();
   }
 
