@@ -65,6 +65,7 @@ extension _SessionScreenMessageBubbleContent on _MessageBubbleState {
                         isUser: isUser,
                         textColor: textColor,
                         onMessageAction: onMessageAction,
+                        onFilePathTap: onFilePathTap,
                       ),
               ),
               if (isUser && isOptimistic) ...[

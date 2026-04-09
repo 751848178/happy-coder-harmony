@@ -63,10 +63,65 @@ class _FileViewerScreenState extends ConsumerState<FileViewerScreen> {
   String? _content;
   SessionFile? _resolvedFile;
 
+  // Editing state
+  bool _isEditing = false;
+  bool _isSaving = false;
+  TextEditingController? _editController;
+
   @override
   void initState() {
     super.initState();
     _loadFileContent();
+  }
+
+  @override
+  void dispose() {
+    _editController?.dispose();
+    super.dispose();
+  }
+
+  bool get _canEdit =>
+      !_usingDerivedContent &&
+      widget.sessionId != null &&
+      widget.sessionId!.isNotEmpty &&
+      widget.filePath != null &&
+      widget.filePath!.isNotEmpty &&
+      (_presentation == _FilePresentation.text ||
+          _presentation == _FilePresentation.json);
+
+  void _enterEditMode() {
+    if (_content == null) return;
+    _editController?.dispose();
+    _editController = TextEditingController(text: _content);
+    setState(() {
+      _isEditing = true;
+    });
+  }
+
+  void _exitEditMode() {
+    setState(() {
+      _isEditing = false;
+      _isSaving = false;
+    });
+    _editController?.dispose();
+    _editController = null;
+  }
+
+  void _setSaving(bool value) {
+    setState(() => _isSaving = value);
+  }
+
+  void _showSaveError(String message) {
+    setState(() => _isSaving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  void _showSaveSuccess() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('文件已保存')),
+    );
   }
 
   void _beginLoadingFileContent() {

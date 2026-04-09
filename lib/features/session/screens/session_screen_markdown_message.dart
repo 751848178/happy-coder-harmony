@@ -6,12 +6,14 @@ class _MarkdownMessageContent extends StatefulWidget {
     required this.isUser,
     required this.textColor,
     this.onMessageAction,
+    this.onFilePathTap,
   });
 
   final String content;
   final bool isUser;
   final Color textColor;
   final _SessionMessageActionHandler? onMessageAction;
+  final void Function(String filePath)? onFilePathTap;
 
   @override
   State<_MarkdownMessageContent> createState() =>
@@ -62,6 +64,7 @@ class _MarkdownMessageContentState extends State<_MarkdownMessageContent> {
               isUser: widget.isUser,
               textColor: widget.textColor,
               onMessageAction: widget.onMessageAction,
+              onFilePathTap: widget.onFilePathTap,
             ),
           if (index != _blocks.length - 1) const SizedBox(height: 10),
         ],

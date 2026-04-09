@@ -156,4 +156,39 @@ extension on _FileViewerScreenState {
 
     return trimmed;
   }
+
+  Future<void> _saveFileContent() async {
+    if (_editController == null || widget.sessionId == null) return;
+    final newContent = _editController!.text;
+    final filePath = widget.filePath;
+    if (filePath == null || filePath.isEmpty) return;
+
+    _setSaving(true);
+
+    try {
+      final notifier = ref.read(sessionStateProvider.notifier);
+      final session = notifier.getSession(widget.sessionId!);
+      // Escape single quotes for safe heredoc usage
+      final escaped = newContent.replaceAll("'", "'\"'\"'");
+      final command = "cat > '$filePath' << 'HAPPY_EOF'\n$escaped\nHAPPY_EOF";
+      final response = await notifier.executeSessionBash(
+        sessionId: widget.sessionId!,
+        command: command,
+        cwd: session?.path,
+        timeout: 15000,
+      );
+      if (!mounted) return;
+
+      if (response.success) {
+        _exitEditMode();
+        _loadFileContent();
+        _showSaveSuccess();
+      } else {
+        _showSaveError('保存失败: ${response.error ?? response.stderr}');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      _showSaveError('保存失败: $error');
+    }
+  }
 }

@@ -14,6 +14,7 @@ class _MessageBubble extends StatefulWidget {
     required this.onRejectTool,
     required this.onMessageActionChoice,
     required this.onShowMessageActionSheet,
+    this.onFilePathTap,
   });
 
   final ReducerMessage message;
@@ -30,6 +31,7 @@ class _MessageBubble extends StatefulWidget {
     ReducerMessage message,
     String actionText,
   ) onShowMessageActionSheet;
+  final void Function(String filePath)? onFilePathTap;
 
   @override
   State<_MessageBubble> createState() => _MessageBubbleState();
@@ -58,6 +60,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
   Future<void> Function(String) get onApproveTool => widget.onApproveTool;
   Future<void> Function(String, String?) get onRejectTool =>
       widget.onRejectTool;
+  void Function(String)? get onFilePathTap => widget.onFilePathTap;
   _SessionMessageActionHandler? get onMessageAction {
     _ensureActionState();
     return _onMessageAction;

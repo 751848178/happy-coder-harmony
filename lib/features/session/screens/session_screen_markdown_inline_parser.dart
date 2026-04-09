@@ -11,6 +11,7 @@ class _ParsedInlineSegment {
     this.isItalic = false,
     this.isInlineCode = false,
     this.isLink = false,
+    this.isFilePath = false,
   });
 
   final _InlineSegmentType type;
@@ -20,13 +21,21 @@ class _ParsedInlineSegment {
   final bool isItalic;
   final bool isInlineCode;
   final bool isLink;
+  final bool isFilePath;
 }
 
-enum _InlineSegmentType { plain, link, inlineCode, bold, italic }
+enum _InlineSegmentType { plain, link, inlineCode, bold, italic, filePath }
 
 class _MarkdownInlineParser {
   static final RegExp _pattern = RegExp(
     r'(\[([^\]]+)\]\(([^)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|__([^_]+)__|\*([^*]+)\*|_([^_]+)_)',
+  );
+
+  /// Matches file paths: at least one `/` and a file extension.
+  /// Examples: `lib/main.dart`, `src/app.tsx`, `components/ui/button.tsx`
+  /// Avoids matching plain words, URLs, or version numbers.
+  static final RegExp _filePathPattern = RegExp(
+    r'(?<![`\w/@\-])([\w][\w.\-]*(?:/[\w.\-]+)+\.[\w]+)(?![`\w/])',
   );
 
   /// Cache: input string → parsed segments.
@@ -45,10 +54,7 @@ class _MarkdownInlineParser {
 
     for (final match in _pattern.allMatches(input)) {
       if (match.start > cursor) {
-        segments.add(_ParsedInlineSegment(
-          type: _InlineSegmentType.plain,
-          text: input.substring(cursor, match.start),
-        ));
+        _parsePlainSegments(input.substring(cursor, match.start), segments);
       }
 
       if (match.group(2) != null && match.group(3) != null) {
@@ -82,10 +88,7 @@ class _MarkdownInlineParser {
     }
 
     if (cursor < input.length) {
-      segments.add(_ParsedInlineSegment(
-        type: _InlineSegmentType.plain,
-        text: input.substring(cursor),
-      ));
+      _parsePlainSegments(input.substring(cursor), segments);
     }
 
     if (segments.isEmpty) {
@@ -103,6 +106,33 @@ class _MarkdownInlineParser {
     return segments;
   }
 
+  /// Parse a plain-text region for embedded file paths.
+  static void _parsePlainSegments(
+      String plainText, List<_ParsedInlineSegment> segments) {
+    var localCursor = 0;
+    for (final m in _filePathPattern.allMatches(plainText)) {
+      if (m.start > localCursor) {
+        segments.add(_ParsedInlineSegment(
+          type: _InlineSegmentType.plain,
+          text: plainText.substring(localCursor, m.start),
+        ));
+      }
+      segments.add(_ParsedInlineSegment(
+        type: _InlineSegmentType.filePath,
+        text: m.group(1)!,
+        url: m.group(1)!,
+        isFilePath: true,
+      ));
+      localCursor = m.end;
+    }
+    if (localCursor < plainText.length) {
+      segments.add(_ParsedInlineSegment(
+        type: _InlineSegmentType.plain,
+        text: plainText.substring(localCursor),
+      ));
+    }
+  }
+
   /// Build InlineSpan list from pre-parsed segments + styles.
   /// This is the public API — replaces the old monolithic buildSpans().
   static List<InlineSpan> buildSpans(
@@ -111,6 +141,7 @@ class _MarkdownInlineParser {
     required Color linkColor,
     required Color inlineCodeColor,
     required Color inlineCodeBackground,
+    void Function(String filePath)? onFilePathTap,
   }) {
     final segments = _parse(input);
     return [
@@ -121,6 +152,7 @@ class _MarkdownInlineParser {
           linkColor,
           inlineCodeColor,
           inlineCodeBackground,
+          onFilePathTap,
         ),
     ];
   }
@@ -131,6 +163,7 @@ class _MarkdownInlineParser {
     Color linkColor,
     Color inlineCodeColor,
     Color inlineCodeBackground,
+    void Function(String filePath)? onFilePathTap,
   ) {
     switch (seg.type) {
       case _InlineSegmentType.plain:
@@ -166,6 +199,17 @@ class _MarkdownInlineParser {
         return TextSpan(
           text: seg.text,
           style: baseStyle.copyWith(fontStyle: FontStyle.italic),
+        );
+      case _InlineSegmentType.filePath:
+        return TextSpan(
+          text: seg.text,
+          style: baseStyle.copyWith(
+            color: linkColor,
+            decoration: TextDecoration.underline,
+          ),
+          recognizer: onFilePathTap != null
+              ? (TapGestureRecognizer()..onTap = () => onFilePathTap(seg.url!))
+              : null,
         );
     }
   }

@@ -21,12 +21,14 @@ class _MarkdownTextBlock extends StatefulWidget {
     required this.isUser,
     required this.textColor,
     this.onMessageAction,
+    this.onFilePathTap,
   });
 
   final String content;
   final bool isUser;
   final Color textColor;
   final _SessionMessageActionHandler? onMessageAction;
+  final void Function(String filePath)? onFilePathTap;
 
   @override
   State<_MarkdownTextBlock> createState() => _MarkdownTextBlockState();
@@ -219,6 +221,7 @@ class _MarkdownTextBlockState extends State<_MarkdownTextBlock> {
           inlineCodeBackground: widget.isUser
               ? Colors.white.withValues(alpha: 0.16)
               : AppTheme.neutral100,
+          onFilePathTap: widget.onFilePathTap,
         ),
       ),
       contextMenuBuilder: _buildMessageActionContextMenuBuilder(

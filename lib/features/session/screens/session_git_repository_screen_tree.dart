@@ -10,7 +10,6 @@ List<Widget> _buildRepositoryTreeWidgets(
   for (final node in nodes) {
     if (node.isDirectory) {
       final expanded = forceExpandAll ||
-          depth == 0 ||
           state._expandedFolderIds.contains(node.id);
       widgets.add(
         Padding(

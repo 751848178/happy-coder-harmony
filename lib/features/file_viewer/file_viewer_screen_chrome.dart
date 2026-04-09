@@ -2,7 +2,41 @@ part of 'file_viewer_screen.dart';
 
 extension on _FileViewerScreenState {
   List<Widget> _buildAppBarActions() {
+    if (_isEditing) {
+      return [
+        if (_isSaving)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppTheme.brandColor,
+              ),
+            ),
+          )
+        else ...[
+          IconButton(
+            onPressed: _exitEditMode,
+            icon: const Icon(Icons.close),
+            tooltip: '取消',
+          ),
+          IconButton(
+            onPressed: _saveFileContent,
+            icon: const Icon(Icons.check),
+            tooltip: '保存',
+          ),
+        ],
+      ];
+    }
     return [
+      if (_canEdit && !_isLoading && _content != null)
+        IconButton(
+          onPressed: _enterEditMode,
+          icon: const Icon(Icons.edit_outlined),
+          tooltip: '编辑',
+        ),
       IconButton(
         onPressed: _isLoading ? null : _loadFileContent,
         icon: const Icon(Icons.refresh),

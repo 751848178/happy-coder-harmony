@@ -235,6 +235,7 @@ extension _SessionScreenViewMessages on _SessionScreenState {
     ReducerMessage message, {
     required bool autoApproveEnabled,
   }) {
+    final filePathTapHandler = _createFilePathTapHandler();
     final tool = message.tool;
     if (tool == null) {
       return ValueListenableBuilder<bool>(
@@ -258,6 +259,7 @@ extension _SessionScreenViewMessages on _SessionScreenState {
                 message: message,
                 actionText: actionText,
               ),
+              onFilePathTap: filePathTapHandler,
             ),
           );
         },
@@ -287,6 +289,7 @@ extension _SessionScreenViewMessages on _SessionScreenState {
                   message: message,
                   actionText: actionText,
                 ),
+                onFilePathTap: filePathTapHandler,
               ),
             );
           },
@@ -408,5 +411,19 @@ extension _SessionScreenViewMessages on _SessionScreenState {
         ],
       ),
     );
+  }
+
+  void Function(String)? _createFilePathTapHandler() {
+    final sessionId = widget.sessionId;
+    if (sessionId.isEmpty) return null;
+    return (String filePath) {
+      final fileName = filePath.split('/').last;
+      final uri = Uri.parse(
+        AppRoutes.sessionFileDetail(sessionId) +
+            '?path=${Uri.encodeComponent(filePath)}'
+            '&name=${Uri.encodeComponent(fileName)}',
+      );
+      context.push(uri.toString());
+    };
   }
 }

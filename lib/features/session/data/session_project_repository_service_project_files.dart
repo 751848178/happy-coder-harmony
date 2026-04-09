@@ -12,7 +12,7 @@ Future<List<SessionFile>> _loadProjectFiles({
   var stdout = '';
   final ripgrepResponse = await notifier.executeSessionRipgrep(
     sessionId: session.id,
-    args: const ['--files', '--follow'],
+    args: const ['--files', '--follow', '--hidden'],
     cwd: rootPath,
   );
   if (ripgrepResponse.success && ripgrepResponse.stdout.trim().isNotEmpty) {
@@ -21,7 +21,7 @@ Future<List<SessionFile>> _loadProjectFiles({
   if (stdout.trim().isEmpty) {
     final bashResponse = await notifier.executeSessionBash(
       sessionId: session.id,
-      command: 'rg --files --follow',
+      command: 'rg --files --follow --hidden',
       cwd: rootPath,
       timeout: 10000,
     );

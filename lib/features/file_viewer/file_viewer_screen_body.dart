@@ -45,7 +45,7 @@ extension on _FileViewerScreenState {
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
-            child: _buildContentView(content),
+            child: _isEditing ? _buildEditModeView() : _buildContentView(content),
           ),
         ),
       ],
@@ -69,6 +69,43 @@ extension on _FileViewerScreenState {
       case _FilePresentation.binary:
         return const SizedBox.shrink();
     }
+  }
+
+  Widget _buildEditModeView() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: const Color(0xFF2D3748)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _FileViewerCodePanelHeader(language: _resolveLanguage()),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              child: TextField(
+                controller: _editController,
+                maxLines: null,
+                expands: true,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.55,
+                  fontFamily: AppTheme.fontFamilyMono,
+                  color: Color(0xFFE5E7EB),
+                ),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
