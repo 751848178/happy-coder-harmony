@@ -9,6 +9,9 @@ void main() {
     String title = 'Session Title',
     Map<String, dynamic>? metadata,
     String? path,
+    String? previewText,
+    DateTime? lastMessageAt,
+    String? listStatusKind,
   }) {
     return Session(
       id: 'session-preview-test',
@@ -19,6 +22,9 @@ void main() {
       active: true,
       metadata: metadata,
       path: path,
+      previewText: previewText,
+      lastMessageAt: lastMessageAt,
+      listStatusKind: listStatusKind,
     );
   }
 
@@ -73,6 +79,20 @@ void main() {
     expect(snapshot.previewText, '等待第一条消息');
     expect(snapshot.isSyncing, isFalse);
     expect(snapshot.lastMessageAt, isNull);
+  });
+
+  test('uses precomputed preview fields before message snapshot is loaded', () {
+    final lastMessageAt = DateTime.fromMillisecondsSinceEpoch(1772962446908);
+    final snapshot = resolveSessionListActivitySnapshot(
+      session: buildSession(
+        previewText: 'cached preview text',
+        lastMessageAt: lastMessageAt,
+      ),
+    );
+
+    expect(snapshot.previewText, 'cached preview text');
+    expect(snapshot.isSyncing, isFalse);
+    expect(snapshot.lastMessageAt, lastMessageAt);
   });
 
   test('prefers explicit renamed title over working directory', () {

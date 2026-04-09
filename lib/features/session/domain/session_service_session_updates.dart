@@ -26,7 +26,11 @@ extension SessionServiceSessionUpdates on SessionServiceNotifier {
         if (flavor == 'codex') 'decision': 'approved',
       },
     );
-    await loadSessionMessages(sessionId);
+    await loadSessionMessages(
+      sessionId,
+      messageWindowSize:
+          SessionServiceNotifier.sessionDetailAutomaticMessageWindowSize,
+    );
     unawaited(loadSessions(force: true));
   }
 
@@ -46,7 +50,11 @@ extension SessionServiceSessionUpdates on SessionServiceNotifier {
         if (flavor == 'codex') 'decision': 'abort',
       },
     );
-    await loadSessionMessages(sessionId);
+    await loadSessionMessages(
+      sessionId,
+      messageWindowSize:
+          SessionServiceNotifier.sessionDetailAutomaticMessageWindowSize,
+    );
     unawaited(loadSessions(force: true));
   }
 

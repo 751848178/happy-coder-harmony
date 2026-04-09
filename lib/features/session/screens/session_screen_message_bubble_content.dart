@@ -9,7 +9,9 @@ extension _SessionScreenMessageBubbleContent on _MessageBubbleState {
     final isUser = sessionMessageIsUserAuthored(message);
     final isThinking = message.metadata?['outputType'] == 'thinking';
     final isOptimistic = message.metadata?['optimistic'] == true;
-    final canCollapse = _shouldCollapseTextMessage(text);
+    // Use pre-computed _canCollapse (set in initState / didUpdateWidget) instead
+    // of re-running O(n) _shouldCollapseTextMessage on every build.
+    final canCollapse = _canCollapse;
     final bubbleColor = isUser ? AppTheme.brandColor : AppTheme.surface;
     final textColor = isUser ? Colors.white : AppTheme.textPrimary;
 

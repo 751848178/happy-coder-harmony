@@ -1,95 +1,29 @@
 part of 'session_screen.dart';
 
 extension _SessionScreenMessageBubbleToolHelpers3 on _MessageBubbleState {
-  static const _excludedArgumentKeys = <String>{
-    'command', 'cmd', 'patch', 'diff',
-    'old_string', 'new_string', 'oldText', 'newText', 'edits',
-  };
-
   bool _shouldShowRawArguments(
     Map<String, dynamic> arguments, {
     required String? command,
     required String? diff,
-  }) {
-    if (arguments.isEmpty) {
-      return false;
-    }
-    if (command == null && diff == null) {
-      return true;
-    }
-    for (final key in arguments.keys) {
-      if (!_excludedArgumentKeys.contains(key)) {
-        return true;
-      }
-    }
-    return false;
-  }
+  }) => _MessageBubbleState._bubblePresenter.shouldShowRawArguments(
+        arguments,
+        command: command,
+        diff: diff,
+      );
 
-  String? _formatToolResult(String? result) {
-    if (result == null || result.trim().isEmpty) {
-      return null;
-    }
-    final trimmed = result.trim();
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-      try {
-        final decoded = jsonDecode(trimmed);
-        return const JsonEncoder.withIndent('  ').convert(decoded);
-      } catch (_) {
-        return trimmed;
-      }
-    }
-    return trimmed;
-  }
+  String? _formatToolResult(String? result) =>
+      _MessageBubbleState._bubblePresenter.formatToolResult(result);
 
   String _guessLanguageForResult(
     String? content, {
     required String toolName,
-  }) {
-    if (content == null || content.isEmpty) {
-      return '';
-    }
-    final lowerTool = toolName.toLowerCase();
-    if (content.startsWith('{') || content.startsWith('[')) {
-      return 'json';
-    }
-    if (content.contains('diff --git') || content.contains('@@')) {
-      return 'diff';
-    }
-    final detected = _detectStructuredLanguage(content);
-    if (detected.isNotEmpty) {
-      return detected;
-    }
-    if (lowerTool.contains('bash') ||
-        lowerTool.contains('shell') ||
-        lowerTool.contains('execute')) {
-      return 'shell';
-    }
-    if (lowerTool.contains('read') ||
-        lowerTool.contains('write') ||
-        lowerTool.contains('edit')) {
-      return 'text';
-    }
-    return '';
-  }
+  }) => _MessageBubbleState._bubblePresenter.guessLanguageForResult(
+        content,
+        toolName: toolName,
+      );
 
-  String _resultSectionTitle(String toolName) {
-    final lower = toolName.toLowerCase();
-    if (lower.contains('bash') ||
-        lower.contains('shell') ||
-        lower.contains('execute')) {
-      return '命令输出';
-    }
-    if (lower.contains('read')) {
-      return '文件内容';
-    }
-    if (lower.contains('search') ||
-        lower.contains('grep') ||
-        lower.contains('glob') ||
-        lower.contains('ls')) {
-      return '搜索结果';
-    }
-    return '输出结果';
-  }
+  String _resultSectionTitle(String toolName) =>
+      _MessageBubbleState._bubblePresenter.resultSectionTitle(toolName);
 
   Widget _buildToolStatusBadge(ToolCallStatus status) {
     Color color;
@@ -139,16 +73,8 @@ extension _SessionScreenMessageBubbleToolHelpers3 on _MessageBubbleState {
     );
   }
 
-  String? _formatToolArguments(Map<String, dynamic> arguments) {
-    if (arguments.isEmpty) {
-      return null;
-    }
-    try {
-      return const JsonEncoder.withIndent('  ').convert(arguments);
-    } catch (_) {
-      return arguments.toString();
-    }
-  }
+  String? _formatToolArguments(Map<String, dynamic> arguments) =>
+      _MessageBubbleState._bubblePresenter.formatToolArguments(arguments);
 
   String _messageKindLabel(String kind) {
     switch (kind) {

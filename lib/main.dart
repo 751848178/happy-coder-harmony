@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:ui' as ui;
 
 import 'core/theme/app_theme.dart';
 import 'core/config/app_config.dart';
@@ -17,8 +18,29 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Logger.info('main() start');
 
+  FlutterError.onError = (FlutterErrorDetails details) {
+    Logger.error('[FlutterCrash] ${details.exceptionAsString()}');
+    final context = details.context?.toDescription();
+    if (context != null && context.isNotEmpty) {
+      Logger.error('[FlutterCrash][context] $context');
+    }
+    if (details.stack != null) {
+      Logger.error('[FlutterCrash][stack]\n${details.stack}');
+    }
+    FlutterError.presentError(details);
+  };
+  ui.PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    Logger.error('[FlutterCrash][async] $error');
+    Logger.error('[FlutterCrash][async-stack]\n$stack');
+    return false;
+  };
+
   ErrorWidget.builder = (FlutterErrorDetails details) {
     final exceptionText = details.exceptionAsString();
+    Logger.error('[FlutterCrash][widget] $exceptionText');
+    if (details.stack != null) {
+      Logger.error('[FlutterCrash][widget-stack]\n${details.stack}');
+    }
     return Material(
       color: Colors.white,
       child: SafeArea(

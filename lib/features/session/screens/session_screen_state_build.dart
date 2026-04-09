@@ -6,13 +6,10 @@ extension _SessionScreenStateBuild on _SessionScreenState {
       sessionStateProvider.select(
         (state) =>
             state.whenOrNull(
-              ready: (sessions, sessionMessages, _) {
-                final currentMessages = sessionMessages[widget.sessionId];
+              ready: (sessions, _, __) {
                 return _SessionScreenSelection(
                   session: sessions[widget.sessionId],
-                  messages: currentMessages?.messages,
                   hasLoadedSessions: sessions.isNotEmpty,
-                  hasLoadedMessages: currentMessages?.isLoaded == true,
                   isReady: true,
                 );
               },
@@ -22,27 +19,10 @@ extension _SessionScreenStateBuild on _SessionScreenState {
     );
   }
 
-  SessionStats? _resolveSessionStats(
-    Session? session,
-    List<ReducerMessage> messages,
-  ) {
-    if (session == null) {
-      return null;
-    }
-    if (identical(_cachedStatsSession, session) &&
-        identical(_cachedStatsMessages, messages)) {
-      return _cachedSessionStats;
-    }
-    final stats = SessionStatsCalculator.fromSession(
-      session: session,
-      messages: messages,
-    );
-    _cachedStatsSession = session;
-    _cachedStatsMessages = messages;
-    _cachedSessionStats = stats;
-    return stats;
-  }
-
+  /// Session-level build — only rebuilds when session metadata changes
+  /// (title, active, thinking, draft, etc.). Does NOT rebuild when only
+  /// messages change — message-driven rebuilds are isolated in
+  /// [_buildSessionBody] via [ListenableBuilder].
   Widget _buildSessionScreen(BuildContext context) {
     final selection = _watchSessionSelection();
     final (commandPaletteEnabled, agentInputEnterToSend) = ref.watch(
@@ -51,85 +31,10 @@ extension _SessionScreenStateBuild on _SessionScreenState {
       ),
     );
     final session = selection.session;
-    final messages = selection.messages ?? const <ReducerMessage>[];
-    final showMessageLoading =
-        session != null && !selection.hasLoadedMessages && messages.isEmpty;
     final socketConnected =
         ref.watch(socketStateProvider.select((state) => state.isConnected));
-    final turnGroups = _resolveTurnGroups(messages);
-    // Skip expensive stats computation when the overview panel is collapsed.
-    // SessionStatsCalculator.fromSession() iterates every message and parses
-    // text for patch summaries — O(n) per build with 264 messages.
-    // When overview is collapsed (the default), this is pure waste.
-    final sessionStats = _sessionOverviewCollapsed
-        ? null
-        : _resolveSessionStats(session, messages);
-    if (messages.isNotEmpty && !_hasScrolledToLatest && !_userHasScrolledUp) {
-      _scheduleScrollToLatest();
-    }
-    if (session != null &&
-        _shouldAutoApprove(session) &&
-        messages.any(
-          (message) =>
-              message.tool?.status == ToolCallStatus.pending &&
-              !_autoApprovedToolIds.contains(message.tool!.id),
-        )) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        unawaited(_maybeAutoApprovePendingTools());
-      });
-    }
-    final slashCommands = _resolveSlashCommands(session);
-    final availableInputTemplates = _allInputTemplates();
-    // Cache the thinking snapshot once per build to avoid 3 redundant
-    // resolveSessionThinkingSnapshot calls, each of which copies
-    // the entire message list and traverses it.
-    final thinkingSnapshot = resolveSessionThinkingSnapshot(
-      session: session,
-      messages: messages,
-    );
-    final conversationBusy = _isConversationBusy(
-      session,
-      turnGroups,
-      thinkingSnapshot: thinkingSnapshot,
-    );
-    final hasActiveResponseMarker = _hasEffectiveActiveResponseMarker(
-      session,
-      turnGroups,
-      thinkingSnapshot: thinkingSnapshot,
-    );
-    final suppressStaleLiveState =
-        _isRefreshingSessionState && !hasActiveResponseMarker;
-    final effectiveConversationBusy =
-        suppressStaleLiveState ? false : conversationBusy;
-    final effectiveThinking =
-        thinkingSnapshot.isThinking && !suppressStaleLiveState;
-    final shouldKeepScreenAwake =
-        session != null && (hasActiveResponseMarker || effectiveThinking);
-    _updateScreenAwakePolicy(keepAwake: shouldKeepScreenAwake);
-    final latestTurnMessages = turnGroups.isNotEmpty
-        ? turnGroups.last.messages
-        : const <ReducerMessage>[];
-    final showLiveReplyBadge =
-        messages.isNotEmpty && effectiveThinking && !suppressStaleLiveState;
     final hasLoadedSessions = selection.hasLoadedSessions;
-    _visibleTurnGroups = turnGroups;
-    // Only compute sticky turn candidates after initial load completes.
-    // During loading, the message list is incomplete and the computation
-    // traverses all turn groups for no visual benefit.
-    _hasStickyTurnCandidates = _initialLoadComplete &&
-        !_collapseAllTurns &&
-        turnGroups.any(
-          (group) => group.userPrompt != null && group.messages.length > 1,
-        );
-    if (messages.isNotEmpty &&
-        (_hasStickyTurnCandidates || _stickyTurnId != null)) {
-      _scheduleViewportStateRefresh();
-    }
-    // Skip queue reconciliation during initial load — session data is still
-    // loading and reconciling against stale/empty state is wasteful.
-    if (_initialLoadComplete) {
-      _scheduleQueuedMessageReconciliation(session, messages);
-    }
+    final slashCommands = _resolveSlashCommands(session);
 
     return PopScope(
       canPop: false,
@@ -144,121 +49,190 @@ extension _SessionScreenStateBuild on _SessionScreenState {
         appBar: _buildAppBar(
           context,
           session,
-          turnGroups: turnGroups,
-          showOverviewToggle: true, // always show toggle when session loaded
+          showOverviewToggle: true,
         ),
         body: session == null && !hasLoadedSessions
             ? const Center(child: CircularProgressIndicator())
             : session == null && hasLoadedSessions
                 ? _buildDeletedState()
-                : Column(
-                    children: [
-                      if (session != null &&
-                          sessionStats != null &&
-                          !_sessionOverviewCollapsed)
-                        _buildSessionOverview(session, sessionStats),
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) => Stack(
-                            children: [
-                              // Message list — non-positioned child fills the Stack.
-                              // Using Positioned.fill caused the entire area to render
-                              // blank on HarmonyOS (see issue doc for details).
-                              showMessageLoading
-                                  ? const Center(
-                                      child: CircularProgressIndicator(),
-                                    )
-                                  : messages.isEmpty
-                                      ? _buildEmptyState()
-                                      : _buildMessageList(
-                                          messages: messages,
-                                          turnGroups: turnGroups,
-                                          autoApproveEnabled: session != null
-                                              ? _shouldAutoApprove(session)
-                                              : false,
-                                        ),
-                              // Sticky turn prompt — isolated rebuild via ValueNotifier.
-                              if (messages.isNotEmpty && !_collapseAllTurns)
-                                ValueListenableBuilder<String?>(
-                                  valueListenable: _stickyTurnIdN,
-                                  builder: (_, stickyTurnId, __) {
-                                    if (stickyTurnId == null) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return Positioned(
-                                      key:
-                                          const ValueKey('session-sticky-turn'),
-                                      left: AppTheme.spacingMd,
-                                      top: 8,
-                                      right: showLiveReplyBadge ? 132 : 16,
-                                      child: _buildStickyTurnPrompt(),
-                                    );
-                                  },
-                                ),
-                              if (showLiveReplyBadge)
-                                Positioned(
-                                  key: const ValueKey('session-thinking-badge'),
-                                  top: 8,
-                                  right: AppTheme.spacingMd,
-                                  child: _buildFloatingThinkingBadge(
-                                    session!,
-                                    latestTurnMessages,
-                                  ),
-                                ),
-                              // Unread indicator — isolated rebuild via ValueNotifier.
-                              if (messages.isNotEmpty)
-                                ValueListenableBuilder<bool>(
-                                  valueListenable: _hasUnreadMessagesN,
-                                  builder: (_, hasUnread, __) {
-                                    if (!hasUnread) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return Positioned(
-                                      key: const ValueKey(
-                                          'session-unread-indicator'),
-                                      left: AppTheme.spacingMd,
-                                      right: AppTheme.spacingMd,
-                                      bottom: 112,
-                                      child: Center(
-                                        child: _buildNewMessageIndicator(),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              // Scroll actions overlay — isolated rebuild via merged ValueNotifiers.
-                              if (messages.isNotEmpty)
-                                ListenableBuilder(
-                                  listenable: Listenable.merge([
-                                    _canScrollToTopN,
-                                    _canScrollToBottomN,
-                                    _scrollActionsCollapsedN,
-                                    _scrollActionDragDxN,
-                                    _scrollActionVerticalOffsetN,
-                                  ]),
-                                  builder: (_, __) =>
-                                      _buildScrollActionsOverlay(
-                                    viewportHeight: constraints.maxHeight,
-                                    session: session,
-                                    turnGroups: turnGroups,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      _buildInputArea(
-                        session,
-                        turnGroups,
-                        conversationBusy: effectiveConversationBusy,
-                        socketConnected: socketConnected,
-                        commandPaletteEnabled: commandPaletteEnabled,
-                        agentInputEnterToSend: agentInputEnterToSend,
-                        slashCommands: slashCommands,
-                        availableInputTemplates: availableInputTemplates,
-                      ),
-                    ],
+                : _buildSessionBody(
+                    session: session!,
+                    commandPaletteEnabled: commandPaletteEnabled,
+                    agentInputEnterToSend: agentInputEnterToSend,
+                    socketConnected: socketConnected,
+                    slashCommands: slashCommands,
                   ),
       ),
+    );
+  }
+
+  /// Message-dependent body — rebuilds ONLY when [_messageViewStateN]
+  /// changes, independently of the AppBar and Scaffold.
+  /// This isolates message-driven rebuilds (streaming, loading) from
+  /// session-level rebuilds (title change, active status, etc.).
+  Widget _buildSessionBody({
+    required Session session,
+    required bool commandPaletteEnabled,
+    required bool agentInputEnterToSend,
+    required bool socketConnected,
+    required List<_SlashCommandItem> slashCommands,
+  }) {
+    return ListenableBuilder(
+      listenable: _messageViewStateN,
+      builder: (context, _) {
+        final bodyState = _bodyPresenter.resolve(
+          session: session,
+          messages: _messages,
+          hasLoadedMessages: _hasLoadedMessages,
+        );
+        return _SessionScreenBodyEffects(
+          bodyState: bodyState,
+          hasScrolledToLatest: _hasScrolledToLatest,
+          hasNewerMessages: _hasNewerMessages,
+          userHasScrolledUp: _userHasScrolledUp,
+          initialLoadComplete: _initialLoadComplete,
+          autoApproveEnabled: _shouldAutoApprove(session),
+          stickyTurnId: _stickyTurnId,
+          onVisibleTurnGroupsChanged: (turnGroups) {
+            _visibleTurnGroups = turnGroups;
+          },
+          onScheduleScrollToLatest: _scheduleScrollToLatest,
+          onMaybeAutoApprovePendingTools: _maybeAutoApprovePendingTools,
+          onUpdateScreenAwakePolicy: (keepAwake) {
+            _updateScreenAwakePolicy(keepAwake: keepAwake);
+          },
+          onScheduleViewportStateRefresh: _scheduleViewportStateRefresh,
+          onScheduleQueuedMessageReconciliation: () {
+            _scheduleQueuedMessageReconciliation(session, bodyState.messages);
+          },
+          child: Column(
+            children: [
+              ValueListenableBuilder<bool>(
+                valueListenable: _sessionOverviewCollapsedN,
+                builder: (_, collapsed, __) {
+                  if (collapsed || bodyState.sessionStats == null) {
+                    return const SizedBox.shrink();
+                  }
+                  return _buildSessionOverview(session, bodyState.sessionStats!);
+                },
+              ),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Stack(
+                    children: [
+                      bodyState.showMessageLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : bodyState.messages.isEmpty
+                              ? _buildEmptyState()
+                              : ValueListenableBuilder<bool>(
+                                  valueListenable: _messageViewportReadyN,
+                                  builder: (_, viewportReady, __) {
+                                    final list = _buildMessageList(
+                                      messages: bodyState.messages,
+                                      turnGroups: bodyState.turnGroups,
+                                      autoApproveEnabled:
+                                          _shouldAutoApprove(session),
+                                    );
+                                    final shouldRevealList = viewportReady ||
+                                        _hasScrolledToLatest ||
+                                        _userHasScrolledUp ||
+                                        bodyState.messages.isEmpty;
+                                    return Stack(
+                                      children: [
+                                        IgnorePointer(
+                                          ignoring: !shouldRevealList,
+                                          child: AnimatedOpacity(
+                                            opacity: shouldRevealList ? 1 : 0,
+                                            duration: const Duration(
+                                              milliseconds: 80,
+                                            ),
+                                            child: list,
+                                          ),
+                                        ),
+                                        if (!shouldRevealList)
+                                          const Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                      if (bodyState.messages.isNotEmpty && !_collapseAllTurns)
+                        ValueListenableBuilder<String?>(
+                          valueListenable: _stickyTurnIdN,
+                          builder: (_, stickyTurnId, __) {
+                            if (stickyTurnId == null) {
+                              return const SizedBox.shrink();
+                            }
+                            return Positioned(
+                              key: const ValueKey('session-sticky-turn'),
+                              left: AppTheme.spacingMd,
+                              top: 8,
+                              right: bodyState.showLiveReplyBadge ? 132 : 16,
+                              child: _buildStickyTurnPrompt(),
+                            );
+                          },
+                        ),
+                      if (bodyState.showLiveReplyBadge)
+                        Positioned(
+                          key: const ValueKey('session-thinking-badge'),
+                          top: 8,
+                          right: AppTheme.spacingMd,
+                          child: _buildFloatingThinkingBadge(
+                            session,
+                            bodyState.latestTurnMessages,
+                          ),
+                        ),
+                      if (bodyState.messages.isNotEmpty)
+                        ValueListenableBuilder<bool>(
+                          valueListenable: _hasUnreadMessagesN,
+                          builder: (_, hasUnread, __) {
+                            if (!hasUnread) {
+                              return const SizedBox.shrink();
+                            }
+                            return Positioned(
+                              key: const ValueKey('session-unread-indicator'),
+                              left: AppTheme.spacingMd,
+                              right: AppTheme.spacingMd,
+                              bottom: 112,
+                              child: Center(
+                                child: _buildNewMessageIndicator(),
+                              ),
+                            );
+                          },
+                        ),
+                      if (bodyState.messages.isNotEmpty)
+                        ListenableBuilder(
+                          listenable: Listenable.merge([
+                            _canScrollToTopN,
+                            _canScrollToBottomN,
+                            _scrollActionsCollapsedN,
+                            _scrollActionDragDxN,
+                            _scrollActionVerticalOffsetN,
+                          ]),
+                          builder: (_, __) => _buildScrollActionsOverlay(
+                            viewportHeight: constraints.maxHeight,
+                            session: session,
+                            turnGroups: bodyState.turnGroups,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              _buildInputArea(
+                session,
+                bodyState.turnGroups,
+                conversationBusy: bodyState.effectiveConversationBusy,
+                socketConnected: socketConnected,
+                commandPaletteEnabled: commandPaletteEnabled,
+                agentInputEnterToSend: agentInputEnterToSend,
+                slashCommands: slashCommands,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

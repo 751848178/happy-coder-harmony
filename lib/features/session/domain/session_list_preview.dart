@@ -1,3 +1,5 @@
+import 'package:collection/collection.dart';
+
 import 'reducer.dart';
 import 'session_models.dart';
 import 'session_list_preview_helpers.dart';
@@ -75,6 +77,9 @@ SessionListActivitySnapshot resolveSessionListActivitySnapshot({
   bool hasLoadedMessages = false,
 }) {
   if (!hasLoadedMessages) {
+    if (session.previewText != null || session.lastMessageAt != null) {
+      return resolveSessionListActivitySnapshotFromPreview(session);
+    }
     return const SessionListActivitySnapshot(
       previewText: '最近消息待同步',
       phase: SessionListActivityPhase.syncing,
@@ -168,4 +173,53 @@ String resolveSessionListAgent(Session session) {
     }
   }
   return 'claude';
+}
+
+/// Resolve activity snapshot directly from Session's pre-computed preview fields.
+/// Used by session list items to avoid loading all messages.
+SessionListActivitySnapshot resolveSessionListActivitySnapshotFromPreview(
+  Session session,
+) {
+  final previewText = session.previewText;
+  final lastMessageAt = session.lastMessageAt;
+
+  if (previewText != null || lastMessageAt != null) {
+    return SessionListActivitySnapshot(
+      previewText: previewText ?? '最近消息暂不支持预览',
+      phase: SessionListActivityPhase.ready,
+      lastMessageAt: lastMessageAt,
+    );
+  }
+
+  return const SessionListActivitySnapshot(
+    previewText: '等待第一条消息',
+    phase: SessionListActivityPhase.empty,
+  );
+}
+
+/// Resolve status snapshot directly from Session's pre-computed preview fields.
+/// Used by session list items to avoid loading all messages.
+SessionListStatusSnapshot? resolveSessionListStatusSnapshotFromPreview(
+  Session session,
+) {
+  if (session.listStatusKind != null) {
+    final kind = SessionListStatusKind.values
+        .firstWhereOrNull((k) => k.name == session.listStatusKind);
+    if (kind != null) {
+      return buildSessionStatusSnapshot(kind);
+    }
+  }
+  if (session.thinking == true) {
+    return const SessionListStatusSnapshot(
+      kind: SessionListStatusKind.thinking,
+      label: '思考中',
+    );
+  }
+  if (!session.active) {
+    return const SessionListStatusSnapshot(
+      kind: SessionListStatusKind.inactive,
+      label: '已关闭',
+    );
+  }
+  return null;
 }

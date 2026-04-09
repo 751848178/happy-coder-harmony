@@ -29,10 +29,10 @@ class _SessionRecentScreenState extends ConsumerState<SessionRecentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Watch sessions + messages so rebuild triggers when either changes
+    // Watch sessions so rebuild triggers when sessions change
     ref.watch(sessionStateProvider.select(
       (s) => s.whenOrNull(
-        ready: (sessions, sessionMessages, _) => (sessions, sessionMessages),
+        ready: (sessions, _, __) => sessions,
       ),
     ));
     final sessionNotifier = ref.read(sessionStateProvider.notifier);

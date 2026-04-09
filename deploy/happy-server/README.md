@@ -13,8 +13,10 @@
 
 ## 目录说明
 
-- `docker-compose.yml`: 启动 Happy Server
-- `Dockerfile`: 直接从上游仓库构建镜像
+- `build.sh`: 本地构建并导出镜像（推荐方式）
+- `Dockerfile`: 从上游仓库构建镜像（需 GitHub 访问）
+- `docker-compose.yml`: 服务器直接构建时使用的 compose 文件
+- `docker-compose.server.yml`: 加载预构建镜像时使用的 compose 文件（推荐）
 - `docker-entrypoint.sh`: 启动前自动做数据库迁移
 - `.env.example`: 环境变量模板
 - `nginx/happy-server.conf.example`: 反向代理示例
@@ -43,69 +45,106 @@ Dockerfile 也会自动识别这类“镜像前缀 + GitHub 仓库”的 URL，�
 
 如果你之前的 `.env` 里还残留 `hub.fastgit.xyz`，新 Dockerfile 也会在构建时自动改写到 `gh-proxy + github.com`，避免继续走已经不稳定的旧地址。
 
-## 快速开始
+## 快速开始（推荐：本地构建 + 导出）
 
-1. 复制环境变量模板。
+在国内服务器直接构建会因无法访问 GitHub 而失败。推荐方案：**在本地（可访问 GitHub 的机器）构建镜像，导出后传输到服务器**，服务器完全不需要访问任何国外资源。
+
+### 第一步：本地构建并导出
+
+在能访问 GitHub 的机器上（如你的 Mac）：
 
 ```bash
 cd /Users/zhaoxingbo/Workspace/ai-driven/happy-coder-flutter/deploy/happy-server
-cp .env.example .env
+
+# 构建并导出镜像
+./build.sh --export
 ```
 
-2. 修改 `.env` 中至少这三个值：
+这会生成 `happy-server-image.tar.gz`（约 300-500MB）。
 
-- `HAPPY_PUBLIC_URL`
-- `HANDY_MASTER_SECRET`
-- `DATABASE_URL`
-
-3. 构建并启动。
+### 第二步：传输到服务器
 
 ```bash
+scp happy-server-image.tar.gz \
+    docker-compose.server.yml \
+    .env.example \
+    user@your-server:/opt/happy-server/
+```
+
+### 第三步：服务器上启动
+
+```bash
+ssh user@your-server
+cd /opt/happy-server
+
+# 加载镜像（纯本地操作，不需要网络）
+docker load -i happy-server-image.tar.gz
+
+# 配置环境变量
+cp .env.example .env
+vim .env
+```
+
+`.env` 中只需要设置这两个必填项：
+
+```bash
+HAPPY_PUBLIC_URL=https://happy.your-domain.com
+HANDY_MASTER_SECRET=replace-with-a-long-random-secret
+```
+
+> `DATABASE_URL` 留空即可，默认使用内嵌 PGlite（零外部依赖）。如果需要外部 PostgreSQL，再填写。
+
+启动：
+
+```bash
+docker compose -f docker-compose.server.yml up -d
+```
+
+### 第四步：验证
+
+```bash
+# 查看日志
+docker compose -f docker-compose.server.yml logs -f happy-server
+
+# 健康检查
+curl http://127.0.0.1:3005/health
+```
+
+---
+
+## 快速开始（备选：服务器直接构建）
+
+如果服务器可以访问国内镜像（DaoCloud、清华、npmmirror），也可以直接在服务器上构建：
+
+```bash
+cp .env.example .env
+vim .env  # 设置 HAPPY_PUBLIC_URL, HANDY_MASTER_SECRET, DATABASE_URL
+
 docker compose build
 docker compose up -d
 ```
 
-默认已经走国内更友好的镜像源。如果你想显式指定另一套镜像 archive，或者想切回官方源，可以在 `.env` 里这样改：
+默认已走国内友好镜像源。如需切换：
 
 ```bash
-# 切回官方 Node 基础镜像与 npm
+# 切回官方源（服务器可直连国际网络时）
 HAPPY_NODE_IMAGE=node:20
 HAPPY_NODE_SLIM_IMAGE=node:20-slim
 HAPPY_NPM_REGISTRY=https://registry.npmjs.org
 HAPPY_APT_MIRROR=
 HAPPY_APT_SECURITY_MIRROR=
 
-# 显式指定 archive 镜像
+# 指定源码 archive 镜像
 HAPPY_UPSTREAM_ARCHIVE_URL=https://your-mirror.example.com/happy.tar.gz
 
 # 或切回 GitHub 官方仓库
 HAPPY_UPSTREAM_REPO=https://github.com/slopus/happy.git
 ```
 
-不设置 `HAPPY_UPSTREAM_ARCHIVE_URL` 时，会自动按 `HAPPY_UPSTREAM_REPO + HAPPY_UPSTREAM_REF` 推导 archive 地址；镜像前缀形式的 GitHub URL 也支持自动推导。
-
-只有在你明确想刷新基础镜像时，再额外执行：
+刷新基础镜像：
 
 ```bash
 docker compose build --pull
-```
-
-4. 查看启动日志，确认迁移完成并成功监听 `3005`。
-
-```bash
-docker compose logs -f happy-server
-```
-
-5. 验证健康检查。
-
-```bash
-curl http://127.0.0.1:3005/health
-```
-
-如果已经挂到域名和 HTTPS，也可以验证：
-
-```bash
-curl https://your-domain.example.com/health
 ```
 
 ## 国内服务器常见报错

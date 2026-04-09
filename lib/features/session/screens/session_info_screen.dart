@@ -42,10 +42,7 @@ class _SessionInfoScreenState extends ConsumerState<SessionInfoScreen> {
   Widget build(BuildContext context) {
     ref.watch(sessionStateProvider.select(
       (s) => s.whenOrNull(
-        ready: (sessions, sessionMessages, _) => (
-          sessions[widget.sessionId],
-          sessionMessages[widget.sessionId],
-        ),
+        ready: (sessions, _, __) => sessions[widget.sessionId],
       ),
     ));
     final sessionNotifier = ref.read(sessionStateProvider.notifier);

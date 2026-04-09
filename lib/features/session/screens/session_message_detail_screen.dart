@@ -39,8 +39,7 @@ class _SessionMessageDetailScreenState
   Widget build(BuildContext context) {
     ref.watch(sessionStateProvider.select(
       (s) => s.whenOrNull(
-        ready: (_, sessionMessages, __) =>
-            sessionMessages[widget.sessionId],
+        ready: (_, __, ___) => true,
       ),
     ));
     final sessionMessages = ref

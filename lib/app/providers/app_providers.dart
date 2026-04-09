@@ -77,6 +77,11 @@ final currentUserProvider = Provider<User?>((ref) {
 /// 当前会话 Provider
 final currentSessionProvider = StateProvider<Session?>((ref) => null);
 
+/// 当前处于前台的会话详情页 id。
+/// 列表页和后台刷新在详情页打开时应避免继续做预览同步，
+/// 否则会在背后产生无意义的状态抖动和消息拉取。
+final activeSessionDetailIdProvider = StateProvider<String?>((ref) => null);
+
 /// 是否已认证
 final isAuthenticatedProvider = Provider<bool>((ref) {
   final authState = ref.watch(authStateProvider);

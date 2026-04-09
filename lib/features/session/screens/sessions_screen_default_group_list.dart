@@ -3,8 +3,6 @@ part of 'sessions_screen.dart';
 extension on _SessionsScreenState {
   Widget _buildDefaultGroupedList({
     required List<Session> sessions,
-    required Map<String, SessionStats> statsBySessionId,
-    required Map<String, bool> thinkingBySessionId,
   }) {
     final availableSessions =
         sessions.where((session) => !_isSessionUnavailable(session)).toList();
@@ -22,10 +20,6 @@ extension on _SessionsScreenState {
               createdAt: session.updatedAt,
               lastModified: session.updatedAt,
               type: session.tag,
-              messageCount: statsBySessionId[session.id]?.messageCount,
-              changedLineCount: statsBySessionId[session.id]?.hasChanges == true
-                  ? statsBySessionId[session.id]?.changedLineCount
-                  : null,
             ),
           )
           .toList(),
@@ -51,10 +45,8 @@ extension on _SessionsScreenState {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _SessionListItem(
+                    key: ValueKey(item.id),
                     session: sessionMap[item.id]!,
-                    stats: statsBySessionId[item.id]!,
-                    isThinking: thinkingBySessionId[item.id] ??
-                        sessionMap[item.id]!.thinking == true,
                     groupName: _groupNameForSession(item.id),
                     onTap: () => _openSession(sessionMap[item.id]!),
                     onDelete: () => _deleteSession(sessionMap[item.id]!),
@@ -68,8 +60,6 @@ extension on _SessionsScreenState {
         if (unavailableSessions.isNotEmpty)
           _buildUnavailableSessionSection(
             unavailableSessions: unavailableSessions,
-            statsBySessionId: statsBySessionId,
-            thinkingBySessionId: thinkingBySessionId,
           ),
       ],
     );
@@ -77,8 +67,6 @@ extension on _SessionsScreenState {
 
   Widget _buildUnavailableSessionSection({
     required List<Session> unavailableSessions,
-    required Map<String, SessionStats> statsBySessionId,
-    required Map<String, bool> thinkingBySessionId,
   }) {
     return _SessionsGroupSection(
       header: _SessionSectionHeader(
@@ -102,10 +90,8 @@ extension on _SessionsScreenState {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: _SessionListItem(
+              key: ValueKey(session.id),
               session: session,
-              stats: statsBySessionId[session.id]!,
-              isThinking:
-                  thinkingBySessionId[session.id] ?? session.thinking == true,
               groupName: _groupNameForSession(session.id) ??
                   SessionsScreen.unavailableGroupLabel,
               onTap: () => _openSession(session),

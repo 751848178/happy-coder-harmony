@@ -4,15 +4,20 @@ extension _SessionScreenMessageBubbleCollapsedTool on _MessageBubbleState {
   Widget _buildCollapsedToolPreview({
     required String? command,
     required String? diffPreview,
-    required String? resultPreview,
+    required String? resultRaw,
   }) {
+    // Use lightweight _plainTextPreview (regex + truncate) instead of
+    // expensive _formatToolResult (jsonDecode + JsonEncoder.withIndent).
+    final resultText = resultRaw != null && resultRaw.isNotEmpty
+        ? _plainTextPreview(resultRaw)
+        : null;
     final summaryItems = <String>[
       if (command != null && command.isNotEmpty)
         '命令: ${_plainTextPreview(command)}',
       if (diffPreview != null && diffPreview.isNotEmpty)
         '改动: ${diffPreview.split('\n').length} 行',
-      if (resultPreview != null && resultPreview.isNotEmpty)
-        '输出: ${_plainTextPreview(resultPreview)}',
+      if (resultText != null)
+        '输出: $resultText',
     ];
 
     return Container(

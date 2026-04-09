@@ -85,10 +85,8 @@ extension _SessionScreenTemplateEditor on _SessionScreenState {
     if (!mounted) {
       return;
     }
-    _updateState(() {
-      _customInputTemplates =
-          List<SessionInputTemplate>.unmodifiable(templates);
-    });
+    _customInputTemplatesN.value =
+        List<SessionInputTemplate>.unmodifiable(templates);
   }
 
   Future<void> _deleteInputTemplate(_InputTemplateItem item) async {
@@ -122,9 +120,7 @@ extension _SessionScreenTemplateEditor on _SessionScreenState {
     if (!mounted) {
       return;
     }
-    _updateState(() {
-      _customInputTemplates =
-          List<SessionInputTemplate>.unmodifiable(templates);
-    });
+    _customInputTemplatesN.value =
+        List<SessionInputTemplate>.unmodifiable(templates);
   }
 }

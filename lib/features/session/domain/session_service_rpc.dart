@@ -19,7 +19,12 @@ extension SessionServiceRpc on SessionServiceNotifier {
       ).toJson(),
     );
     await Future.wait([
-      loadSessionMessages(sessionId, force: true),
+      loadSessionMessages(
+        sessionId,
+        force: true,
+        messageWindowSize:
+            SessionServiceNotifier.sessionDetailAutomaticMessageWindowSize,
+      ),
       loadSessions(force: true),
     ]);
   }

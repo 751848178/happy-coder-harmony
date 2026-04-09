@@ -186,7 +186,10 @@ bool _sessionsEqual(Session current, Session next) {
       _sessionRepositoryDeepEquality.equals(
         current.latestUsage?.toJson(),
         next.latestUsage?.toJson(),
-      );
+      ) &&
+      current.previewText == next.previewText &&
+      current.lastMessageAt == next.lastMessageAt &&
+      current.listStatusKind == next.listStatusKind;
 }
 
 bool _machinesEqual(Machine current, Machine next) {

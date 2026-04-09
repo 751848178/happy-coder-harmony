@@ -2,11 +2,11 @@ part of 'session_screen.dart';
 
 extension _SessionScreenStateToolActions on _SessionScreenState {
   Future<void> _approveToolCall(String toolId, {bool showError = true}) async {
-    if (_toolActionsInFlight.contains(toolId)) {
+    if (_isToolActionPending(toolId)) {
       return;
     }
 
-    _updateState(() => _toolActionsInFlight.add(toolId));
+    _setToolActionPending(toolId, true);
 
     try {
       await ref.read(sessionStateProvider.notifier).submitToolApproval(
@@ -15,9 +15,11 @@ extension _SessionScreenStateToolActions on _SessionScreenState {
           );
     } catch (e) {
       _autoApprovedToolIds.remove(toolId);
-      await ref
-          .read(sessionStateProvider.notifier)
-          .loadSessionMessages(widget.sessionId);
+      await ref.read(sessionStateProvider.notifier).loadSessionMessages(
+            widget.sessionId,
+            messageWindowSize:
+                SessionServiceNotifier.sessionDetailAutomaticMessageWindowSize,
+          );
       if (mounted && showError) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -28,17 +30,17 @@ extension _SessionScreenStateToolActions on _SessionScreenState {
       }
     } finally {
       if (mounted) {
-        _updateState(() => _toolActionsInFlight.remove(toolId));
+        _setToolActionPending(toolId, false);
       }
     }
   }
 
   Future<void> _rejectToolCall(String toolId, String? reason) async {
-    if (_toolActionsInFlight.contains(toolId)) {
+    if (_isToolActionPending(toolId)) {
       return;
     }
 
-    _updateState(() => _toolActionsInFlight.add(toolId));
+    _setToolActionPending(toolId, true);
 
     try {
       await ref.read(sessionStateProvider.notifier).submitToolRejection(
@@ -47,9 +49,11 @@ extension _SessionScreenStateToolActions on _SessionScreenState {
             reason: reason,
           );
     } catch (e) {
-      await ref
-          .read(sessionStateProvider.notifier)
-          .loadSessionMessages(widget.sessionId);
+      await ref.read(sessionStateProvider.notifier).loadSessionMessages(
+            widget.sessionId,
+            messageWindowSize:
+                SessionServiceNotifier.sessionDetailAutomaticMessageWindowSize,
+          );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -60,7 +64,7 @@ extension _SessionScreenStateToolActions on _SessionScreenState {
       }
     } finally {
       if (mounted) {
-        _updateState(() => _toolActionsInFlight.remove(toolId));
+        _setToolActionPending(toolId, false);
       }
     }
   }

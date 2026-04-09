@@ -19,12 +19,12 @@ class _InlineCodePanel extends StatefulWidget {
   State<_InlineCodePanel> createState() => _InlineCodePanelState();
 }
 
-class _InlineCodePanelState extends State<_InlineCodePanel>
-    with AutomaticKeepAliveClientMixin<_InlineCodePanel> {
+class _InlineCodePanelState extends State<_InlineCodePanel> {
   bool _expanded = false;
 
-  @override
-  bool get wantKeepAlive => _expanded;
+  // Cached code body widget — avoids re-creating HighlightView on every build.
+  Widget? _cachedCodeBody;
+  String? _cachedCodeBodyKey; // code + language composite key
 
   @override
   void didUpdateWidget(covariant _InlineCodePanel oldWidget) {
@@ -36,20 +36,26 @@ class _InlineCodePanelState extends State<_InlineCodePanel>
       return;
     }
     _expanded = false;
-    updateKeepAlive();
+    _invalidateCodeBodyCache();
+  }
+
+  void _invalidateCodeBodyCache() {
+    _cachedCodeBody = null;
+    _cachedCodeBodyKey = null;
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     final normalizedCode = widget.code.trimRight();
     final lines = normalizedCode.split('\n');
     final shouldCollapse =
         lines.length > widget.collapsedLines || widget.code.length > 320;
+    final visibleLines = !_expanded && shouldCollapse
+        ? lines.take(widget.collapsedLines).toList()
+        : lines;
     final visibleCode = !_expanded && shouldCollapse
-        ? lines.take(widget.collapsedLines).join('\n')
+        ? visibleLines.join('\n')
         : normalizedCode;
-    final visibleLines = visibleCode.split('\n');
     final isDiff = _isDiffLanguage(widget.language);
     final isTerminal = _isTerminalLanguage(widget.language);
     final backgroundColor = widget.isUser
@@ -136,7 +142,6 @@ class _InlineCodePanelState extends State<_InlineCodePanel>
                 InkWell(
                   onTap: () {
                     setState(() => _expanded = !_expanded);
-                    updateKeepAlive();
                   },
                   child: Padding(
                     padding:

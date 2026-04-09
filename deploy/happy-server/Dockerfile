@@ -129,7 +129,12 @@ WORKDIR /repo
 ARG HAPPY_APT_MIRROR
 ARG HAPPY_APT_SECURITY_MIRROR
 
+# node:20-slim lacks ca-certificates, so install it from the default
+# (HTTP) Debian sources first, then switch to the configured mirror.
 RUN set -eux; \
+  apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*; \
   printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-retries; \
   printf 'Acquire::http::Pipeline-Depth "0";\n' > /etc/apt/apt.conf.d/99nopipelining; \
   if [ -n "${HAPPY_APT_MIRROR}" ] && [ -n "${HAPPY_APT_SECURITY_MIRROR}" ]; then \

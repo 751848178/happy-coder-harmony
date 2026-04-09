@@ -11,11 +11,36 @@ class _MarkdownTextSection {
   final String text;
   final List<String> items;
 
+  // LRU cache keyed by raw input — same pattern as _MarkdownBlock.parse().
+  // Without this, every _MarkdownTextBlock entering the viewport re-runs
+  // multiple regex splits (chunks, heading, bullet, numbered, quote).
+  static final Map<String, List<_MarkdownTextSection>> _parseCache =
+      <String, List<_MarkdownTextSection>>{};
+  static const int _maxCacheEntries = 120;
+
   static List<_MarkdownTextSection> parse(String input) {
+    final cached = _parseCache[input];
+    if (cached != null) {
+      return cached;
+    }
+
+    final result = _parseImpl(input);
+
+    if (_parseCache.length >= _maxCacheEntries) {
+      _parseCache.remove(_parseCache.keys.first);
+    }
+    return _parseCache[input] = result;
+  }
+
+  static List<_MarkdownTextSection> _parseImpl(String input) {
     final normalized = input.trim();
     if (normalized.isEmpty) {
       return const [];
     }
+    return _computeSections(normalized);
+  }
+
+  static List<_MarkdownTextSection> _computeSections(String normalized) {
 
     final chunks = normalized
         .split(RegExp(r'\n\s*\n'))

@@ -10,7 +10,12 @@ enum _MarkdownTextSectionType {
   quote,
 }
 
-class _MarkdownTextBlock extends StatelessWidget {
+/// A widget that renders markdown-formatted text.
+///
+/// This is a [StatefulWidget] to cache the parsed sections —
+/// [_MarkdownTextSection.parse] runs multiple regex splits per call,
+/// so re-parsing on every build is wasteful when content hasn't changed.
+class _MarkdownTextBlock extends StatefulWidget {
   const _MarkdownTextBlock({
     required this.content,
     required this.isUser,
@@ -24,8 +29,29 @@ class _MarkdownTextBlock extends StatelessWidget {
   final _SessionMessageActionHandler? onMessageAction;
 
   @override
+  State<_MarkdownTextBlock> createState() => _MarkdownTextBlockState();
+}
+
+class _MarkdownTextBlockState extends State<_MarkdownTextBlock> {
+  List<_MarkdownTextSection> _sections = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _sections = _MarkdownTextSection.parse(widget.content);
+  }
+
+  @override
+  void didUpdateWidget(covariant _MarkdownTextBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.content != widget.content) {
+      _sections = _MarkdownTextSection.parse(widget.content);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final sections = _MarkdownTextSection.parse(content);
+    final sections = _sections;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -43,7 +69,7 @@ class _MarkdownTextBlock extends StatelessWidget {
         return _buildRichText(
           section.text,
           baseStyle: TextStyle(
-            color: textColor,
+            color: widget.textColor,
             fontSize: 20,
             height: 1.35,
             fontWeight: FontWeight.w700,
@@ -53,7 +79,7 @@ class _MarkdownTextBlock extends StatelessWidget {
         return _buildRichText(
           section.text,
           baseStyle: TextStyle(
-            color: textColor,
+            color: widget.textColor,
             fontSize: 18,
             height: 1.35,
             fontWeight: FontWeight.w700,
@@ -63,7 +89,7 @@ class _MarkdownTextBlock extends StatelessWidget {
         return _buildRichText(
           section.text,
           baseStyle: TextStyle(
-            color: textColor,
+            color: widget.textColor,
             fontSize: 16,
             height: 1.4,
             fontWeight: FontWeight.w700,
@@ -84,7 +110,7 @@ class _MarkdownTextBlock extends StatelessWidget {
                       child: Text(
                         '•',
                         style: TextStyle(
-                          color: textColor,
+                          color: widget.textColor,
                           fontSize: 14,
                           height: 1.45,
                         ),
@@ -95,7 +121,7 @@ class _MarkdownTextBlock extends StatelessWidget {
                       child: _buildRichText(
                         item,
                         baseStyle: TextStyle(
-                          color: textColor,
+                          color: widget.textColor,
                           fontSize: 14,
                           height: 1.5,
                         ),
@@ -119,7 +145,7 @@ class _MarkdownTextBlock extends StatelessWidget {
                     Text(
                       '${index + 1}.',
                       style: TextStyle(
-                        color: textColor,
+                        color: widget.textColor,
                         fontSize: 14,
                         height: 1.45,
                       ),
@@ -129,7 +155,7 @@ class _MarkdownTextBlock extends StatelessWidget {
                       child: _buildRichText(
                         section.items[index],
                         baseStyle: TextStyle(
-                          color: textColor,
+                          color: widget.textColor,
                           fontSize: 14,
                           height: 1.5,
                         ),
@@ -144,13 +170,13 @@ class _MarkdownTextBlock extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
           decoration: BoxDecoration(
-            color: isUser
+            color: widget.isUser
                 ? Colors.white.withValues(alpha: 0.06)
                 : AppTheme.neutral50,
             borderRadius: BorderRadius.circular(10),
             border: Border(
               left: BorderSide(
-                color: isUser
+                color: widget.isUser
                     ? Colors.white.withValues(alpha: 0.42)
                     : AppTheme.brandColor.withValues(alpha: 0.45),
                 width: 3,
@@ -160,7 +186,7 @@ class _MarkdownTextBlock extends StatelessWidget {
           child: _buildRichText(
             section.text,
             baseStyle: TextStyle(
-              color: textColor.withValues(alpha: 0.92),
+              color: widget.textColor.withValues(alpha: 0.92),
               fontSize: 13,
               height: 1.55,
               fontStyle: FontStyle.italic,
@@ -171,7 +197,7 @@ class _MarkdownTextBlock extends StatelessWidget {
         return _buildRichText(
           section.text,
           baseStyle: TextStyle(
-            color: textColor,
+            color: widget.textColor,
             fontSize: 14,
             height: 1.5,
           ),
@@ -188,15 +214,15 @@ class _MarkdownTextBlock extends StatelessWidget {
         children: _MarkdownInlineParser.buildSpans(
           raw,
           baseStyle: baseStyle,
-          linkColor: isUser ? Colors.white : AppTheme.brandColor,
-          inlineCodeColor: textColor,
-          inlineCodeBackground: isUser
+          linkColor: widget.isUser ? Colors.white : AppTheme.brandColor,
+          inlineCodeColor: widget.textColor,
+          inlineCodeBackground: widget.isUser
               ? Colors.white.withValues(alpha: 0.16)
               : AppTheme.neutral100,
         ),
       ),
       contextMenuBuilder: _buildMessageActionContextMenuBuilder(
-        onMessageAction,
+        widget.onMessageAction,
       ),
     );
   }

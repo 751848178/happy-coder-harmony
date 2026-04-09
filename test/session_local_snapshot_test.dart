@@ -129,4 +129,50 @@ void main() {
     expect(restored![0].id, 'msg-1');
     expect(restored[1].tool?.status, ToolCallStatus.approved);
   });
+
+  test('local snapshot only stores the recent message window', () {
+    final session = Session(
+      id: 'session-large-window',
+      title: 'Large Window',
+      messages: const [],
+      createdAt: DateTime.fromMillisecondsSinceEpoch(1772962443908),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(1772962445908),
+      active: true,
+    );
+    final messages = List<ReducerMessage>.generate(
+      localSessionSnapshotMessageWindowSize + 25,
+      (index) => ReducerMessage(
+        id: 'msg-$index',
+        kind: 'text',
+        createdAt: DateTime.fromMillisecondsSinceEpoch(
+          1772962443908 + index,
+        ),
+        text: 'message-$index',
+      ),
+      growable: false,
+    );
+
+    final snapshot = buildLocalSessionSnapshot(
+      session: session,
+      loadedMessageCount: messages.length,
+      loadedMessages: messages,
+      messagesLoaded: true,
+    );
+    final rawMessages =
+        snapshot[localSessionSnapshotMessagesKey] as List<dynamic>;
+
+    expect(rawMessages, hasLength(localSessionSnapshotMessageWindowSize));
+    expect(
+      restoreSessionMessageCountFromLocalSnapshot(snapshot),
+      messages.length,
+    );
+
+    final restored = restoreMessagesFromLocalSnapshot(snapshot);
+    expect(restored, isNotNull);
+    expect(restored, hasLength(localSessionSnapshotMessageWindowSize));
+    final expectedFirstIndex =
+        messages.length - localSessionSnapshotMessageWindowSize;
+    expect(restored!.first.id, 'msg-$expectedFirstIndex');
+    expect(restored.last.id, 'msg-${messages.length - 1}');
+  });
 }

@@ -9,6 +9,7 @@ import '../../../shared/utils/extensions.dart';
 import '../domain/storage_models.dart';
 
 part 'hive_repository_storage.dart';
+part 'hive_repository_message_archive.dart';
 
 class HiveRepository {
   HiveRepository._();

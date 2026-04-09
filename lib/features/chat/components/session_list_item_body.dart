@@ -3,18 +3,16 @@ part of 'session_list.dart';
 class _SessionItemIcon extends StatelessWidget {
   const _SessionItemIcon({
     required this.session,
-    required this.isThinking,
   });
 
   final Session session;
-  final bool isThinking;
 
   @override
   Widget build(BuildContext context) {
     return SessionAgentAvatar(
       session: session,
       isActive: session.active,
-      isThinking: isThinking,
+      isThinking: session.thinking == true,
     );
   }
 }
@@ -22,28 +20,18 @@ class _SessionItemIcon extends StatelessWidget {
 class _SessionListItemBody extends StatelessWidget {
   const _SessionListItemBody({
     required this.session,
-    this.messages,
-    required this.hasLoadedMessages,
-    required this.isThinking,
   });
 
   final Session session;
-  final List<ReducerMessage>? messages;
-  final bool hasLoadedMessages;
-  final bool isThinking;
 
   @override
   Widget build(BuildContext context) {
     final titleText = resolveSessionListTitle(session);
-    final activitySnapshot = resolveSessionListActivitySnapshot(
-      session: session,
-      messages: messages,
-      hasLoadedMessages: hasLoadedMessages,
+    final activitySnapshot = resolveSessionListActivitySnapshotFromPreview(
+      session,
     );
-    final statusSnapshot = resolveSessionListStatusSnapshot(
-      messages: messages,
-      isThinking: isThinking,
-      isActive: session.active,
+    final statusSnapshot = resolveSessionListStatusSnapshotFromPreview(
+      session,
     );
     final lastActivityAt = activitySnapshot.lastMessageAt;
     final timeText = lastActivityAt == null

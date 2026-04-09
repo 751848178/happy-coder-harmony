@@ -82,6 +82,7 @@ extension _HiveRepositoryStorage on HiveRepository {
     DateTime? lastAccessedAt,
     bool? isPinned,
     bool? isArchived,
+    Map<String, dynamic>? metadata,
   }) {
     return SessionStorageModel(
       id: session.id,
@@ -93,7 +94,7 @@ extension _HiveRepositoryStorage on HiveRepository {
       isPinned: isPinned ?? session.isPinned,
       isArchived: isArchived ?? session.isArchived,
       tag: session.tag,
-      metadata: session.metadata,
+      metadata: metadata ?? session.metadata,
     );
   }
 

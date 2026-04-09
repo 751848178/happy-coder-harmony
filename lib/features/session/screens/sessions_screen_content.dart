@@ -1,27 +1,22 @@
 part of 'sessions_screen.dart';
 
-class _SessionsScreenViewData {
-  const _SessionsScreenViewData({
-    required this.body,
-  });
-
-  final Widget body;
-}
-
 _SessionsScreenViewData _buildSessionsScreenViewForState(
   _SessionsScreenState state,
 ) {
   final sessionNotifier = state.ref.read(sessionStateProvider.notifier);
-  final sessions = state.ref.watch(
+  final layoutSelection = state.ref.watch(
     sessionStateProvider.select(
-      (sessionState) => sessionState.when(
-        initial: () => const <Session>[],
-        loading: () => const <Session>[],
-        ready: (sessions, _, __) => sessions.values.toList(growable: false),
-        error: (_) => const <Session>[],
-      ),
+      (sessionState) => sessionState.whenOrNull<_SessionsScreenLayoutSelection>(
+            ready: (sessions, _, __) =>
+                _SessionsScreenLayoutSelection.fromSessions(sessions.values),
+          ) ??
+          const _SessionsScreenLayoutSelection.empty(),
     ),
   );
+  final sessions = layoutSelection.sessions
+      .map((layoutSession) => sessionNotifier.getSession(layoutSession.id))
+      .whereType<Session>()
+      .toList(growable: false);
   final hideInactiveByDefault = state.widget.showAppBar &&
       state.ref.watch(
         settingsStateProvider.select((s) => s.hideInactiveSessions),
@@ -30,16 +25,11 @@ _SessionsScreenViewData _buildSessionsScreenViewForState(
   return _SessionsScreenViewData(
     body: Column(
       children: [
-        // Search bar: only rebuilds when the search query changes
-        // (for the clear-button visibility). The TextField's internal
-        // state (cursor, text) is preserved across rebuilds.
         if (state.widget.showSearchBar)
           ValueListenableBuilder<String>(
             valueListenable: state._searchQueryN,
             builder: (_, __, ___) => state._buildSearchBar(),
           ),
-        // Toolbar + list: rebuild when any filter or grouping notifier
-        // changes. Search bar and AppBar are unaffected.
         Expanded(
           child: ListenableBuilder(
             listenable: Listenable.merge([
@@ -49,22 +39,15 @@ _SessionsScreenViewData _buildSessionsScreenViewForState(
               state._groupingLoadedN,
             ]),
             builder: (_, __) {
-              final filteredSessions = sessions.where((session) {
-                return state._matchesSessionFilters(
-                  session,
-                  selectedMachineId: state.widget.selectedMachineId,
-                  hideInactiveByDefault: hideInactiveByDefault,
-                );
-              }).toList();
-
-              final statsBySessionId = state._resolveSessionStatsMap(
-                filteredSessions,
-                sessionNotifier,
-              );
-              final thinkingBySessionId = state._resolveSessionThinkingMap(
-                filteredSessions,
-                sessionNotifier,
-              );
+              final filteredSessions = sessions
+                  .where(
+                    (session) => state._matchesSessionFilters(
+                      session,
+                      selectedMachineId: state.widget.selectedMachineId,
+                      hideInactiveByDefault: hideInactiveByDefault,
+                    ),
+                  )
+                  .toList(growable: false);
 
               final listContent = !state._groupingLoaded
                   ? const Center(child: CircularProgressIndicator())
@@ -79,8 +62,6 @@ _SessionsScreenViewData _buildSessionsScreenViewForState(
                           color: AppTheme.brandColor,
                           child: state._buildGroupedSessionList(
                             sessions: filteredSessions,
-                            statsBySessionId: statsBySessionId,
-                            thinkingBySessionId: thinkingBySessionId,
                           ),
                         );
 
@@ -186,21 +167,11 @@ extension on _SessionsScreenState {
 
   Widget _buildGroupedSessionList({
     required List<Session> sessions,
-    required Map<String, SessionStats> statsBySessionId,
-    required Map<String, bool> thinkingBySessionId,
   }) {
     if (_groupingState.useCustomGroups) {
-      return _buildCustomGroupList(
-        sessions: sessions,
-        statsBySessionId: statsBySessionId,
-        thinkingBySessionId: thinkingBySessionId,
-      );
+      return _buildCustomGroupList(sessions: sessions);
     }
-    return _buildDefaultGroupedList(
-      sessions: sessions,
-      statsBySessionId: statsBySessionId,
-      thinkingBySessionId: thinkingBySessionId,
-    );
+    return _buildDefaultGroupedList(sessions: sessions);
   }
 
   Widget _buildRefreshableEmptyState({

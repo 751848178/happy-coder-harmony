@@ -134,6 +134,34 @@ class MessageStorageModel {
   }
 }
 
+class SessionMessageArchiveSummary {
+  const SessionMessageArchiveSummary({
+    this.messageCount = 0,
+    this.isComplete = false,
+    this.lastRemoteSeq = 0,
+  });
+
+  final int messageCount;
+  final bool isComplete;
+  final int lastRemoteSeq;
+}
+
+class SessionArchivedTurnSummary {
+  const SessionArchivedTurnSummary({
+    required this.id,
+    required this.promptMessageId,
+    required this.preview,
+    required this.createdAt,
+    required this.archiveIndex,
+  });
+
+  final String id;
+  final String promptMessageId;
+  final String preview;
+  final DateTime createdAt;
+  final int archiveIndex;
+}
+
 class SearchKeyword {
   const SearchKeyword({
     required this.id,

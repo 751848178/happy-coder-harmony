@@ -114,20 +114,23 @@ SessionThinkingSnapshot resolveSessionThinkingSnapshot({
   required Iterable<ReducerMessage> messages,
   bool? manualThinkingOverride,
 }) {
+  final list = messages is List<ReducerMessage>
+      ? messages
+      : messages.toList(growable: false);
   if (manualThinkingOverride == false) {
     return const SessionThinkingSnapshot(isThinking: false);
   }
   if (manualThinkingOverride == true) {
-    if (sessionTurnHasCompletionSignal(messages)) {
+    if (sessionTurnHasCompletionSignal(list)) {
       return const SessionThinkingSnapshot(isThinking: false);
     }
     return SessionThinkingSnapshot(
       isThinking: true,
-      since: _resolveThinkingStartedAt(session, messages),
+      since: _resolveThinkingStartedAt(session, list),
     );
   }
   if (session?.thinking == true) {
-    if (sessionTurnHasCompletionSignal(messages)) {
+    if (sessionTurnHasCompletionSignal(list)) {
       return const SessionThinkingSnapshot(isThinking: false);
     }
     if (_isThinkingTimedOut(session)) {
@@ -135,14 +138,14 @@ SessionThinkingSnapshot resolveSessionThinkingSnapshot({
     }
     return SessionThinkingSnapshot(
       isThinking: true,
-      since: _resolveThinkingStartedAt(session, messages),
+      since: _resolveThinkingStartedAt(session, list),
     );
+  }
+  if (sessionTurnHasCompletionSignal(list)) {
+    return const SessionThinkingSnapshot(isThinking: false);
   }
   // Fast path: session is not thinking and no manual override.
   // Only need to check the last non-user text message.
-  final list = messages is List<ReducerMessage>
-      ? messages
-      : messages.toList(growable: false);
   for (final message in list.reversed) {
     if (!message.isText) {
       continue;

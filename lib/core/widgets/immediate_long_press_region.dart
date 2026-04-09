@@ -26,12 +26,14 @@ class ImmediateLongPressRegion extends StatelessWidget {
     super.key,
     required this.child,
     required this.onLongPress,
+    this.enabled = true,
     this.longPressDelay = kLongPressTimeout,
     this.moveSlop = kTouchSlop,
   });
 
   final Widget child;
   final FutureOr<void> Function() onLongPress;
+  final bool enabled;
   final Duration longPressDelay;
   final double moveSlop;
 
@@ -39,20 +41,23 @@ class ImmediateLongPressRegion extends StatelessWidget {
   Widget build(BuildContext context) {
     return RawGestureDetector(
       behavior: HitTestBehavior.opaque,
-      gestures: {
-        _ArenaLongPressGestureRecognizer: GestureRecognizerFactoryWithHandlers<
-            _ArenaLongPressGestureRecognizer>(
-          () => _ArenaLongPressGestureRecognizer(
-            duration: longPressDelay,
-            movementThreshold: moveSlop,
-          ),
-          (recognizer) {
-            recognizer.onLongPress = () {
-              onLongPress();
-            };
-          },
-        ),
-      },
+      gestures: enabled
+          ? {
+              _ArenaLongPressGestureRecognizer:
+                  GestureRecognizerFactoryWithHandlers<
+                      _ArenaLongPressGestureRecognizer>(
+                () => _ArenaLongPressGestureRecognizer(
+                  duration: longPressDelay,
+                  movementThreshold: moveSlop,
+                ),
+                (recognizer) {
+                  recognizer.onLongPress = () {
+                    onLongPress();
+                  };
+                },
+              ),
+            }
+          : const <Type, GestureRecognizerFactory>{},
       child: child,
     );
   }

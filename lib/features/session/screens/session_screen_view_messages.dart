@@ -1,5 +1,122 @@
 part of 'session_screen.dart';
 
+/// A flat list item representing a single message with turn-group metadata.
+/// Used by [_buildMessageList] to virtualize at the per-message level instead
+/// of per-turn-group level, avoiding the O(turn_size) Column layout for all
+/// messages in a turn when only some are visible.
+class _FlatMessageItem {
+  const _FlatMessageItem({
+    required this.message,
+    required this.turnGroupId,
+    required this.startsNewTurn,
+    required this.isFirstReply,
+    required this.turnIndex,
+  });
+
+  final ReducerMessage message;
+  final String turnGroupId;
+  final bool startsNewTurn;
+  final bool isFirstReply;
+  final int turnIndex;
+}
+
+class _BuildContextAnchor extends StatefulWidget {
+  const _BuildContextAnchor({
+    required this.anchorId,
+    required this.onAttach,
+    required this.onDetach,
+    required this.child,
+  });
+
+  final String anchorId;
+  final void Function(String anchorId, BuildContext context) onAttach;
+  final void Function(String anchorId, BuildContext context) onDetach;
+  final Widget child;
+
+  @override
+  State<_BuildContextAnchor> createState() => _BuildContextAnchorState();
+}
+
+class _RenderObjectAnchor extends SingleChildRenderObjectWidget {
+  const _RenderObjectAnchor({
+    required this.anchorId,
+    required this.onAttach,
+    required this.onDetach,
+    required super.child,
+  });
+
+  final String anchorId;
+  final void Function(String anchorId, BuildContext context) onAttach;
+  final void Function(String anchorId, BuildContext context) onDetach;
+
+  @override
+  SingleChildRenderObjectElement createElement() =>
+      _RenderObjectAnchorElement(this);
+
+  @override
+  RenderProxyBox createRenderObject(BuildContext context) => RenderProxyBox();
+}
+
+class _RenderObjectAnchorElement extends SingleChildRenderObjectElement {
+  _RenderObjectAnchorElement(_RenderObjectAnchor super.widget);
+
+  _RenderObjectAnchor get _anchorWidget => widget as _RenderObjectAnchor;
+
+  void _scheduleAttach() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _anchorWidget.onAttach(_anchorWidget.anchorId, this);
+    });
+  }
+
+  @override
+  void mount(Element? parent, Object? newSlot) {
+    super.mount(parent, newSlot);
+    _scheduleAttach();
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    _scheduleAttach();
+  }
+
+  @override
+  void update(covariant _RenderObjectAnchor newWidget) {
+    final previousWidget = _anchorWidget;
+    super.update(newWidget);
+    if (previousWidget.anchorId != newWidget.anchorId) {
+      previousWidget.onDetach(previousWidget.anchorId, this);
+    }
+    _scheduleAttach();
+  }
+
+  @override
+  void deactivate() {
+    _anchorWidget.onDetach(_anchorWidget.anchorId, this);
+    super.deactivate();
+  }
+}
+
+class _BuildContextAnchorState extends State<_BuildContextAnchor>
+    with AutomaticKeepAliveClientMixin<_BuildContextAnchor> {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return _RenderObjectAnchor(
+      anchorId: widget.anchorId,
+      onAttach: widget.onAttach,
+      onDetach: widget.onDetach,
+      child: widget.child,
+    );
+  }
+}
+
 extension _SessionScreenViewMessages on _SessionScreenState {
   Widget _buildMessageList({
     required List<ReducerMessage> messages,
@@ -7,87 +124,110 @@ extension _SessionScreenViewMessages on _SessionScreenState {
     required bool autoApproveEnabled,
   }) {
     if (_collapseAllTurns && turnGroups.isNotEmpty) {
-      return ListView.builder(
-        controller: _scrollController,
-        physics: const RangeMaintainingScrollPhysics(
-          parent: ClampingScrollPhysics(),
-        ),
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.spacingMd,
-          _sessionMessageListTopPadding,
-          AppTheme.spacingMd,
-          _sessionMessageListBottomPadding,
-        ),
-        itemCount: turnGroups.length,
-        itemBuilder: (context, index) {
-          final group = turnGroups[index];
-          return _buildTurnGroupCard(
-            group,
-            expanded: _expandedTurnIds.contains(group.id),
-            autoApproveEnabled: autoApproveEnabled,
+      return ValueListenableBuilder<List<_CollapsedTurnSummary>>(
+        valueListenable: _collapsedTurnSummariesN,
+        builder: (_, summaries, __) {
+          final effectiveSummaries = summaries.isNotEmpty
+              ? summaries
+              : List<_CollapsedTurnSummary>.unmodifiable(
+                  turnGroups.map(_CollapsedTurnSummary.fromTurnGroup),
+                );
+          final loadedGroupsById = <String, _MessageTurnGroup>{
+            for (final group in turnGroups) group.id: group,
+          };
+          final summaryIndexes = <String, int>{
+            for (var index = 0; index < effectiveSummaries.length; index++)
+              effectiveSummaries[index].id: index,
+          };
+          return ListView.builder(
+            controller: _scrollController,
+            findChildIndexCallback: (key) {
+              if (key is ValueKey<String>) {
+                return summaryIndexes[key.value];
+              }
+              return null;
+            },
+            physics: const ClampingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.spacingMd,
+              _sessionMessageListTopPadding,
+              AppTheme.spacingMd,
+              _sessionMessageListBottomPadding,
+            ),
+            itemCount: effectiveSummaries.length,
+            itemBuilder: (context, index) {
+              final summary = effectiveSummaries[index];
+              final loadedGroup = loadedGroupsById[summary.id];
+              return KeyedSubtree(
+                key: ValueKey<String>(summary.id),
+                child: _buildCollapsedTurnSummaryCard(
+                  summary,
+                  loadedGroup: loadedGroup,
+                  autoApproveEnabled: autoApproveEnabled,
+                ),
+              );
+            },
           );
         },
       );
     }
 
+    // Per-message virtualization: each message is its own ListView item.
+    // This avoids building all messages in a turn group when only some are
+    // visible (especially during streaming when the last turn grows large).
+    final flatItems = _bodyPresenter.resolveFlatItems(turnGroups);
+    _logDuplicateMessageIds(
+      flatItems.map((item) => item.message).toList(growable: false),
+      stage: 'flat-items',
+    );
     return ListView.builder(
       controller: _scrollController,
-      physics: const RangeMaintainingScrollPhysics(
-        parent: ClampingScrollPhysics(),
-      ),
+      cacheExtent: 480,
+      findChildIndexCallback: (key) {
+        if (key is ValueKey<String>) {
+          return _bodyPresenter.findFlatItemIndexByMessageId(key.value);
+        }
+        return null;
+      },
+      physics: const ClampingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         AppTheme.spacingMd,
         _sessionMessageListTopPadding,
         AppTheme.spacingMd,
         _sessionMessageListBottomPadding,
       ),
-      itemCount: turnGroups.length,
+      itemCount: flatItems.length,
       itemBuilder: (context, index) {
-        return _buildExpandedTurnSection(
-          turnGroups[index],
+        final item = flatItems[index];
+        return _buildFlatMessageItem(
+          item,
           autoApproveEnabled: autoApproveEnabled,
         );
       },
     );
   }
 
-  Widget _buildExpandedTurnSection(
-    _MessageTurnGroup group, {
+  /// Build a single flat message item with appropriate turn-group wrappers.
+  Widget _buildFlatMessageItem(
+    _FlatMessageItem item, {
     required bool autoApproveEnabled,
   }) {
-    final prompt = group.userPrompt;
-    final firstReplyIndex = prompt == null ? 0 : 1;
-    final hasReplies = group.messages.length > firstReplyIndex;
-    final section = Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (prompt != null)
-            _buildMessageBubble(
-              prompt,
-              autoApproveEnabled: autoApproveEnabled,
-            ),
-          if (hasReplies)
-            SizedBox(
-              key: _turnReplyAnchorKey(group.id),
-              height: 0,
-            ),
-          // Iterate with index skip instead of sublist() to avoid list copy.
-          for (var i = firstReplyIndex; i < group.messages.length; i++)
-            _buildMessageBubble(
-              group.messages[i],
-              autoApproveEnabled: autoApproveEnabled,
-            ),
-        ],
-      ),
-    );
-    if (!hasReplies) {
-      return section;
-    }
     return KeyedSubtree(
-      key: _turnSectionKey(group.id),
-      child: section,
+      key: ValueKey<String>(item.message.id),
+      child: Padding(
+        padding: EdgeInsets.only(
+          top: item.startsNewTurn && item.turnIndex > 0 ? 4 : 0,
+        ),
+        child: _BuildContextAnchor(
+          anchorId: item.message.id,
+          onAttach: _registerMessageRowContext,
+          onDetach: _unregisterMessageRowContext,
+          child: _buildMessageBubble(
+            item.message,
+            autoApproveEnabled: autoApproveEnabled,
+          ),
+        ),
+      ),
     );
   }
 
@@ -95,20 +235,63 @@ extension _SessionScreenViewMessages on _SessionScreenState {
     ReducerMessage message, {
     required bool autoApproveEnabled,
   }) {
-    return RepaintBoundary(
-      child: _MessageBubble(
-        key: ValueKey(message.id),
-        message: message,
-        autoApproveEnabled: autoApproveEnabled,
-        isToolActionPending: message.tool != null &&
-            _toolActionsInFlight.contains(message.tool!.id),
-        onApproveTool: _approveToolCall,
-        onRejectTool: _rejectToolCall,
-        onMessageActionChoice: (choice, actionText) =>
-            _handleMessageActionChoice(choice: choice, actionText: actionText),
-        onShowMessageActionSheet: (message, actionText) =>
-            _showMessageActionSheet(message: message, actionText: actionText),
-      ),
+    final tool = message.tool;
+    if (tool == null) {
+      return ValueListenableBuilder<bool>(
+        valueListenable: _messageInteractionsEnabledN,
+        builder: (context, interactionsEnabled, _) {
+          return RepaintBoundary(
+            child: _MessageBubble(
+              message: message,
+              autoApproveEnabled: autoApproveEnabled,
+              interactionsEnabled: interactionsEnabled,
+              isToolActionPending: false,
+              onApproveTool: _approveToolCall,
+              onRejectTool: _rejectToolCall,
+              onMessageActionChoice: (choice, actionText) =>
+                  _handleMessageActionChoice(
+                choice: choice,
+                actionText: actionText,
+              ),
+              onShowMessageActionSheet: (message, actionText) =>
+                  _showMessageActionSheet(
+                message: message,
+                actionText: actionText,
+              ),
+            ),
+          );
+        },
+      );
+    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: _toolActionPendingListenable(tool.id),
+      builder: (context, isToolActionPending, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: _messageInteractionsEnabledN,
+          builder: (context, interactionsEnabled, _) {
+            return RepaintBoundary(
+              child: _MessageBubble(
+                message: message,
+                autoApproveEnabled: autoApproveEnabled,
+                interactionsEnabled: interactionsEnabled,
+                isToolActionPending: isToolActionPending,
+                onApproveTool: _approveToolCall,
+                onRejectTool: _rejectToolCall,
+                onMessageActionChoice: (choice, actionText) =>
+                    _handleMessageActionChoice(
+                  choice: choice,
+                  actionText: actionText,
+                ),
+                onShowMessageActionSheet: (message, actionText) =>
+                    _showMessageActionSheet(
+                  message: message,
+                  actionText: actionText,
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -171,6 +354,57 @@ extension _SessionScreenViewMessages on _SessionScreenState {
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCollapsedTurnSummaryCard(
+    _CollapsedTurnSummary summary, {
+    required _MessageTurnGroup? loadedGroup,
+    required bool autoApproveEnabled,
+  }) {
+    if (loadedGroup != null) {
+      return _buildTurnGroupCard(
+        loadedGroup,
+        expanded: _expandedTurnIds.contains(summary.id),
+        autoApproveEnabled: autoApproveEnabled,
+      );
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 2),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => unawaited(_openCollapsedTurnSummary(summary)),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      summary.preview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: AppTheme.neutral500,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

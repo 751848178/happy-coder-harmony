@@ -1,7 +1,7 @@
 part of 'session_repository.dart';
 
 extension SessionRepositoryStateMutations on SessionRepository {
-  void _syncSessionLatestUsageWithLoadedCount(
+  void _syncSessionPreviewFieldsFromMessages(
     String sessionId,
     int loadedMessageCount,
   ) {
@@ -9,18 +9,45 @@ extension SessionRepositoryStateMutations on SessionRepository {
     if (existingSession == null) {
       return;
     }
+    final sessionMessages = _sessionMessages[sessionId];
+    final effectiveMessageCount =
+        sessionMessages?.totalMessageCount ?? loadedMessageCount;
     final nextLatestUsage = resolvePersistedSessionLatestUsage(
       session: existingSession,
-      loadedMessageCount: loadedMessageCount,
+      loadedMessageCount: effectiveMessageCount,
     );
+    final messages = sessionMessages?.messages;
+    final previewWindowIsLatest = sessionMessages?.hasNewerMessages != true;
+    final nextPreviewText = previewWindowIsLatest && messages != null
+        ? resolveLatestMessagePreview(messages)
+        : existingSession.previewText;
+    final nextLastMessageAt = previewWindowIsLatest && messages != null
+        ? resolveLatestMessageAt(messages)
+        : existingSession.lastMessageAt;
+    final nextListStatusKind = previewWindowIsLatest && messages != null
+        ? resolveLatestSessionStatusKind(messages)?.name
+        : existingSession.listStatusKind;
     if (_sessionRepositoryDeepEquality.equals(
-      existingSession.latestUsage?.toJson(),
-      nextLatestUsage?.toJson(),
-    )) {
+          existingSession.latestUsage?.toJson(),
+          nextLatestUsage?.toJson(),
+        ) &&
+        existingSession.previewText == nextPreviewText &&
+        existingSession.lastMessageAt == nextLastMessageAt &&
+        existingSession.listStatusKind == nextListStatusKind) {
       return;
     }
     _sessions[sessionId] = existingSession.copyWith(
       latestUsage: nextLatestUsage,
+      previewText: nextPreviewText,
+      lastMessageAt: nextLastMessageAt,
+      listStatusKind: nextListStatusKind,
+    );
+    Logger.info(
+      '[SessionPreview] updated session=$sessionId '
+      'messages=$effectiveMessageCount loaded=$loadedMessageCount '
+      'hasPreview=${nextPreviewText != null || nextLastMessageAt != null} '
+      'status=${nextListStatusKind ?? "none"} '
+      'lastAt=${nextLastMessageAt?.toIso8601String() ?? "null"}',
     );
   }
 
@@ -32,6 +59,8 @@ extension SessionRepositoryStateMutations on SessionRepository {
         messagesMap: const {},
         reducerState: domain.ReducerState.initial,
         isLoaded: true,
+        totalMessageCount: 0,
+        windowStartIndex: 0,
       );
     } else {
       _sessionMessages[sessionId] = SessionMessages(
@@ -39,6 +68,8 @@ extension SessionRepositoryStateMutations on SessionRepository {
         messagesMap: existing.messagesMap,
         reducerState: existing.reducerState,
         isLoaded: existing.isLoaded,
+        totalMessageCount: existing.totalMessageCount,
+        windowStartIndex: existing.windowStartIndex,
       );
     }
     _stateController.add(
@@ -111,6 +142,8 @@ extension SessionRepositoryStateMutations on SessionRepository {
       messagesMap: updatedMessagesMap,
       reducerState: existing.reducerState,
       isLoaded: existing.isLoaded,
+      totalMessageCount: existing.totalMessageCount,
+      windowStartIndex: existing.windowStartIndex,
     );
 
     _stateController.add(
@@ -132,8 +165,10 @@ extension SessionRepositoryStateMutations on SessionRepository {
       messagesMap: const {},
       reducerState: existing.reducerState,
       isLoaded: existing.isLoaded,
+      totalMessageCount: 0,
+      windowStartIndex: 0,
     );
-    _syncSessionLatestUsageWithLoadedCount(sessionId, 0);
+    _syncSessionPreviewFieldsFromMessages(sessionId, 0);
     _stateController.add(
       SessionStateChange(
         type: SessionChangeType.messagesUpdated,
@@ -170,8 +205,12 @@ extension SessionRepositoryStateMutations on SessionRepository {
       messagesMap: nextMessagesMap,
       reducerState: existing.reducerState,
       isLoaded: existing.isLoaded,
+      totalMessageCount: existing.totalMessageCount > 0
+          ? existing.totalMessageCount - 1
+          : nextMessages.length,
+      windowStartIndex: existing.windowStartIndex,
     );
-    _syncSessionLatestUsageWithLoadedCount(sessionId, nextMessages.length);
+    _syncSessionPreviewFieldsFromMessages(sessionId, nextMessages.length);
     _stateController.add(
       SessionStateChange(
         type: SessionChangeType.messagesUpdated,
@@ -189,13 +228,73 @@ class SessionMessages {
   final Map<String, domain.ReducerMessage> messagesMap;
   final domain.ReducerState reducerState;
   final bool isLoaded;
+  final int totalMessageCount;
+  final int windowStartIndex;
+  final bool hasOlderMessages;
+  final bool hasNewerMessages;
 
   SessionMessages({
     required this.messages,
     required this.messagesMap,
     required this.reducerState,
     this.isLoaded = false,
-  });
+    int? totalMessageCount,
+    int? windowStartIndex,
+  })  : totalMessageCount = totalMessageCount ?? messages.length,
+        windowStartIndex = windowStartIndex ??
+            _resolveLatestWindowStartIndex(
+              totalMessageCount: totalMessageCount ?? messages.length,
+              loadedMessageCount: messages.length,
+            ),
+        hasOlderMessages = (windowStartIndex ??
+                _resolveLatestWindowStartIndex(
+                  totalMessageCount: totalMessageCount ?? messages.length,
+                  loadedMessageCount: messages.length,
+                )) >
+            0,
+        hasNewerMessages = _resolveHasNewerMessages(
+          messages: messages,
+          totalMessageCount: totalMessageCount ?? messages.length,
+          windowStartIndex: windowStartIndex,
+        );
+}
+
+int _resolveLatestWindowStartIndex({
+  required int totalMessageCount,
+  required int loadedMessageCount,
+}) {
+  final startIndex = totalMessageCount - loadedMessageCount;
+  return startIndex > 0 ? startIndex : 0;
+}
+
+bool _resolveHasNewerMessages({
+  required List<domain.ReducerMessage> messages,
+  required int totalMessageCount,
+  required int? windowStartIndex,
+}) {
+  var maxArchiveIndex = -1;
+  for (final message in messages) {
+    final rawValue = message.metadata?['archiveIndex'];
+    final archiveIndex = rawValue is int
+        ? rawValue
+        : rawValue is String
+            ? int.tryParse(rawValue) ?? -1
+            : rawValue is double
+                ? rawValue.toInt()
+                : -1;
+    if (archiveIndex > maxArchiveIndex) {
+      maxArchiveIndex = archiveIndex;
+    }
+  }
+  if (maxArchiveIndex >= 0) {
+    return (maxArchiveIndex + 1) < totalMessageCount;
+  }
+  final resolvedWindowStartIndex = windowStartIndex ??
+      _resolveLatestWindowStartIndex(
+        totalMessageCount: totalMessageCount,
+        loadedMessageCount: messages.length,
+      );
+  return (resolvedWindowStartIndex + messages.length) < totalMessageCount;
 }
 
 class SessionStateChange {

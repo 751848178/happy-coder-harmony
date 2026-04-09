@@ -3,8 +3,6 @@ part of 'sessions_screen.dart';
 extension on _SessionsScreenState {
   Widget _buildCustomGroupList({
     required List<Session> sessions,
-    required Map<String, SessionStats> statsBySessionId,
-    required Map<String, bool> thinkingBySessionId,
   }) {
     final unavailableSessions =
         sessions.where(_isSessionUnavailable).toList(growable: false);
@@ -18,19 +16,11 @@ extension on _SessionsScreenState {
         _buildCustomGroupSection(
           group: group,
           sessionMap: sessionMap,
-          statsBySessionId: statsBySessionId,
-          thinkingBySessionId: thinkingBySessionId,
         ),
-      _buildUngroupedSection(
-        sessions: availableSessions,
-        statsBySessionId: statsBySessionId,
-        thinkingBySessionId: thinkingBySessionId,
-      ),
+      _buildUngroupedSection(sessions: availableSessions),
       if (unavailableSessions.isNotEmpty)
         _buildUnavailableCustomGroupSection(
           sessions: unavailableSessions,
-          statsBySessionId: statsBySessionId,
-          thinkingBySessionId: thinkingBySessionId,
         ),
     ];
 
@@ -77,8 +67,6 @@ extension on _SessionsScreenState {
 
   Widget _buildUnavailableCustomGroupSection({
     required List<Session> sessions,
-    required Map<String, SessionStats> statsBySessionId,
-    required Map<String, bool> thinkingBySessionId,
   }) {
     final orderedSessions = sessions.toList(growable: false)
       ..sort(compareSessionsByStableListOrder);
@@ -104,10 +92,8 @@ extension on _SessionsScreenState {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: _SessionListItem(
+              key: ValueKey(session.id),
               session: session,
-              stats: statsBySessionId[session.id]!,
-              isThinking:
-                  thinkingBySessionId[session.id] ?? session.thinking == true,
               onTap: () => _openSession(session),
               onDelete: () => _deleteSession(session),
               onMove: () => _showMoveSessionSheet(session),
@@ -121,8 +107,6 @@ extension on _SessionsScreenState {
   Widget _buildCustomGroupSection({
     required SessionGroup group,
     required Map<String, Session> sessionMap,
-    required Map<String, SessionStats> statsBySessionId,
-    required Map<String, bool> thinkingBySessionId,
   }) {
     final groupedSessions = orderSessionsByStoredIds(
       group.sessionIds,
@@ -162,10 +146,8 @@ extension on _SessionsScreenState {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _SessionListItem(
+                    key: ValueKey(session.id),
                     session: session,
-                    stats: statsBySessionId[session.id]!,
-                    isThinking: thinkingBySessionId[session.id] ??
-                        session.thinking == true,
                     onTap: () => _openSession(session),
                     onDelete: () => _deleteSession(session),
                     onMove: () => _showMoveSessionSheet(session),
@@ -178,8 +160,6 @@ extension on _SessionsScreenState {
 
   Widget _buildUngroupedSection({
     required List<Session> sessions,
-    required Map<String, SessionStats> statsBySessionId,
-    required Map<String, bool> thinkingBySessionId,
   }) {
     final groupedIds =
         _groupingState.groups.expand((group) => group.sessionIds).toSet();
@@ -206,10 +186,8 @@ extension on _SessionsScreenState {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _SessionListItem(
+                    key: ValueKey(session.id),
                     session: session,
-                    stats: statsBySessionId[session.id]!,
-                    isThinking: thinkingBySessionId[session.id] ??
-                        session.thinking == true,
                     onTap: () => _openSession(session),
                     onDelete: () => _deleteSession(session),
                     onMove: () => _showMoveSessionSheet(session),

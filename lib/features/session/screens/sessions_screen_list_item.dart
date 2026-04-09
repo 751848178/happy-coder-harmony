@@ -1,47 +1,17 @@
 part of 'sessions_screen.dart';
 
-class _SessionListItemSelection {
-  const _SessionListItemSelection({
-    required this.session,
-    required this.messages,
-    required this.hasLoadedMessages,
-    required this.isReady,
-  });
-
-  final Session session;
-  final List<ReducerMessage>? messages;
-  final bool hasLoadedMessages;
-  final bool isReady;
-
-  @override
-  bool operator ==(Object other) {
-    return other is _SessionListItemSelection &&
-        identical(session, other.session) &&
-        identical(messages, other.messages) &&
-        hasLoadedMessages == other.hasLoadedMessages &&
-        isReady == other.isReady;
-  }
-
-  @override
-  int get hashCode =>
-      Object.hash(session, messages, hasLoadedMessages, isReady);
-}
-
 class _SessionListItem extends ConsumerStatefulWidget {
   const _SessionListItem({
     required this.session,
-    required this.stats,
-    required this.isThinking,
     required this.onTap,
     required this.onDelete,
     this.onMove,
     this.onLongPress,
     this.groupName,
+    super.key,
   });
 
   final Session session;
-  final SessionStats stats;
-  final bool isThinking;
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback? onMove;
@@ -143,24 +113,7 @@ class _SessionListItemState extends ConsumerState<_SessionListItem> {
         ),
       ),
     );
-    final session = selection.session;
-    final activitySnapshot = resolveSessionListActivitySnapshot(
-      session: session,
-      messages: selection.messages,
-      hasLoadedMessages: selection.hasLoadedMessages,
-    );
-    final titleText = resolveSessionListTitle(session);
-    final isThinking = selection.isReady
-        ? sessionTurnIsThinkingStillBlocking(
-            session: session,
-            messages: selection.messages ?? const <ReducerMessage>[],
-          )
-        : widget.isThinking;
-    final statusSnapshot = resolveSessionListStatusSnapshot(
-      messages: selection.messages,
-      isThinking: isThinking,
-      isActive: session.active,
-    );
+    final viewModel = _buildSessionListItemViewModel(selection);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -202,10 +155,10 @@ class _SessionListItemState extends ConsumerState<_SessionListItem> {
               offset: Offset(_dragExtent, 0),
               child: _SessionListItemContent(
                 dragExtent: _dragExtent,
-                session: session,
-                titleText: titleText,
-                activitySnapshot: activitySnapshot,
-                statusSnapshot: statusSnapshot,
+                session: viewModel.session,
+                titleText: viewModel.titleText,
+                activitySnapshot: viewModel.activitySnapshot,
+                statusSnapshot: viewModel.statusSnapshot,
                 onTap: widget.onTap,
                 onLongPress: widget.onLongPress,
                 onCloseActions: _closeActions,

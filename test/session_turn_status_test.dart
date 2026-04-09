@@ -106,6 +106,35 @@ void main() {
     );
   });
 
+  test('turn-close clears stale thinking fast path when session flag is false',
+      () {
+    final prompt = _userPrompt(localId: 'local-turn-close-fast-path');
+    final messages = <ReducerMessage>[
+      prompt,
+      _agentText('我先想一下', outputType: 'thinking'),
+      _turnClose(),
+    ];
+
+    expect(
+      sessionTurnIsThinkingStillBlocking(
+        session: _session(thinking: false),
+        messages: messages,
+      ),
+      isFalse,
+    );
+    expect(
+      sessionConversationIsBusy(
+        session: _session(thinking: false),
+        latestTurnMessages: messages,
+        latestUserPrompt: prompt,
+        isSending: false,
+        isAutoSendingQueuedMessage: false,
+        activeResponseLocalId: null,
+      ),
+      isFalse,
+    );
+  });
+
   test('turn_aborted clears stale pending tool blockers', () {
     final prompt = _userPrompt(localId: 'local-abort-tool');
     final messages = <ReducerMessage>[
@@ -395,5 +424,16 @@ ReducerMessage _agentEvent(String eventType, {String? text}) {
       'role': 'agent',
       'eventType': eventType,
     },
+  );
+}
+
+ReducerMessage _turnClose() {
+  return ReducerMessage(
+    id: 'turn-close',
+    kind: 'turn-close',
+    createdAt: _createdAt,
+    turnClose: TurnClose(
+      reason: 'completed',
+    ),
   );
 }

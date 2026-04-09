@@ -151,6 +151,12 @@ extension SessionServiceSessionParsing on SessionServiceNotifier {
         remoteDraft: parsedSession.draft,
         cachedDraft: existingSession?.draft,
       ),
+      previewText:
+          parsedSession.previewText ?? existingSession?.previewText,
+      lastMessageAt:
+          parsedSession.lastMessageAt ?? existingSession?.lastMessageAt,
+      listStatusKind:
+          parsedSession.listStatusKind ?? existingSession?.listStatusKind,
     );
     if (dataKey == null) {
       _sessionDataKeys.remove(session.id);

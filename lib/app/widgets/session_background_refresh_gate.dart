@@ -66,6 +66,10 @@ class _SessionBackgroundRefreshGateState
     return settings.enableBackgroundSessionRefresh && credentials != null;
   }
 
+  bool _hasActiveSessionDetail() {
+    return ref.read(activeSessionDetailIdProvider) != null;
+  }
+
   bool _isInBackgroundLifecycle() {
     final lifecycle = _lifecycleState;
     return lifecycle != null &&
@@ -113,6 +117,13 @@ class _SessionBackgroundRefreshGateState
     if (!mounted || _refreshInFlight || !_backgroundRefreshEnabled()) {
       return;
     }
+    if (_hasActiveSessionDetail()) {
+      Logger.info(
+        'Session background refresh skipped '
+        '(reason=$reason, activeDetail=${ref.read(activeSessionDetailIdProvider)})',
+      );
+      return;
+    }
     if (!allowForegroundRefresh && !_isInBackgroundLifecycle()) {
       return;
     }
@@ -126,8 +137,10 @@ class _SessionBackgroundRefreshGateState
 
       final sessionNotifier = ref.read(sessionStateProvider.notifier);
       await sessionNotifier.loadSessions(force: true);
+      final activeDetailId = ref.read(activeSessionDetailIdProvider);
       final remoteSessionIds = sessionNotifier.sessions
           .where((session) => sessionNotifier.hasRemoteSession(session.id))
+          .where((session) => session.id != activeDetailId)
           .map((session) => session.id)
           .toList(growable: false);
       if (remoteSessionIds.isNotEmpty) {

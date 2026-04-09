@@ -85,15 +85,12 @@ extension _ChatScreenMessages on _ChatScreenState {
   }
 
   List<ReducerMessage> _currentMessages() {
-    return ref.watch(
-          sessionStateProvider.select(
-            (state) => state.whenOrNull(
-              ready: (_, sessionMessages, __) =>
-                  sessionMessages[widget.sessionId]?.messages ??
-                  const <ReducerMessage>[],
-            ),
-          ),
-        ) ??
+    // Messages are managed per-session in the repository; the global state
+    // no longer carries sessionMessages. Read directly from the notifier.
+    return ref
+            .read(sessionStateProvider.notifier)
+            .getSessionMessages(widget.sessionId ?? '')
+            ?.messages ??
         const <ReducerMessage>[];
   }
 

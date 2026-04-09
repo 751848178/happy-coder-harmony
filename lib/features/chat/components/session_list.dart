@@ -7,7 +7,6 @@ import '../../../features/session/domain/session_list_preview.dart';
 import '../../../features/session/domain/session_recency.dart';
 import '../../../features/session/presentation/session_agent_avatar.dart';
 import '../../../features/session/presentation/session_list_status_chip.dart';
-import '../../../features/session/presentation/session_turn_status.dart';
 import '../../../shared/utils/extensions.dart';
 
 part 'session_list_item_body.dart';
@@ -19,28 +18,18 @@ part 'sessions_list_feedback.dart';
 class _SessionListItemSelection {
   const _SessionListItemSelection({
     required this.session,
-    required this.messages,
-    required this.hasLoadedMessages,
-    required this.isThinking,
   });
 
   final Session session;
-  final List<ReducerMessage>? messages;
-  final bool hasLoadedMessages;
-  final bool isThinking;
 
   @override
   bool operator ==(Object other) {
     return other is _SessionListItemSelection &&
-        identical(session, other.session) &&
-        identical(messages, other.messages) &&
-        hasLoadedMessages == other.hasLoadedMessages &&
-        isThinking == other.isThinking;
+        identical(session, other.session);
   }
 
   @override
-  int get hashCode =>
-      Object.hash(session, messages, hasLoadedMessages, isThinking);
+  int get hashCode => identityHashCode(session);
 }
 
 /// 会话列表项
@@ -65,35 +54,18 @@ class SessionListItem extends ConsumerWidget {
         (state) => state.when(
           initial: () => _SessionListItemSelection(
             session: session,
-            messages: null,
-            hasLoadedMessages: false,
-            isThinking: false,
           ),
           loading: () => _SessionListItemSelection(
             session: session,
-            messages: null,
-            hasLoadedMessages: false,
-            isThinking: false,
           ),
-          ready: (sessions, sessionMessages, __) {
+          ready: (sessions, _, __) {
             final current = sessions[session.id] ?? session;
-            final currentMessages = sessionMessages[session.id];
-            final reducerMessages = currentMessages?.messages;
             return _SessionListItemSelection(
               session: current,
-              messages: reducerMessages,
-              hasLoadedMessages: currentMessages?.isLoaded == true,
-              isThinking: sessionTurnIsThinkingStillBlocking(
-                session: current,
-                messages: reducerMessages ?? const <ReducerMessage>[],
-              ),
             );
           },
           error: (_) => _SessionListItemSelection(
             session: session,
-            messages: null,
-            hasLoadedMessages: false,
-            isThinking: false,
           ),
         ),
       ),
@@ -116,15 +88,11 @@ class SessionListItem extends ConsumerWidget {
           children: [
             _SessionItemIcon(
               session: selection.session,
-              isThinking: selection.isThinking,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _SessionListItemBody(
                 session: selection.session,
-                messages: selection.messages,
-                hasLoadedMessages: selection.hasLoadedMessages,
-                isThinking: selection.isThinking,
               ),
             ),
             _SessionListMenuButton(session: selection.session),

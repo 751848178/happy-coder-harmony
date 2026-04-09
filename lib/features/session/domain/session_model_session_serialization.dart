@@ -31,6 +31,11 @@ Map<String, dynamic> _sessionToJson(Session session) {
       'thinkingAt': session.thinkingAt!.toIso8601String(),
     if (session.latestUsage != null)
       'latestUsage': session.latestUsage!.toJson(),
+    if (session.previewText != null) 'previewText': session.previewText,
+    if (session.lastMessageAt != null)
+      'lastMessageAt': session.lastMessageAt!.toIso8601String(),
+    if (session.listStatusKind != null)
+      'listStatusKind': session.listStatusKind,
   };
 }
 
@@ -108,5 +113,8 @@ Session _sessionFromJson(Map<String, dynamic> json) {
     thinkingAt: _parseDateTime(json['thinkingAt'] ?? json['thinking_at']),
     latestUsage:
         latestUsageJson != null ? LatestUsage.fromJson(latestUsageJson) : null,
+    previewText: _firstNonEmptyString([json['previewText']]),
+    lastMessageAt: _parseDateTime(json['lastMessageAt']),
+    listStatusKind: _firstNonEmptyString([json['listStatusKind']]),
   );
 }

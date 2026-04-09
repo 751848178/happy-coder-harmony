@@ -13,7 +13,6 @@ extension _SessionScreenStateAppBar on _SessionScreenState {
   PreferredSizeWidget _buildAppBar(
     BuildContext context,
     Session? session, {
-    required List<_MessageTurnGroup> turnGroups,
     required bool showOverviewToggle,
   }) {
     final metadata = session?.metadata ?? const <String, dynamic>{};
@@ -76,38 +75,48 @@ extension _SessionScreenStateAppBar on _SessionScreenState {
         ],
       ),
       actions: [
-        IgnorePointer(
-          ignoring: _isRefreshingSessionState,
-          child: Opacity(
-            opacity: _isRefreshingSessionState ? 0.72 : 1,
-            child: IconButton(
-              icon: RotationTransition(
-                turns: _refreshIconController,
-                child: Icon(
-                  _isRefreshingSessionState
-                      ? Icons.sync_rounded
-                      : Icons.refresh_rounded,
+        // Refresh icon — isolated rebuild via ValueNotifier.
+        ValueListenableBuilder<bool>(
+          valueListenable: _isRefreshingSessionStateN,
+          builder: (_, isRefreshing, __) {
+            return IgnorePointer(
+              ignoring: isRefreshing,
+              child: Opacity(
+                opacity: isRefreshing ? 0.72 : 1,
+                child: IconButton(
+                  icon: RotationTransition(
+                    turns: _refreshIconController,
+                    child: Icon(
+                      isRefreshing
+                          ? Icons.sync_rounded
+                          : Icons.refresh_rounded,
+                    ),
+                  ),
+                  onPressed: _refreshSessionState,
+                  tooltip: isRefreshing ? '刷新中' : '刷新会话',
                 ),
               ),
-              onPressed: _refreshSessionState,
-              tooltip: _isRefreshingSessionState ? '刷新中' : '刷新会话',
-            ),
-          ),
+            );
+          },
         ),
         if (showOverviewToggle)
-          IconButton(
-            icon: Icon(
-              _sessionOverviewCollapsed
-                  ? Icons.keyboard_arrow_down_rounded
-                  : Icons.keyboard_arrow_up_rounded,
-            ),
-            onPressed: () {
-              _updateState(() {
-                _sessionOverviewCollapsed = !_sessionOverviewCollapsed;
-              });
-              unawaited(_persistSessionUiState());
+          ValueListenableBuilder<bool>(
+            valueListenable: _sessionOverviewCollapsedN,
+            builder: (_, collapsed, __) {
+              return IconButton(
+                icon: Icon(
+                  collapsed
+                      ? Icons.keyboard_arrow_down_rounded
+                      : Icons.keyboard_arrow_up_rounded,
+                ),
+                onPressed: () {
+                  _sessionOverviewCollapsedN.value =
+                      !_sessionOverviewCollapsedN.value;
+                  unawaited(_persistSessionUiState());
+                },
+                tooltip: collapsed ? '展开会话信息' : '收起会话信息',
+              );
             },
-            tooltip: _sessionOverviewCollapsed ? '展开会话信息' : '收起会话信息',
           ),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
@@ -176,19 +185,19 @@ extension _SessionScreenStateAppBar on _SessionScreenState {
             ),
             PopupMenuItem(
               value: 'sync_messages',
-              enabled: !_isSyncingAllMessages,
+              enabled: !_isSyncingAllMessagesN.value,
               child: Row(
                 children: [
                   SizedBox(
                     width: 18,
                     height: 18,
-                    child: _isSyncingAllMessages
+                    child: _isSyncingAllMessagesN.value
                         ? const CircularProgressIndicator(strokeWidth: 2)
                         : const Icon(Icons.cloud_sync_outlined, size: 18),
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    _isSyncingAllMessages ? '同步中...' : '同步全部消息',
+                    _isSyncingAllMessagesN.value ? '同步中...' : '同步全部消息',
                   ),
                 ],
               ),

@@ -1,5 +1,53 @@
 part of 'session_screen.dart';
 
+class _CollapsedTurnSummary {
+  const _CollapsedTurnSummary({
+    required this.id,
+    required this.promptMessageId,
+    required this.preview,
+    required this.createdAt,
+    this.promptArchiveIndex,
+  });
+
+  final String id;
+  final String promptMessageId;
+  final String preview;
+  final DateTime createdAt;
+  final int? promptArchiveIndex;
+
+  factory _CollapsedTurnSummary.fromTurnGroup(_MessageTurnGroup group) {
+    final prompt = group.userPrompt ?? group.messages.first;
+    final metadata = prompt.metadata;
+    final rawArchiveIndex = metadata?['archiveIndex'];
+    final promptArchiveIndex = rawArchiveIndex is int
+        ? rawArchiveIndex
+        : rawArchiveIndex is String
+            ? int.tryParse(rawArchiveIndex)
+            : rawArchiveIndex is double
+                ? rawArchiveIndex.toInt()
+                : null;
+    return _CollapsedTurnSummary(
+      id: group.id,
+      promptMessageId: prompt.id,
+      preview: group.preview,
+      createdAt: group.createdAt,
+      promptArchiveIndex: promptArchiveIndex,
+    );
+  }
+
+  factory _CollapsedTurnSummary.fromArchivedSummary(
+    storage_models.SessionArchivedTurnSummary summary,
+  ) {
+    return _CollapsedTurnSummary(
+      id: summary.id,
+      promptMessageId: summary.promptMessageId,
+      preview: summary.preview,
+      createdAt: summary.createdAt,
+      promptArchiveIndex: summary.archiveIndex,
+    );
+  }
+}
+
 class _MessageTurnGroup {
   const _MessageTurnGroup({
     required this.id,

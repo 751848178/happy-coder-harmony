@@ -6,6 +6,38 @@ extension _SessionScreenMessageBubbleCollapsedText on _MessageBubbleState {
     required Color textColor,
     required bool isUser,
   }) {
+    // Fast path: for short content without code fences, skip full markdown
+    // block parsing entirely.  _MarkdownBlock.parse splits by \n, runs regex
+    // on each line, and creates immutable list copies — all unnecessary when
+    // we only need a 4-line plain-text preview.
+    if (content.length <= 320 && !content.contains('```')) {
+      final preview = _plainTextPreview(content);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            preview,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isUser ? '展开查看完整用户消息' : '展开查看完整消息',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: textColor.withValues(alpha: isUser ? 0.82 : 0.72),
+            ),
+          ),
+        ],
+      );
+    }
+
     final blocks = _MarkdownBlock.parse(content);
     final firstTextBlock = blocks.cast<_MarkdownBlock?>().firstWhere(
           (block) =>
@@ -101,22 +133,21 @@ extension _SessionScreenMessageBubbleCollapsedText on _MessageBubbleState {
     }
 
     if (_looksLikeMarkdownContent(content)) {
+      // Use lightweight plain-text preview instead of full _MarkdownMessageContent
+      // widget tree. The collapsed preview is wrapped in IgnorePointer + ClipRect
+      // (user can't interact), so rendering the full markdown pipeline (inline
+      // parser, code panels, syntax highlighting) is pure waste.
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            height: 148,
-            child: ClipRect(
-              child: IgnorePointer(
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  child: _MarkdownMessageContent(
-                    content: content,
-                    isUser: isUser,
-                    textColor: textColor,
-                  ),
-                ),
-              ),
+          Text(
+            _plainTextPreview(content),
+            maxLines: 6,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 14,
+              height: 1.5,
             ),
           ),
           const SizedBox(height: 8),

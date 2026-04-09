@@ -1,6 +1,72 @@
 part of 'session_repository.dart';
 
 extension SessionRepositoryMessagesMerge on SessionRepository {
+  int? _messageArchiveIndex(domain.ReducerMessage message) {
+    final rawValue = message.metadata?['archiveIndex'];
+    if (rawValue is int) {
+      return rawValue;
+    }
+    if (rawValue is String) {
+      return int.tryParse(rawValue);
+    }
+    if (rawValue is double) {
+      return rawValue.toInt();
+    }
+    return null;
+  }
+
+  List<domain.ReducerMessage> _canonicalizeMessageWindow(
+    List<domain.ReducerMessage> messages,
+  ) {
+    if (messages.length < 2) {
+      return List<domain.ReducerMessage>.unmodifiable(messages);
+    }
+    final orderedMessageIds = <String>[];
+    final canonicalMessages = <String, domain.ReducerMessage>{};
+    for (final incoming in messages) {
+      final previous = _findPreviousMessageForIncoming(
+        canonicalMessages,
+        incoming,
+      );
+      final previousId = previous?.id;
+      final merged = _mergeMessage(previous, incoming);
+      if (previousId != null && previousId != incoming.id) {
+        canonicalMessages.remove(previousId);
+        final previousIndex = orderedMessageIds.indexOf(previousId);
+        if (previousIndex >= 0) {
+          orderedMessageIds[previousIndex] = incoming.id;
+        } else {
+          orderedMessageIds.add(incoming.id);
+        }
+      } else if (!canonicalMessages.containsKey(incoming.id)) {
+        orderedMessageIds.add(incoming.id);
+      }
+      canonicalMessages[incoming.id] = merged;
+    }
+    final canonicalList = <domain.ReducerMessage>[
+      for (final id in orderedMessageIds)
+        if (canonicalMessages[id] != null) canonicalMessages[id]!,
+    ];
+    return List<domain.ReducerMessage>.unmodifiable(canonicalList);
+  }
+
+  int _resolveWindowStartIndexFromMessages(
+    List<domain.ReducerMessage> messages, {
+    required int fallback,
+  }) {
+    var nextStartIndex = fallback;
+    for (final message in messages) {
+      final archiveIndex = _messageArchiveIndex(message);
+      if (archiveIndex == null) {
+        continue;
+      }
+      if (archiveIndex < nextStartIndex) {
+        nextStartIndex = archiveIndex;
+      }
+    }
+    return nextStartIndex < 0 ? 0 : nextStartIndex;
+  }
+
   String? _findMessageIdByLocalId(
     Map<String, domain.ReducerMessage> messagesMap,
     String localId,

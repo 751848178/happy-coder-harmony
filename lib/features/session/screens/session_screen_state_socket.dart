@@ -1,14 +1,30 @@
 part of 'session_screen.dart';
 
 extension _SessionScreenStateSocket on _SessionScreenState {
+  bool _didSessionMessagesAdvance({
+    required _SessionMessageViewState previousState,
+  }) {
+    final nextState = _messageViewStateN.value;
+    return !identical(previousState.messages, nextState.messages) ||
+        previousState.totalMessageCount != nextState.totalMessageCount ||
+        previousState.hasLoadedMessages != nextState.hasLoadedMessages;
+  }
+
   void _startMessagePolling() {
     _messagePollingTimer?.cancel();
     _messagePollingTimer = Timer.periodic(
       const Duration(seconds: 8),
       (_) {
+        if (!mounted) {
+          return;
+        }
+        if (_hasNewerMessages) {
+          return;
+        }
         // Never auto-scroll during polling if the user has manually scrolled up.
         // Show the "new messages" indicator instead.
-        _scheduleMessageRefresh(autoScroll: !_userHasScrolledUp && _shouldStickToLatest);
+        _scheduleMessageRefresh(
+            autoScroll: !_userHasScrolledUp && _shouldStickToLatest);
       },
     );
   }
@@ -24,16 +40,24 @@ extension _SessionScreenStateSocket on _SessionScreenState {
           unawaited(
             sessionNotifier.loadMachines(force: true, allowFailure: true),
           );
-          _scheduleMessageRefresh(autoScroll: !_userHasScrolledUp && _shouldStickToLatest);
+          _scheduleMessageRefresh(
+              autoScroll: !_userHasScrolledUp && _shouldStickToLatest);
           unawaited(_maybeAutoApprovePendingTools());
         },
         disconnected: (_) {},
         error: (_) {},
         messageReceived: (message) {
           if (message.sessionId == widget.sessionId) {
+            if (_hasNewerMessages) {
+              if (mounted) {
+                _hasUnreadMessagesN.value = true;
+              }
+              return;
+            }
             // Suppress auto-scroll if user has manually scrolled up.
             // Instead, show the "new messages" indicator.
-            final shouldAutoScroll = !_userHasScrolledUp && _shouldStickToLatest;
+            final shouldAutoScroll =
+                !_userHasScrolledUp && _shouldStickToLatest;
             _scheduleMessageRefresh(autoScroll: shouldAutoScroll);
             if (!shouldAutoScroll && mounted) {
               _hasUnreadMessagesN.value = true;
@@ -56,11 +80,33 @@ extension _SessionScreenStateSocket on _SessionScreenState {
     _socketRefreshDebounce = Timer(
       const Duration(milliseconds: 150),
       () async {
+        if (!mounted) {
+          return;
+        }
+        if (_hasNewerMessages) {
+          if (mounted) {
+            _hasUnreadMessagesN.value = true;
+          }
+          return;
+        }
+        final previousState = _messageViewStateN.value;
         await ref.read(sessionStateProvider.notifier).loadSessionMessages(
               widget.sessionId,
+              messageWindowSize: SessionServiceNotifier
+                  .sessionDetailAutomaticMessageWindowSize,
             );
+        if (!mounted) {
+          return;
+        }
+        _syncMessagesFromRepository();
+        final didMessagesAdvance = _didSessionMessagesAdvance(
+          previousState: previousState,
+        );
         await _maybeAutoApprovePendingTools();
-        if (autoScroll) {
+        if (!mounted) {
+          return;
+        }
+        if (autoScroll && didMessagesAdvance) {
           _scheduleScrollToLatest(animate: true, force: true);
           if (mounted) {
             _hasUnreadMessagesN.value = false;
@@ -77,6 +123,9 @@ extension _SessionScreenStateSocket on _SessionScreenState {
     final draft =
         _messageController.text.trim().isEmpty ? null : _messageController.text;
     _draftPersistDebounce = Timer(const Duration(milliseconds: 220), () {
+      if (!mounted) {
+        return;
+      }
       ref.read(sessionStateProvider.notifier).updateDraft(
             widget.sessionId,
             draft,
@@ -84,46 +133,6 @@ extension _SessionScreenStateSocket on _SessionScreenState {
     });
   }
 
-  void _handleScrollMetricsChanged() {
-    if (!_scrollController.hasClients) {
-      return;
-    }
-    final position = _scrollController.position;
-    final distanceToBottom = position.maxScrollExtent - position.pixels;
-    final nextCanScrollToTop = position.pixels > 32;
-    final nextCanScrollToBottom = distanceToBottom > 32;
-    final nextIsNearBottom = distanceToBottom < 72;
-    final nextShouldStickToLatest = distanceToBottom <= 8;
-    // Detect user scrolling up: if we're far from bottom and haven't set
-    // the flag yet, mark it so auto-scroll is suppressed.
-    if (distanceToBottom > 72 && !_userHasScrolledUp && _hasScrolledToLatest) {
-      _userHasScrolledUp = true;
-    }
-    // When user scrolls back near bottom, clear the user-scroll flag so
-    // auto-scroll resumes naturally.
-    if (nextShouldStickToLatest && _userHasScrolledUp) {
-      _userHasScrolledUp = false;
-    }
-    final shouldUpdate = nextCanScrollToTop != _canScrollToTop ||
-        nextCanScrollToBottom != _canScrollToBottom ||
-        nextIsNearBottom != _isNearBottom ||
-        nextShouldStickToLatest != _shouldStickToLatest;
-    if (_hasStickyTurnCandidates || _stickyTurnId != null) {
-      _scheduleViewportStateRefresh();
-    }
-    if (!shouldUpdate) {
-      return;
-    }
-    if (!mounted) {
-      return;
-    }
-    // Update ValueNotifiers directly — no full-screen setState needed.
-    _canScrollToTopN.value = nextCanScrollToTop;
-    _canScrollToBottomN.value = nextCanScrollToBottom;
-    _isNearBottomN.value = nextIsNearBottom;
-    _shouldStickToLatestN.value = nextShouldStickToLatest;
-    if (nextIsNearBottom) {
-      _hasUnreadMessagesN.value = false;
-    }
-  }
+  void _handleScrollMetricsChanged() =>
+      _viewportController.handleScrollMetricsChanged();
 }

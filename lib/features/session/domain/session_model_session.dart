@@ -25,6 +25,13 @@ class Session {
   final DateTime? thinkingAt;
   final LatestUsage? latestUsage;
 
+  /// Pre-computed preview fields for session list — avoids loading all messages.
+  /// Computed by repository when messages change, persisted in local snapshot.
+  final String? previewText;
+  final DateTime? lastMessageAt;
+  /// Stored as `SessionListStatusKind.name` string — parsed in UI layer.
+  final String? listStatusKind;
+
   const Session({
     required this.id,
     this.seq,
@@ -48,6 +55,9 @@ class Session {
     this.thinking,
     this.thinkingAt,
     this.latestUsage,
+    this.previewText,
+    this.lastMessageAt,
+    this.listStatusKind,
   });
 
   Session copyWith({
@@ -73,6 +83,9 @@ class Session {
     bool? thinking,
     Object? thinkingAt = _sessionFieldUnset,
     LatestUsage? latestUsage,
+    Object? previewText = _sessionFieldUnset,
+    Object? lastMessageAt = _sessionFieldUnset,
+    Object? listStatusKind = _sessionFieldUnset,
   }) {
     return Session(
       id: id ?? this.id,
@@ -106,6 +119,15 @@ class Session {
           ? this.thinkingAt
           : thinkingAt as DateTime?,
       latestUsage: latestUsage ?? this.latestUsage,
+      previewText: identical(previewText, _sessionFieldUnset)
+          ? this.previewText
+          : previewText as String?,
+      lastMessageAt: identical(lastMessageAt, _sessionFieldUnset)
+          ? this.lastMessageAt
+          : lastMessageAt as DateTime?,
+      listStatusKind: identical(listStatusKind, _sessionFieldUnset)
+          ? this.listStatusKind
+          : listStatusKind as String?,
     );
   }
 

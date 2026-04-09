@@ -6,9 +6,9 @@ typedef _SessionMessageActionHandler = Future<void> Function(
 
 class _MessageBubble extends StatefulWidget {
   const _MessageBubble({
-    super.key,
     required this.message,
     required this.autoApproveEnabled,
+    required this.interactionsEnabled,
     required this.isToolActionPending,
     required this.onApproveTool,
     required this.onRejectTool,
@@ -18,6 +18,7 @@ class _MessageBubble extends StatefulWidget {
 
   final ReducerMessage message;
   final bool autoApproveEnabled;
+  final bool interactionsEnabled;
   final bool isToolActionPending;
   final Future<void> Function(String) onApproveTool;
   final Future<void> Function(String, String?) onRejectTool;
@@ -34,9 +35,14 @@ class _MessageBubble extends StatefulWidget {
   State<_MessageBubble> createState() => _MessageBubbleState();
 }
 
-class _MessageBubbleState extends State<_MessageBubble>
-    with AutomaticKeepAliveClientMixin<_MessageBubble> {
+class _MessageBubbleState extends State<_MessageBubble> {
+  static const _bubblePresenter = _SessionMessageBubblePresenter();
+
   bool _collapsed = true;
+  // Cached collapse eligibility — computed once in initState / didUpdateWidget
+  // to avoid running _shouldCollapseTextMessage (O(n) trimRight + regex) on
+  // every build().
+  bool _canCollapse = false;
   // Lazily computed — only resolved when the user actually long-presses.
   // Avoids running jsonEncode on every tool message during first frame.
   String? _actionText;
@@ -47,33 +53,47 @@ class _MessageBubbleState extends State<_MessageBubble>
 
   ReducerMessage get message => widget.message;
   bool get autoApproveEnabled => widget.autoApproveEnabled;
+  bool get interactionsEnabled => widget.interactionsEnabled;
   bool get isToolActionPending => widget.isToolActionPending;
   Future<void> Function(String) get onApproveTool => widget.onApproveTool;
   Future<void> Function(String, String?) get onRejectTool =>
       widget.onRejectTool;
-  _SessionMessageActionHandler? get onMessageAction => _onMessageAction;
-  Future<void> Function()? get onLongPressMessage => _onLongPressMessage;
+  _SessionMessageActionHandler? get onMessageAction {
+    _ensureActionState();
+    return _onMessageAction;
+  }
+
+  Future<void> Function()? get onLongPressMessage {
+    _ensureActionState();
+    return _onLongPressMessage;
+  }
 
   @override
   void initState() {
     super.initState();
     _toolPresentationCache = _computeToolPresentation(message)?.._owner = this;
     _collapsed = _shouldStartCollapsed(message);
-    _ensureActionState();
-    updateKeepAlive();
+    _canCollapse = _computeCanCollapse(message);
+    // NOTE: _ensureActionState() deferred to first access via getters.
+    // Avoids running jsonEncode on every tool message during first frame.
   }
 
   @override
   void didUpdateWidget(covariant _MessageBubble oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.message, widget.message)) {
-      _toolPresentationCache = _computeToolPresentation(message)?.._owner = this;
-      _actionTextComputed = false;
-      _ensureActionState();
+    // Fast path: if the message reference is the same, nothing has changed.
+    // During streaming or parent rebuild, the parent creates new _MessageBubble
+    // widgets even for unchanged messages. Without this check, every bubble
+    // pays for _shouldResetCollapsedState + _toolCollapseSignature comparisons.
+    if (identical(oldWidget.message, widget.message)) {
+      return;
     }
+    _toolPresentationCache = _computeToolPresentation(message)?.._owner = this;
+    _actionTextComputed = false;
+    // NOTE: _ensureActionState() deferred to first access via getters.
     if (_shouldResetCollapsedState(oldWidget.message, message)) {
       _collapsed = _shouldStartCollapsed(message);
-      updateKeepAlive();
+      _canCollapse = _computeCanCollapse(message);
     }
   }
 
@@ -97,146 +117,56 @@ class _MessageBubbleState extends State<_MessageBubble>
     };
   }
 
-  _ToolPresentationCache? _computeToolPresentation(ReducerMessage msg) {
-    final tool = msg.tool;
-    if (tool == null) return null;
-    final command = _extractCommand(tool.arguments);
-    final diffPreview = _extractDiff(tool);
-    // Use lightweight size heuristics for canCollapse decision instead of
-    // running expensive _formatToolArguments / _formatToolResult (which do
-    // jsonEncode/jsonDecode).  We only need to know IF it's large, not the
-    // actual formatted string — that can be deferred to when the bubble is
-    // actually expanded.
-    final canCollapse = _looksLarge(command) ||
-        _looksLarge(diffPreview) ||
-        _rawArgumentsLookLarge(tool.arguments) ||
-        _rawResultLooksLarge(tool.result);
-    return _ToolPresentationCache(
-      command: command,
-      diffPreview: diffPreview,
-      canCollapse: canCollapse,
-      // Defer expensive formatting — computed on first access via getters.
-      argumentsPreview: null,
-      resultPreview: null,
-    );
+  _ToolPresentationCache? _computeToolPresentation(ReducerMessage msg) =>
+      _bubblePresenter.computeToolPresentation(msg);
+
+  bool _canLongPressMessageActions() {
+    if (message.isText || message.isError || message.isAgentEvent) {
+      final text = message.text;
+      return text != null && text.trim().isNotEmpty;
+    }
+    if (message.isPermissionRequest) {
+      return message.permission != null;
+    }
+    if (message.isTurnClose) {
+      return message.turnClose != null;
+    }
+    if (message.isToolCall) {
+      return message.tool != null;
+    }
+    final text = message.text;
+    return text != null && text.trim().isNotEmpty;
   }
 
-  /// Lightweight check: are the raw tool arguments large enough to warrant
-  /// collapsing, without formatting them as JSON?
-  bool _rawArgumentsLookLarge(Map<String, dynamic> arguments) {
-    if (arguments.isEmpty) return false;
-    // Approximate: sum key+value string lengths.
-    var total = 0;
-    for (final entry in arguments.entries) {
-      total += entry.key.length + (entry.value?.toString().length ?? 0);
-      if (total > 240) return true;
+  Future<void> _handleLongPressMessageTrigger() async {
+    _ensureActionState();
+    final handler = _onLongPressMessage;
+    if (handler == null) {
+      return;
     }
-    return false;
+    await handler();
   }
 
-  /// Lightweight check: is the raw tool result large enough to warrant
-  /// collapsing, without JSON-decode+re-encode?
-  bool _rawResultLooksLarge(String? result) {
-    if (result == null || result.trim().isEmpty) return false;
-    final trimmed = result.trimRight();
-    final lineCount = '\n'.allMatches(trimmed).length + 1;
-    return trimmed.length > 240 || lineCount > 6;
-  }
+  bool _shouldStartCollapsed(ReducerMessage value) =>
+      _bubblePresenter.shouldStartCollapsed(value, _toolPresentationCache);
 
-  @override
-  bool get wantKeepAlive => !_collapsed;
-
-  bool _shouldStartCollapsed(ReducerMessage value) {
-    if (value.isToolCall && value.tool != null) {
-      return _shouldCollapseToolMessage(value.tool!);
-    }
-    if (value.isText) {
-      return _shouldCollapseTextMessage(value.text ?? '');
-    }
-    if (value.isError) {
-      return _shouldCollapseTextMessage(value.text ?? '');
-    }
-    return false;
-  }
-
-  bool _shouldCollapseTextMessage(String text) {
-    final normalized = text.trimRight();
-    if (normalized.isEmpty) {
-      return false;
-    }
-    final lineCount = '\n'.allMatches(normalized).length + 1;
-    return normalized.length > 320 || lineCount > 9;
-  }
+  /// Compute whether this message's content is large enough to warrant
+  /// collapsing. Cached in [_canCollapse] to avoid O(n) work on every build.
+  bool _computeCanCollapse(ReducerMessage value) =>
+      _bubblePresenter.computeCanCollapse(value, _toolPresentationCache);
 
   bool _shouldCollapseToolMessage(ToolInfo tool) {
     return _toolPresentationCache?.canCollapse ?? false;
   }
 
-  bool _looksLarge(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return false;
-    }
-    final normalized = value.trimRight();
-    final lineCount = '\n'.allMatches(normalized).length + 1;
-    return normalized.length > 240 || lineCount > 6;
-  }
-
   bool _shouldResetCollapsedState(
     ReducerMessage previous,
     ReducerMessage next,
-  ) {
-    if (previous.id != next.id ||
-        previous.kind != next.kind ||
-        previous.createdAt != next.createdAt) {
-      return true;
-    }
-    if (previous.isText || previous.isError || next.isText || next.isError) {
-      return previous.text != next.text ||
-          sessionMessageIsUserAuthored(previous) !=
-              sessionMessageIsUserAuthored(next) ||
-          previous.metadata?['outputType'] != next.metadata?['outputType'] ||
-          previous.metadata?['optimistic'] != next.metadata?['optimistic'];
-    }
-    if (previous.isToolCall || next.isToolCall) {
-      return _toolCollapseSignature(previous.tool) !=
-          _toolCollapseSignature(next.tool);
-    }
-    return false;
-  }
-
-  String _toolCollapseSignature(ToolInfo? tool) {
-    if (tool == null) {
-      return '';
-    }
-    final arguments = tool.arguments;
-    final keys = arguments.keys.map((key) => key.toString()).toList()..sort();
-    final keyArguments = <String>[
-      for (final key in keys.take(8))
-        '$key=${_toolCollapseValueSignature(arguments[key])}',
-      if (keys.length > 8) 'extra=${keys.length - 8}',
-    ].join('\u0001');
-    return [
-      tool.id,
-      tool.name,
-      tool.status?.name ?? '',
-      _toolCollapseValueSignature(tool.result),
-      _toolCollapseValueSignature(tool.error),
-      _toolCollapseValueSignature(tool.description),
-      keyArguments,
-    ].join('\u0002');
-  }
-
-  String _toolCollapseValueSignature(Object? value) {
-    final text = value?.toString().trim();
-    if (text == null || text.isEmpty) {
-      return '';
-    }
-    return '${text.length}:${text.hashCode}';
-  }
+  ) =>
+      _bubblePresenter.shouldResetCollapsedState(previous, next);
 
   void _toggleCollapsed() {
     setState(() => _collapsed = !_collapsed);
-    updateKeepAlive();
   }
 
   Widget _buildCollapseButton({
@@ -261,21 +191,11 @@ class _MessageBubbleState extends State<_MessageBubble>
     );
   }
 
-  String _plainTextPreview(String text) {
-    final normalized = text
-        .replaceAll(RegExp(r'```[\s\S]*?```'), '[代码片段]')
-        .replaceAll(RegExp(r'`([^`]+)`'), r'$1')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    if (normalized.length <= 160) {
-      return normalized;
-    }
-    return '${normalized.substring(0, 160)}...';
-  }
+  String _plainTextPreview(String text) =>
+      _bubblePresenter.plainTextPreview(text);
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     Widget child;
     // 根据消息类型渲染不同的气泡
     if (message.isText) {
@@ -293,13 +213,14 @@ class _MessageBubbleState extends State<_MessageBubble>
     } else {
       child = _buildDefaultMessage();
     }
-    if (onLongPressMessage == null) {
+    if (!_canLongPressMessageActions()) {
       return child;
     }
     return ImmediateLongPressRegion(
+      enabled: interactionsEnabled,
       longPressDelay: _sessionMessageImmediateLongPressDelay,
       moveSlop: _sessionMessageLongPressMoveSlop,
-      onLongPress: onLongPressMessage!,
+      onLongPress: _handleLongPressMessageTrigger,
       child: child,
     );
   }

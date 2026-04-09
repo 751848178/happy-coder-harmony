@@ -2,7 +2,13 @@ part of 'session_screen.dart';
 
 extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
   Widget _buildToolCallMessage(ToolInfo tool) {
-    final status = tool.status ?? ToolCallStatus.pending;
+    final actualStatus = tool.status ?? ToolCallStatus.pending;
+    final visualState = resolveSessionToolVisualState(
+      status: actualStatus,
+      autoApproveEnabled: autoApproveEnabled,
+      isToolActionPending: isToolActionPending,
+    );
+    final status = visualState.status;
     final isPending = status == ToolCallStatus.pending;
     final category = _toolCategory(tool.name);
     final presentation = _toolPresentationKind(tool.name);
@@ -12,24 +18,11 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
     final command = cache?.command ?? _extractCommand(tool.arguments);
     final diffPreview = cache?.diffPreview ?? _extractDiff(tool);
     final canCollapse = cache?.canCollapse ?? _shouldCollapseToolMessage(tool);
-    final argumentsPreview =
-        cache?.argumentsPreview ?? (_shouldShowRawArguments(
-                  tool.arguments,
-                  command: command,
-                  diff: diffPreview,
-                ) &&
-                _shouldDisplayArguments(tool.name)
-            ? _formatToolArguments(tool.arguments)
-            : null);
-    final resultPreview =
-        cache?.resultPreview ?? _formatToolResult(tool.result);
-    final resultLanguage = _guessLanguageForResult(
-      resultPreview,
-      toolName: tool.name,
-    );
-    final summaryText = _toolSummaryText(tool, resultPreview: resultPreview);
-    final isSubagentParent = message.hasChildren &&
-        (tool.name == 'Task' || tool.name == 'Agent');
+    // NOTE: argumentsPreview and resultPreview are only computed for the
+    // expanded path — the collapsed preview uses cheap _plainTextPreview()
+    // directly, avoiding expensive jsonDecode + JsonEncoder.withIndent.
+    final isSubagentParent =
+        message.hasChildren && (tool.name == 'Task' || tool.name == 'Agent');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -71,18 +64,15 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
             _buildCollapsedToolPreview(
               command: command,
               diffPreview: diffPreview,
-              resultPreview: resultPreview,
+              resultRaw: tool.result,
             ),
           ] else ...[
-            ..._buildToolDetailSections(
+            ..._buildExpandedToolDetailSections(
               tool: tool,
               presentation: presentation,
               command: command,
               diffPreview: diffPreview,
-              argumentsPreview: argumentsPreview,
-              resultPreview: resultPreview,
-              resultLanguage: resultLanguage,
-              summaryText: summaryText,
+              cache: cache,
             ),
             if (tool.error != null) ...[
               const SizedBox(height: 10),
@@ -110,9 +100,14 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
               ),
             ],
           ],
-          if (isPending) ...[
+          if (visualState.showsManualActions ||
+              visualState.showsAutoResolvingFooter) ...[
             const SizedBox(height: 10),
-            _buildPendingToolFooter(tool.id),
+            _buildToolFooter(
+              tool.id,
+              visualState: visualState,
+              actualStatus: actualStatus,
+            ),
           ],
           if (isSubagentParent) ...[
             const SizedBox(height: 8),
@@ -134,9 +129,8 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
         children.where((c) => c.isToolCall && c.tool != null).toList();
     final textChildren = children.where((c) => c.isText);
 
-    final visibleTools = toolChildren.length > 5
-        ? toolChildren.sublist(0, 5)
-        : toolChildren;
+    final visibleTools =
+        toolChildren.length > 5 ? toolChildren.sublist(0, 5) : toolChildren;
     final remainingCount = toolChildren.length - visibleTools.length;
 
     return Container(
@@ -149,8 +143,7 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final child in visibleTools)
-            _buildSubagentChildToolRow(child),
+          for (final child in visibleTools) _buildSubagentChildToolRow(child),
           if (remainingCount > 0)
             Padding(
               padding: const EdgeInsets.only(top: 4, left: 2),
@@ -178,9 +171,12 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
     final icon = _toolIcon(tool.name);
     final statusIcon = _toolStatusIcon(toolStatus);
     final statusColor = _toolStatusColor(toolStatus);
-    // Resolve human-readable title like upstream's extractDescription
-    final resultPreview = _formatToolResult(tool.result);
-    final title = _toolSummaryText(tool, resultPreview: resultPreview) ??
+    // Use lightweight plain-text preview — expensive JSON formatting.
+    // The row only shows a one-line summary; full JSON decode+re-encode is wasteful.
+    final title = _toolSummaryText(
+          tool,
+          resultPreview: _plainTextPreview(tool.result ?? ''),
+        ) ??
         tool.name;
 
     return Padding(
@@ -244,9 +240,8 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
     final text = textChild.text ?? '';
     if (text.isEmpty) return const SizedBox.shrink();
     final preview = text.trim();
-    final truncated = preview.length > 200
-        ? '${preview.substring(0, 200)}...'
-        : preview;
+    final truncated =
+        preview.length > 200 ? '${preview.substring(0, 200)}...' : preview;
 
     return Container(
       width: double.infinity,
@@ -283,6 +278,50 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
         primaryPath: primaryPath,
       );
 
-  Widget _buildPendingToolFooter(String toolId) =>
-      _buildPendingToolFooterContent(toolId);
+  /// Expanded path: computes expensive argumentsPreview/resultPreview once.
+  List<Widget> _buildExpandedToolDetailSections({
+    required ToolInfo tool,
+    required String presentation,
+    required String? command,
+    required String? diffPreview,
+    required _ToolPresentationCache? cache,
+  }) {
+    final argumentsPreview = cache?.argumentsPreview ??
+        (_shouldShowRawArguments(
+                  tool.arguments,
+                  command: command,
+                  diff: diffPreview,
+                ) &&
+                _shouldDisplayArguments(tool.name)
+            ? _formatToolArguments(tool.arguments)
+            : null);
+    final resultPreview =
+        cache?.resultPreview ?? _formatToolResult(tool.result);
+    final resultLanguage = _guessLanguageForResult(
+      resultPreview,
+      toolName: tool.name,
+    );
+    final summaryText = _toolSummaryText(tool, resultPreview: resultPreview);
+    return _buildToolDetailSections(
+      tool: tool,
+      presentation: presentation,
+      command: command,
+      diffPreview: diffPreview,
+      argumentsPreview: argumentsPreview,
+      resultPreview: resultPreview,
+      resultLanguage: resultLanguage,
+      summaryText: summaryText,
+    );
+  }
+
+  Widget _buildToolFooter(
+    String toolId, {
+    required SessionToolVisualState visualState,
+    required ToolCallStatus actualStatus,
+  }) =>
+      _buildToolFooterContent(
+        toolId,
+        visualState: visualState,
+        actualStatus: actualStatus,
+      );
 }

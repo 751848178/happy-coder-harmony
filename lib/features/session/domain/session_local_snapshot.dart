@@ -6,6 +6,7 @@ const String localSessionSnapshotLatestUsageKey = 'latestUsage';
 const String localSessionSnapshotMessagesLoadedKey = 'messagesLoaded';
 const String localSessionSnapshotMessagesKey = 'messages';
 const String localSessionSnapshotLastSeqKey = 'lastSeq';
+const int localSessionSnapshotMessageWindowSize = 30;
 
 Map<String, dynamic> buildLocalSessionSnapshot({
   required Session session,
@@ -40,14 +41,29 @@ Map<String, dynamic> buildLocalSessionSnapshot({
   }
 
   if (messagesLoaded) {
+    final snapshotMessages = _tailSnapshotMessages(
+      loadedMessages,
+      maxMessages: localSessionSnapshotMessageWindowSize,
+    );
     snapshot[localSessionSnapshotMessagesLoadedKey] = true;
-    snapshot[localSessionSnapshotMessagesKey] = loadedMessages
+    snapshot[localSessionSnapshotMessagesKey] = snapshotMessages
             ?.map((message) => message.toJson())
             .toList(growable: false) ??
         const <Map<String, dynamic>>[];
   }
   if (lastSeq != null && lastSeq > 0) {
     snapshot[localSessionSnapshotLastSeqKey] = lastSeq;
+  }
+
+  // Pre-computed preview fields for session list — avoids loading all messages.
+  if (session.previewText != null) {
+    snapshot['previewText'] = session.previewText;
+  }
+  if (session.lastMessageAt != null) {
+    snapshot['lastMessageAt'] = session.lastMessageAt!.toIso8601String();
+  }
+  if (session.listStatusKind != null) {
+    snapshot['listStatusKind'] = session.listStatusKind;
   }
 
   return snapshot;
@@ -142,16 +158,65 @@ List<ReducerMessage>? restoreMessagesFromLocalSnapshot(
     return const <ReducerMessage>[];
   }
 
-  return rawMessages
+  return restoreMessagesFromSnapshotPayload(rawMessages);
+}
+
+List<ReducerMessage> restoreMessagesFromSnapshotPayload(
+  List<dynamic> rawMessages, {
+  int? maxMessages,
+}) {
+  final sourceMessages =
+      maxMessages != null &&
+              maxMessages > 0 &&
+              rawMessages.length > maxMessages
+          ? rawMessages.sublist(rawMessages.length - maxMessages)
+          : rawMessages;
+  final restoredMessages = sourceMessages
       .map(_asStringMap)
       .whereType<Map<String, dynamic>>()
       .map(ReducerMessage.fromJson)
-      .toList(growable: false)
-    ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      .toList(growable: false);
+  restoredMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+  return List<ReducerMessage>.unmodifiable(restoredMessages);
 }
 
 int? restoreSessionLastSeqFromLocalSnapshot(Map<String, dynamic>? localState) {
   return _parseOptionalInt(localState?[localSessionSnapshotLastSeqKey]);
+}
+
+int? restoreSessionMessageCountFromLocalSnapshot(
+  Map<String, dynamic>? localState,
+) {
+  return _parseOptionalInt(localState?[localSessionSnapshotMessageCountKey]);
+}
+
+/// Restore pre-computed preview text from local snapshot.
+String? restorePreviewTextFromLocalSnapshot(Map<String, dynamic>? localState) {
+  final value = localState?['previewText'];
+  if (value is String && value.isNotEmpty) return value;
+  return null;
+}
+
+/// Restore pre-computed lastMessageAt from local snapshot.
+DateTime? restoreLastMessageAtFromLocalSnapshot(
+  Map<String, dynamic>? localState,
+) {
+  return _parseOptionalDateTime(localState?['lastMessageAt']);
+}
+
+/// Restore pre-computed listStatusKind from local snapshot.
+String? restoreListStatusKindFromLocalSnapshot(
+  Map<String, dynamic>? localState,
+) {
+  final value = localState?['listStatusKind'];
+  if (value is String && value.isNotEmpty) return value;
+  return null;
+}
+
+DateTime? _parseOptionalDateTime(dynamic value) {
+  if (value is DateTime) return value;
+  if (value is String) return DateTime.tryParse(value);
+  return null;
 }
 
 int resolveDisplaySessionMessageCount({
@@ -207,4 +272,16 @@ int? _firstPositive(Iterable<int?> values) {
     }
   }
   return null;
+}
+
+List<ReducerMessage>? _tailSnapshotMessages(
+  List<ReducerMessage>? messages, {
+  required int maxMessages,
+}) {
+  if (messages == null || messages.length <= maxMessages) {
+    return messages;
+  }
+  return List<ReducerMessage>.unmodifiable(
+    messages.sublist(messages.length - maxMessages),
+  );
 }

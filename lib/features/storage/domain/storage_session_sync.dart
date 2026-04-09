@@ -40,9 +40,34 @@ extension StorageSessionSync on StorageService {
       if ((session.path ?? '').isNotEmpty) {
         metadata['path'] = session.path;
       }
-      metadata[StorageService._localSessionSnapshotKey] =
-          localStateBySessionId[session.id] ??
-              buildLocalSessionSnapshot(session: session);
+
+      final newSnapshot = localStateBySessionId[session.id] ??
+          buildLocalSessionSnapshot(session: session);
+
+      // Preserve existing cached message data when the new snapshot has none.
+      // Bulk persists are triggered by session metadata changes and may not
+      // have message data for every session.  Without this guard, they would
+      // overwrite per-session message cache with empty snapshots.
+      final existingSnapshot =
+          existing?.metadata?[StorageService._localSessionSnapshotKey];
+      if (existingSnapshot is Map &&
+          !newSnapshot.containsKey('messagesLoaded') &&
+          existingSnapshot.containsKey('messagesLoaded')) {
+        final merged = Map<String, dynamic>.from(newSnapshot);
+        for (final key in const [
+          'messagesLoaded',
+          'messages',
+          'lastSeq',
+          'messageCount',
+        ]) {
+          if (existingSnapshot.containsKey(key)) {
+            merged[key] = existingSnapshot[key];
+          }
+        }
+        metadata[StorageService._localSessionSnapshotKey] = merged;
+      } else {
+        metadata[StorageService._localSessionSnapshotKey] = newSnapshot;
+      }
 
       final storageModel = SessionStorageModel(
         id: session.id,

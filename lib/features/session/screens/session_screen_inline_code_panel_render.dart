@@ -20,11 +20,19 @@ extension _SessionScreenInlineCodePanelRender on _InlineCodePanelState {
     required bool isTerminal,
   }) {
     final normalizedLanguage = _normalizeLanguage(widget.language);
+
+    // Cache key: code text + resolved language.
+    final cacheKey = '$code\x00$normalizedLanguage';
+    if (_cachedCodeBody != null && _cachedCodeBodyKey == cacheKey) {
+      return _cachedCodeBody!;
+    }
+
+    final Widget result;
     if (isTerminal ||
         widget.language.isEmpty ||
         widget.language == 'text' ||
         !_canHighlightLanguage(normalizedLanguage)) {
-      return SelectableText(
+      result = SelectableText(
         code,
         contextMenuBuilder: _buildMessageActionContextMenuBuilder(
           widget.onMessageAction,
@@ -36,19 +44,23 @@ extension _SessionScreenInlineCodePanelRender on _InlineCodePanelState {
           color: isTerminal ? const Color(0xFFC9D1D9) : foregroundColor,
         ),
       );
+    } else {
+      result = HighlightView(
+        code,
+        language: normalizedLanguage,
+        theme: vs2015Theme,
+        padding: EdgeInsets.zero,
+        textStyle: const TextStyle(
+          fontFamily: AppTheme.fontFamilyMono,
+          fontSize: 12.5,
+          height: 1.6,
+        ),
+      );
     }
 
-    return HighlightView(
-      code,
-      language: normalizedLanguage,
-      theme: vs2015Theme,
-      padding: EdgeInsets.zero,
-      textStyle: const TextStyle(
-        fontFamily: AppTheme.fontFamilyMono,
-        fontSize: 12.5,
-        height: 1.6,
-      ),
-    );
+    _cachedCodeBody = result;
+    _cachedCodeBodyKey = cacheKey;
+    return result;
   }
 
   Widget _buildDiffBlock(List<String> lines) {

@@ -59,7 +59,11 @@ extension SessionServiceMessageSend on SessionServiceNotifier {
       if (!bridgeStopper.isCompleted) {
         bridgeStopper.complete();
       }
-      unawaited(loadSessionMessages(sessionId).catchError((Object error) {
+      unawaited(loadSessionMessages(
+        sessionId,
+        messageWindowSize:
+            SessionServiceNotifier.sessionDetailAutomaticMessageWindowSize,
+      ).catchError((Object error) {
         Logger.warning('Failed to refresh session messages after send: $error');
       }));
 
@@ -92,7 +96,11 @@ extension SessionServiceMessageSend on SessionServiceNotifier {
         break;
       }
       try {
-        await loadSessionMessages(sessionId);
+        await loadSessionMessages(
+          sessionId,
+          messageWindowSize:
+              SessionServiceNotifier.sessionDetailAutomaticMessageWindowSize,
+        );
       } catch (error) {
         Logger.warning(
           'Failed to poll session messages during send for $sessionId: $error',
@@ -105,10 +113,14 @@ extension SessionServiceMessageSend on SessionServiceNotifier {
     required String sessionId,
     required Future<T> Function(String path) action,
   }) async {
+    // Always prefer /v3 over /v1: /v3 supports cursor-based pagination
+    // (after_seq + hasMore) which is required for complete message sync.
+    // /v1 returns a fixed 150-message window in desc order with no pagination.
     final prefixes = <String>[
-      if (_sessionMessagesApiPrefix != null) _sessionMessagesApiPrefix!,
-      '/v1',
       '/v3',
+      if (_sessionMessagesApiPrefix != null &&
+          _sessionMessagesApiPrefix != '/v3')
+        _sessionMessagesApiPrefix!,
     ].toSet().toList(growable: false);
     Object? lastError;
 

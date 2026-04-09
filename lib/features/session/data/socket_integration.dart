@@ -61,7 +61,11 @@ class SocketIntegration {
   void _handleMessageReceived(SocketMessage socketMessage) {
     final reducerMessage = _convertToReducerMessage(socketMessage);
     if (reducerMessage != null && socketMessage.sessionId != null) {
-      _sessionService?.loadSessionMessages(socketMessage.sessionId!);
+      _sessionService?.loadSessionMessages(
+        socketMessage.sessionId!,
+        messageWindowSize:
+            SessionServiceNotifier.sessionDetailAutomaticMessageWindowSize,
+      );
     }
   }
 
