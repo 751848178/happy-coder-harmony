@@ -23,6 +23,8 @@ class LocalProxyServer {
 
   static final LocalProxyServer instance = LocalProxyServer._();
 
+  static const Duration _rpcTimeout = Duration(seconds: 35);
+
   HttpServer? _server;
   int? _localPort;
   String? _activeSessionId;
@@ -83,6 +85,16 @@ class LocalProxyServer {
 
   Future<void> _handleRequest(HttpRequest request) async {
     try {
+      // Always add CORS headers so WebView can load resources freely.
+      _addCorsHeaders(request);
+
+      // Handle CORS preflight.
+      if (request.method == 'OPTIONS') {
+        request.response.statusCode = 204;
+        await request.response.close();
+        return;
+      }
+
       final sessionId = _activeSessionId;
       if (sessionId == null) {
         _respondError(request, 503, 'Proxy not configured');
@@ -104,6 +116,8 @@ class LocalProxyServer {
       headers.remove('host');
       headers.remove('connection');
       headers.remove('transfer-encoding');
+      headers.remove('origin');
+      headers.remove('referer');
 
       final proxyRequest = HttpRequestProxy(
         method: request.method,
@@ -113,8 +127,15 @@ class LocalProxyServer {
         body: bodyBytes.isNotEmpty ? base64Encode(bodyBytes) : null,
       );
 
-      // 3. Encrypt and forward via RPC.
-      final response = await _forwardViaRpc(sessionId, proxyRequest);
+      // 3. Encrypt and forward via RPC (with timeout).
+      final response = await _forwardViaRpc(sessionId, proxyRequest)
+          .timeout(_rpcTimeout, onTimeout: () {
+        return const HttpProxyResponse(
+          success: false,
+          statusCode: 504,
+          error: 'Gateway timeout',
+        );
+      });
 
       // 4. Write response back.
       final httpResponse = request.response;
@@ -140,6 +161,16 @@ class LocalProxyServer {
         // Response already closed — nothing we can do.
       }
     }
+  }
+
+  /// Add CORS headers to allow WebView cross-origin requests.
+  void _addCorsHeaders(HttpRequest request) {
+    final h = request.response.headers;
+    h.set('Access-Control-Allow-Origin', '*');
+    h.set('Access-Control-Allow-Methods',
+        'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    h.set('Access-Control-Allow-Headers', '*');
+    h.set('Access-Control-Max-Age', '86400');
   }
 
   Future<HttpProxyResponse> _forwardViaRpc(
