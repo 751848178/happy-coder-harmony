@@ -112,6 +112,17 @@ class _SessionViewportController {
   }
 
   void scrollToBottom() {
+    Logger.info(
+      '[ScrollDiag] scrollToBottom TAPPED session=${_state.widget.sessionId} '
+      'hasNewer=${_state._hasNewerMessages} '
+      'hasOlder=${_state._hasOlderMessages} '
+      'userScrolledUp=$_state._userHasScrolledUp '
+      'hasScrolledToLatest=$_state._hasScrolledToLatest '
+      'shouldStick=$_state._shouldStickToLatest '
+      'canScrollDown=$_state._canScrollToBottom '
+      'progActivity=$_programmaticScrollActivity '
+      '${_state._debugScrollSummary()} ${_state._debugMessageWindowSummary()}',
+    );
     _state._userHasScrolledUp = false;
     if (_state._hasNewerMessages) {
       unawaited(() async {
@@ -253,11 +264,25 @@ class _SessionViewportController {
     required bool force,
   }) async {
     if (!_state.mounted || !_state._scrollController.hasClients) {
+      Logger.info(
+        '[ScrollDiag] scrollToLatestUntilSettled SKIP '
+        'mounted=${_state.mounted} hasClients=${_state._scrollController.hasClients} '
+        'requestId=$requestId',
+      );
       return;
     }
     if (_state._hasScrolledToLatest && !force) {
+      Logger.info(
+        '[ScrollDiag] scrollToLatestUntilSettled SKIP already-at-latest '
+        'requestId=$requestId animate=$animate force=$force',
+      );
       return;
     }
+    Logger.info(
+      '[ScrollDiag] scrollToLatestUntilSettled START '
+      'requestId=$requestId animate=$animate force=$force '
+      '${_state._debugScrollSummary()}',
+    );
 
     final stopwatch = Stopwatch()..start();
     var attemptCount = 0;
@@ -341,6 +366,12 @@ class _SessionViewportController {
     if (!_state._scrollController.hasClients) {
       return;
     }
+    Logger.info(
+      '[ScrollDiag] scrollToTop TAPPED session=${_state.widget.sessionId} '
+      'hasNewer=${_state._hasNewerMessages} '
+      'hasOlder=${_state._hasOlderMessages} '
+      '${_state._debugScrollSummary()} ${_state._debugMessageWindowSummary()}',
+    );
     _state._userHasScrolledUp = true;
     _state._shouldStickToLatestN.value = false;
     if (_state._hasOlderMessages) {
@@ -485,6 +516,12 @@ class _SessionViewportController {
     _logTopEdgeDiagnostic('eligible');
     _topEdgeAutoloadArmed = false;
     _edgeOlderHistoryAccessInFlight = true;
+    Logger.info(
+      '[ScrollDiag] top-edge-LOAD-TRIGGERED session=${_state.widget.sessionId} '
+      'pixels=${position.pixels.toStringAsFixed(1)} '
+      'trigger=${topEdgeTrigger.toStringAsFixed(1)} '
+      '${_state._debugScrollSummary()} ${_state._debugMessageWindowSummary()}',
+    );
     unawaited(() async {
       try {
         Logger.info(
@@ -536,6 +573,12 @@ class _SessionViewportController {
     _logBottomEdgeDiagnostic('eligible');
     _bottomEdgeAutoloadArmed = false;
     _edgeNewerHistoryAccessInFlight = true;
+    Logger.info(
+      '[ScrollDiag] bottom-edge-LOAD-TRIGGERED session=${_state.widget.sessionId} '
+      'distanceToBottom=${distanceToBottom.toStringAsFixed(1)} '
+      'trigger=${bottomEdgeTrigger.toStringAsFixed(1)} '
+      '${_state._debugScrollSummary()} ${_state._debugMessageWindowSummary()}',
+    );
     unawaited(() async {
       try {
         Logger.info(
@@ -781,9 +824,19 @@ class _SessionViewportController {
         !_state._userHasScrolledUp &&
         _state._hasScrolledToLatest) {
       _state._userHasScrolledUp = true;
+      Logger.info(
+        '[ScrollDiag] userScrolledUp -> true session=${_state.widget.sessionId} '
+        'distanceToBottom=${distanceToBottom.toStringAsFixed(1)} '
+        '${_state._debugScrollSummary()}',
+      );
     }
     if (nextShouldStickToLatest && _state._userHasScrolledUp) {
       _state._userHasScrolledUp = false;
+      Logger.info(
+        '[ScrollDiag] userScrolledUp -> false session=${_state.widget.sessionId} '
+        'distanceToBottom=${distanceToBottom.toStringAsFixed(1)} '
+        '${_state._debugScrollSummary()}',
+      );
     }
     final shouldUpdate = nextCanScrollToTop != _state._canScrollToTop ||
         nextCanScrollToBottom != _state._canScrollToBottom ||
@@ -798,6 +851,21 @@ class _SessionViewportController {
     }
     if (!_state.mounted) {
       return;
+    }
+    if (_state._canScrollToBottom != nextCanScrollToBottom ||
+        _state._shouldStickToLatest != nextShouldStickToLatest) {
+      Logger.info(
+        '[ScrollDiag] state-change session=${_state.widget.sessionId} '
+        'canScrollDown: ${_state._canScrollToBottom} -> $nextCanScrollToBottom '
+        'canScrollUp: ${_state._canScrollToTop} -> $nextCanScrollToTop '
+        'stickToLatest: ${_state._shouldStickToLatest} -> $nextShouldStickToLatest '
+        'nearBottom: ${_state._isNearBottom} -> $nextIsNearBottom '
+        'userScrolledUp: ${_state._userHasScrolledUp} '
+        'hasScrolledToLatest: ${_state._hasScrolledToLatest} '
+        'distanceToBottom=${distanceToBottom.toStringAsFixed(1)} '
+        'hasNewerHistory=$hasNewerHistory hasOlderHistory=$hasOlderHistory '
+        'prog=$_programmaticScrollActivity',
+      );
     }
     _state._canScrollToTopN.value = nextCanScrollToTop;
     _state._canScrollToBottomN.value = nextCanScrollToBottom;

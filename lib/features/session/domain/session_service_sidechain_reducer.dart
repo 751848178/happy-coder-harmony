@@ -75,7 +75,10 @@ extension SessionServiceSidechainNesting on SessionServiceNotifier {
       }
     }
 
-    // Assign sub-agent messages to their parent's children list
+    // Assign sub-agent messages to their parent's children list.
+    // Normalize role: 'user' → 'agent' for sub-agent text messages, because
+    // from the UI perspective these are the main agent's instructions to the
+    // sub-agent — not human-authored user messages.
     for (final msg in messages) {
       final sid = msg.subagentId;
       if (sid == null) continue;
@@ -85,7 +88,14 @@ extension SessionServiceSidechainNesting on SessionServiceNotifier {
       // Skip lifecycle events (start/stop) from children — they're boundary markers
       if (lifecycleEvents.contains(msg.id)) continue;
 
-      childrenByParent.putIfAbsent(parentId, () => []).add(msg);
+      final normalizedMsg = msg.isText && msg.metadata?['role'] == 'user'
+          ? msg.copyWith(metadata: {
+              ...?msg.metadata,
+              'role': 'agent',
+              'sourceRole': 'agent',
+            })
+          : msg;
+      childrenByParent.putIfAbsent(parentId, () => []).add(normalizedMsg);
     }
 
     if (childrenByParent.isEmpty) return messages;

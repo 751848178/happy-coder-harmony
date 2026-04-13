@@ -129,11 +129,13 @@ class _SessionServiceMessageCoordinator {
         afterSeq = maxSeq;
       }
 
-      final retainedMessageList = retainedMessageWindow == null
+      final rawMessageList = retainedMessageWindow == null
           ? List<ReducerMessage>.unmodifiable(retainedMessages)
           : List<ReducerMessage>.unmodifiable(
               retainedMessageWindow.toList(growable: false),
             );
+      final retainedMessageList =
+          _notifier._nestSidechainMessages(rawMessageList);
       _notifier._sessionLastSeq[sessionId] = afterSeq;
       if (force) {
         if (retainedMessageList.isEmpty &&

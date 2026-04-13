@@ -119,49 +119,14 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
   }
 
   /// Renders sub-agent children inline inside a Task/Agent tool bubble.
-  /// Shows child tool calls with resolved title + status icon,
-  /// plus text output preview from the sub-agent.
+  /// Shows a collapsible panel with tool call summary and text preview.
   Widget _buildSubagentChildren() {
     final children = message.children;
     if (children.isEmpty) return const SizedBox.shrink();
-
-    final toolChildren =
-        children.where((c) => c.isToolCall && c.tool != null).toList();
-    final textChildren = children.where((c) => c.isText);
-
-    final visibleTools =
-        toolChildren.length > 5 ? toolChildren.sublist(0, 5) : toolChildren;
-    final remainingCount = toolChildren.length - visibleTools.length;
-
-    return Container(
-      margin: const EdgeInsets.only(top: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.neutral100.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final child in visibleTools) _buildSubagentChildToolRow(child),
-          if (remainingCount > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 4, left: 2),
-              child: Text(
-                '…还有 $remainingCount 个工具调用',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.neutral500,
-                ),
-              ),
-            ),
-          if (textChildren.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: _buildSubagentChildTextPreview(textChildren.last),
-            ),
-        ],
-      ),
+    return _SubagentChildrenPanel(
+      children: children,
+      buildChildToolRow: _buildSubagentChildToolRow,
+      buildChildTextPreview: _buildSubagentChildTextPreview,
     );
   }
 
@@ -324,4 +289,127 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
         visualState: visualState,
         actualStatus: actualStatus,
       );
+}
+
+/// Collapsible panel for sub-agent children inside a Task/Agent tool bubble.
+/// Defaults to collapsed with a compact summary; tap to expand.
+class _SubagentChildrenPanel extends StatefulWidget {
+  const _SubagentChildrenPanel({
+    required this.children,
+    required this.buildChildToolRow,
+    required this.buildChildTextPreview,
+  });
+
+  final List<ReducerMessage> children;
+  final Widget Function(ReducerMessage) buildChildToolRow;
+  final Widget Function(ReducerMessage) buildChildTextPreview;
+
+  @override
+  State<_SubagentChildrenPanel> createState() => _SubagentChildrenPanelState();
+}
+
+class _SubagentChildrenPanelState extends State<_SubagentChildrenPanel> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final children = widget.children;
+    final toolChildren =
+        children.where((c) => c.isToolCall && c.tool != null).toList();
+    final textChildren = children.where((c) => c.isText).toList();
+
+    if (toolChildren.isEmpty && textChildren.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final failedCount = toolChildren
+        .where((c) =>
+            c.tool?.status == ToolCallStatus.failed ||
+            c.tool?.status == ToolCallStatus.rejected)
+        .length;
+    final isRunning = toolChildren.any((c) =>
+        c.tool?.status == ToolCallStatus.pending ||
+        c.tool?.status == ToolCallStatus.executing ||
+        c.tool?.status == ToolCallStatus.approved);
+
+    final statusLabel = isRunning
+        ? '进行中'
+        : failedCount > 0
+            ? '$failedCount 失败'
+            : '已完成';
+
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.neutral100.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Summary header — always visible, tap to toggle
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      toolChildren.isNotEmpty
+                          ? '${toolChildren.length} 个工具调用 · $statusLabel'
+                          : '子任务输出',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.neutral700,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    _expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    size: 18,
+                    color: AppTheme.neutral500,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Expanded detail
+          if (_expanded) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final child in toolChildren.take(5))
+                    widget.buildChildToolRow(child),
+                  if (toolChildren.length > 5)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, left: 2),
+                      child: Text(
+                        '…还有 ${toolChildren.length - 5} 个工具调用',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.neutral500,
+                        ),
+                      ),
+                    ),
+                  if (textChildren.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, bottom: 8),
+                      child:
+                          widget.buildChildTextPreview(textChildren.last),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }

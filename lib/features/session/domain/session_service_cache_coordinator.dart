@@ -176,9 +176,10 @@ class _SessionServiceCacheCoordinator {
                   SessionServiceNotifier.sessionDetailAutomaticMessageWindowSize,
             );
 
+      final nestedMessages = _notifier._nestSidechainMessages(messages);
       _notifier._repository.replaceMessages(
         sessionId,
-        messages,
+        nestedMessages,
         preserveOptimisticMessages: false,
         totalMessageCount: totalMessageCount,
       );
