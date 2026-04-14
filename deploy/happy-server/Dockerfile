@@ -55,11 +55,29 @@ RUN set -eux; \
   if [ -n "${HAPPY_ARCHIVE_URL}" ]; then \
     archive_url="${HAPPY_ARCHIVE_URL}"; \
   elif [ "${repo_base#*https://github.com/}" != "${repo_base}" ] || [ "${repo_base#*http://github.com/}" != "${repo_base}" ]; then \
-    archive_url="${repo_base}/archive/${HAPPY_REF}.tar.gz"; \
+    gh_path="${repo_base#*https://github.com/}"; \
+    [ "${gh_path}" != "${repo_base}" ] || gh_path="${repo_base#*http://github.com/}"; \
+    archive_url="https://gh-proxy.com/https://github.com/${gh_path}/archive/${HAPPY_REF}.tar.gz"; \
   fi; \
   if [ -n "${archive_url}" ]; then \
-    curl -fsSL --retry 5 --retry-all-errors --connect-timeout 15 "${archive_url}" \
-      | tar -xzf - --strip-components=1 -C /src; \
+    ok=false; \
+    for url in \
+      "${archive_url}" \
+      "$(echo "${archive_url}" | sed 's|https://gh-proxy.com/|https://gh.ddlc.top/|')" \
+      "$(echo "${archive_url}" | sed 's|https://gh-proxy.com/|https://ghproxy.net/|')" \
+    ; do \
+      if [ "${ok}" = false ] && curl -fsSL --retry 3 --retry-all-errors --connect-timeout 10 --max-time 120 "${url}" \
+        > /tmp/src.tar.gz 2>/dev/null; then \
+        tar -xzf /tmp/src.tar.gz --strip-components=1 -C /src; \
+        ok=true; \
+        echo "Downloaded source from: ${url}"; \
+      fi; \
+    done; \
+    if [ "${ok}" = false ]; then \
+      echo "ERROR: All GitHub mirrors failed. Set HAPPY_ARCHIVE_URL to a pre-downloaded archive." >&2; \
+      exit 1; \
+    fi; \
+    rm -f /tmp/src.tar.gz; \
   else \
     git init; \
     git remote add origin "${repo_url}"; \

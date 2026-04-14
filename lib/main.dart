@@ -25,13 +25,15 @@ void main() async {
       Logger.error('[FlutterCrash][context] $context');
     }
     if (details.stack != null) {
-      Logger.error('[FlutterCrash][stack]\n${details.stack}');
+      final lines = details.stack.toString().split('\n').take(5).join(' | ');
+      Logger.error('[FlutterCrash][stack] $lines');
     }
     FlutterError.presentError(details);
   };
   ui.PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
     Logger.error('[FlutterCrash][async] $error');
-    Logger.error('[FlutterCrash][async-stack]\n$stack');
+    final lines = stack.toString().split('\n').take(5).join(' | ');
+    Logger.error('[FlutterCrash][async-stack] $lines');
     return false;
   };
 

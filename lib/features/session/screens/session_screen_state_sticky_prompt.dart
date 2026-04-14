@@ -28,12 +28,17 @@ extension _SessionScreenStateStickyPrompt on _SessionScreenState {
     }
 
     const replyRevealOffset = 12.0;
-    final targetOffset =
-        (viewport.getOffsetToReveal(anchorTarget, 0).offset - replyRevealOffset)
-            .clamp(
-      _scrollController.position.minScrollExtent,
-      _scrollController.position.maxScrollExtent,
-    );
+    final double targetOffset;
+    try {
+      targetOffset =
+          (viewport.getOffsetToReveal(anchorTarget, 0).offset - replyRevealOffset)
+              .clamp(
+        _scrollController.position.minScrollExtent,
+        _scrollController.position.maxScrollExtent,
+      );
+    } catch (_) {
+      return;
+    }
     final target = (targetOffset as num).toDouble();
     if ((_scrollController.offset - target).abs() < 1) {
       return;
@@ -105,8 +110,19 @@ extension _SessionScreenStateStickyPrompt on _SessionScreenState {
         continue;
       }
 
-      final replyTop = viewport.getOffsetToReveal(replyTarget, 0).offset;
-      final sectionBottom = viewport.getOffsetToReveal(sectionTarget, 1).offset;
+      // getOffsetToReveal can throw if the render tree is in an inconsistent
+      // state (e.g. during edge loading that replaces list items).  Guard to
+      // prevent per-frame crashes that cause jank and flicker.
+      final RevealedOffset replyRevealed;
+      final RevealedOffset sectionRevealed;
+      try {
+        replyRevealed = viewport.getOffsetToReveal(replyTarget, 0);
+        sectionRevealed = viewport.getOffsetToReveal(sectionTarget, 1);
+      } catch (_) {
+        continue;
+      }
+      final replyTop = replyRevealed.offset;
+      final sectionBottom = sectionRevealed.offset;
       if (!replyTop.isFinite || !sectionBottom.isFinite) {
         continue;
       }

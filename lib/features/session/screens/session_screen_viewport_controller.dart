@@ -79,6 +79,17 @@ class _SessionViewportController {
     _lastCompletedEdgeLoadDirection = direction;
     _lastCompletedEdgeLoadAt = DateTime.now();
     _lastCompletedEdgeLoadWindowStart = _state._messageWindowStartIndex;
+    // Re-arm autoload after edge load with a short cooldown.
+    // Without this, the user can get stuck at the top of the content:
+    // alignToBottom:false anchor restore places them near the top,
+    // and the disarmed autoload can't re-arm because the user can't
+    // scroll far enough below the trigger to satisfy the re-arm gap.
+    _suspendEdgeAutoload(duration: const Duration(milliseconds: 200));
+    if (direction.contains('older')) {
+      _topEdgeAutoloadArmed = true;
+    } else {
+      _bottomEdgeAutoloadArmed = true;
+    }
     Logger.info(
       '[SessionEdgeDiag] load-complete direction=$direction '
       'session=${_state.widget.sessionId} ${debugEdgeLoadStateSummary()} '
@@ -830,7 +841,10 @@ class _SessionViewportController {
         '${_state._debugScrollSummary()}',
       );
     }
-    if (nextShouldStickToLatest && _state._userHasScrolledUp) {
+    if (nextShouldStickToLatest &&
+        _state._userHasScrolledUp &&
+        !_state._isLoadingOlderMessages &&
+        !_state._isLoadingNewerMessages) {
       _state._userHasScrolledUp = false;
       Logger.info(
         '[ScrollDiag] userScrolledUp -> false session=${_state.widget.sessionId} '
@@ -842,7 +856,13 @@ class _SessionViewportController {
         nextCanScrollToBottom != _state._canScrollToBottom ||
         nextIsNearBottom != _state._isNearBottom ||
         nextShouldStickToLatest != _state._shouldStickToLatest;
+    // Skip sticky prompt refresh during edge loading — the content is
+    // being replaced and the render tree is in flux.  Refreshing now is
+    // wasteful and can trigger getOffsetToReveal exceptions.
+    final edgeLoading = _state._isLoadingOlderMessages ||
+        _state._isLoadingNewerMessages;
     if (_programmaticScrollActivity == 0 &&
+        !edgeLoading &&
         (_state._cachedHasStickyCandidates || _state._stickyTurnId != null)) {
       scheduleViewportStateRefresh();
     }
