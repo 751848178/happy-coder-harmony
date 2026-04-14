@@ -369,8 +369,11 @@ extension _SessionScreenStateRefresh on _SessionScreenState {
     final beforeMaxScroll = _scrollController.hasClients
         ? _scrollController.position.maxScrollExtent
         : null;
+    // Capture from TOP of viewport: prependMessageWindow trims from the
+    // tail when the window exceeds 288 messages.  The top-most visible
+    // message survives tail trimming, while the bottom-most one does not.
     final anchor = adjustScrollAfterLoad
-        ? _captureMessageViewportAnchor(alignToBottom: true)
+        ? _captureMessageViewportAnchor(alignToBottom: false)
         : null;
     Logger.info(
       '[SessionWindowDiag] load-older start session=${widget.sessionId} '
@@ -393,6 +396,9 @@ extension _SessionScreenStateRefresh on _SessionScreenState {
       if (!loaded) {
         return;
       }
+      // Synchronous scroll correction: record position before content
+      // change so _ChatScrollPosition can correct during layout.
+      (_scrollController as _ChatScrollController).standbyForPrepend();
       _syncMessagesFromRepository();
       final afterOffset = _scrollController.hasClients
           ? _scrollController.position.pixels
@@ -412,7 +418,10 @@ extension _SessionScreenStateRefresh on _SessionScreenState {
         '${anchor == null ? "" : _debugAnchorStateSummary(anchor.messageId)}',
       );
       _viewportController.recordEdgeLoadCompleted('older');
-      _hasScrolledToLatest = false;
+      // Don't clear _hasScrolledToLatest here — this is an incremental
+      // edge load during user scrolling, not a boundary jump.  Clearing
+      // it allows _SessionScreenBodyEffects to fire scroll-to-latest
+      // when the user explicitly scrolled up.
       _shouldStickToLatestN.value = false;
       if (adjustScrollAfterLoad) {
         await _restoreMessageViewportAnchorAfterFrame(
@@ -533,8 +542,11 @@ extension _SessionScreenStateRefresh on _SessionScreenState {
     final beforeMaxScroll = _scrollController.hasClients
         ? _scrollController.position.maxScrollExtent
         : null;
+    // Capture from BOTTOM of viewport: appendMessageWindow trims from
+    // the head when the window exceeds 288 messages.  The bottom-most
+    // visible message survives head trimming, while the top-most one does not.
     final anchor = adjustScrollAfterLoad
-        ? _captureMessageViewportAnchor(alignToBottom: false)
+        ? _captureMessageViewportAnchor(alignToBottom: true)
         : null;
     Logger.info(
       '[SessionWindowDiag] load-newer start session=${widget.sessionId} '
@@ -557,6 +569,9 @@ extension _SessionScreenStateRefresh on _SessionScreenState {
       if (!loaded) {
         return;
       }
+      // Synchronous scroll correction: record position before content
+      // change so _ChatScrollPosition can correct during layout.
+      (_scrollController as _ChatScrollController).standbyForAppend();
       _syncMessagesFromRepository();
       final afterOffset = _scrollController.hasClients
           ? _scrollController.position.pixels

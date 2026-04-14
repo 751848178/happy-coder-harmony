@@ -20,6 +20,101 @@ class _FlatMessageItem {
   final int turnIndex;
 }
 
+/// ScrollController that supports synchronous position correction
+/// when message content changes during edge loads.
+///
+/// Call [standbyForPrepend] before prepending older messages (adds items
+/// above viewport). Call [standbyForAppend] before appending newer messages
+/// (adds items below viewport with possible head-trim).
+class _ChatScrollController extends ScrollController {
+  double? _standbyPixels;
+  double? _standbyMaxScrollExtent;
+  bool _standbyAlignToBottom = false;
+
+  /// Record scroll state before prepending older messages above viewport.
+  void standbyForPrepend() {
+    if (!hasClients) return;
+    _standbyPixels = position.pixels;
+    _standbyMaxScrollExtent = position.maxScrollExtent;
+    _standbyAlignToBottom = false;
+  }
+
+  /// Record scroll state before appending newer messages below viewport.
+  void standbyForAppend() {
+    if (!hasClients) return;
+    _standbyPixels = position.pixels;
+    _standbyMaxScrollExtent = position.maxScrollExtent;
+    _standbyAlignToBottom = true;
+  }
+}
+
+/// ScrollPosition that corrects scroll offset synchronously during layout
+/// when a standby is active on the owning [_ChatScrollController].
+///
+/// This eliminates the one-frame jitter caused by post-frame-callback-based
+/// anchor restoration. Correction happens in [applyContentDimensions], which
+/// is called during layout (before paint), so the user never sees the wrong
+/// position.
+class _ChatScrollPosition extends ScrollPositionWithSingleContext {
+  _ChatScrollPosition({
+    required super.physics,
+    required super.context,
+    super.initialPixels,
+    super.keepScrollOffset,
+    super.oldPosition,
+    super.debugLabel,
+  });
+
+  @override
+  bool applyContentDimensions(double min, double max) {
+    final ctrl = controller;
+    if (ctrl is _ChatScrollController) {
+      final standbyPixels = ctrl._standbyPixels;
+      final standbyMax = ctrl._standbyMaxScrollExtent;
+      if (standbyPixels != null && standbyMax != null) {
+        // Consume standby state so correction fires only once.
+        ctrl._standbyPixels = null;
+        ctrl._standbyMaxScrollExtent = null;
+        final delta = max - standbyMax;
+        if (delta.abs() > 0.5) {
+          final double corrected;
+          if (ctrl._standbyAlignToBottom) {
+            // Append mode: keep distance from bottom constant.
+            corrected = (max - (standbyMax - standbyPixels)).clamp(min, max);
+          } else {
+            // Prepend mode: shift down by the height of new content above.
+            corrected = (standbyPixels + delta).clamp(min, max);
+          }
+          forcePixels(corrected);
+        }
+      }
+    }
+    return super.applyContentDimensions(min, max);
+  }
+}
+
+/// ScrollPhysics that creates [_ChatScrollPosition] instances for the
+/// message list ListView.
+class _ChatScrollPhysics extends ClampingScrollPhysics {
+  const _ChatScrollPhysics({super.parent});
+
+  @override
+  ScrollPosition createScrollPosition(
+    ScrollContext context,
+    ScrollPhysics parent,
+    ScrollPosition? oldPosition,
+  ) {
+    return _ChatScrollPosition(
+      physics: parent,
+      context: context,
+      initialPixels: oldPosition?.pixels ?? initialPixels,
+      keepScrollOffset: keepScrollOffset,
+      oldPosition: oldPosition,
+      debugLabel: debugLabel,
+    );
+  }
+}
+
 class _BuildContextAnchor extends StatefulWidget {
   const _BuildContextAnchor({
     required this.anchorId,
@@ -147,7 +242,7 @@ extension _SessionScreenViewMessages on _SessionScreenState {
               }
               return null;
             },
-            physics: const ClampingScrollPhysics(),
+            physics: const _ChatScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(
               AppTheme.spacingMd,
               _sessionMessageListTopPadding,

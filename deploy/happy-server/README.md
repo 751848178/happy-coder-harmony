@@ -35,7 +35,15 @@
 
 - `https://gh-proxy.com/https://github.com/slopus/happy.git`
 
-Dockerfile 也会自动识别这类“镜像前缀 + GitHub 仓库”的 URL，并继续优先下载对应的 archive 包，所以后续只改 `HAPPY_UPSTREAM_REF` 也能继续走镜像。
+Dockerfile 也会自动识别这类”镜像前缀 + GitHub 仓库”的 URL，并继续优先下载对应的 archive 包，所以后续只改 `HAPPY_UPSTREAM_REF` 也能继续走镜像。
+
+源码下载阶段内置了多个 GitHub 镜像的自动 fallback（按顺序尝试）：
+
+1. `gh-proxy.com`（默认，实测稳定）
+2. `gh.ddlc.top`（备用）
+3. `ghproxy.net`（备用）
+
+三个镜像全部失败时，构建会报错并提示通过 `HAPPY_ARCHIVE_URL` 指定自托管源码包。
 
 为了适配国内服务器，构建阶段还额外做了三件事：
 
@@ -118,11 +126,20 @@ curl http://127.0.0.1:3005/health
 
 ```bash
 cp .env.example .env
-vim .env  # 设置 HAPPY_PUBLIC_URL, HANDY_MASTER_SECRET, DATABASE_URL
+vim .env  # 设置 HAPPY_PUBLIC_URL, HANDY_MASTER_SECRET
 
 docker compose build
 docker compose up -d
 ```
+
+所有网络依赖均指向国内可达的镜像源：
+
+| 资源 | 默认镜像 |
+|---|---|
+| Docker 基础镜像 | `m.daocloud.io`（DaoCloud，可换成 `docker.1ms.run`） |
+| apt 系统包 | `mirrors.tuna.tsinghua.edu.cn`（清华） |
+| npm 包 | `registry.npmmirror.com`（阿里） |
+| GitHub 源码 | `gh-proxy.com` → `gh.ddlc.top` → `ghproxy.net`（自动 fallback） |
 
 默认已走国内友好镜像源。如需切换：
 
@@ -149,6 +166,13 @@ docker compose build --pull
 
 ## 国内服务器常见报错
 
+### 0. `All GitHub mirrors failed`
+
+源码下载阶段尝试了所有内置镜像（`gh-proxy.com`、`gh.ddlc.top`、`ghproxy.net`）但全部失败。解决办法：
+
+1. 在 `.env` 里设置 `HAPPY_ARCHIVE_URL` 指向你自托管的源码包
+2. 或使用推荐的"本地构建 + 导出"方案，完全绕过服务器网络
+
 ### 1. `hub.fastgit.xyz ... Couldn't connect to server`
 
 这通常说明服务器还在用旧版 `Dockerfile` 或旧版 `.env`。新版部署目录已经把默认仓库切到了：
@@ -172,11 +196,20 @@ docker compose build --pull
 cat >/etc/docker/daemon.json <<'EOF'
 {
   "registry-mirrors": [
+    "https://docker.1ms.run",
     "https://docker.m.daocloud.io"
   ]
 }
 EOF
 systemctl restart docker
+```
+
+或者在 `.env` 里直接切换基础镜像前缀：
+
+```bash
+# 1ms 镜像（国内 CDN，免登录）
+HAPPY_NODE_IMAGE=docker.1ms.run/library/node:20
+HAPPY_NODE_SLIM_IMAGE=docker.1ms.run/library/node:20-slim
 ```
 
 ### 3. `apt-get update` 或 `apt-get install ffmpeg` 卡很久

@@ -14,9 +14,8 @@ class Logger {
 
   /// 输出信息
   static void info(String message) {
-    if (_isDebugMode) {
-      print('[INFO] $message');
-    }
+    // Always print in release for now — debugging scroll issues.
+    print('[INFO] $message');
   }
 
   /// 输出警告
@@ -28,9 +27,8 @@ class Logger {
 
   /// 输出错误
   static void error(String message) {
-    if (_isDebugMode) {
-      print('[ERROR] $message');
-    }
+    // Always print in release for now — debugging scroll issues.
+    print('[ERROR] $message');
   }
 }
 
