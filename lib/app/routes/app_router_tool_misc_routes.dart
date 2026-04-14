@@ -58,5 +58,13 @@ List<RouteBase> _buildToolAndMiscRoutes() {
       name: AppRoutes.notFoundName,
       builder: (context, state) => const NotFoundScreen(),
     ),
+    GoRoute(
+      path: AppRoutes.webview,
+      name: AppRoutes.webviewName,
+      builder: (context, state) => WebViewScreen(
+        initialPath: state.uri.queryParameters['path'],
+        title: state.uri.queryParameters['title'],
+      ),
+    ),
   ];
 }

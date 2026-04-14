@@ -51,6 +51,7 @@ import '../../features/tools/mcp_tool_screen.dart';
 import '../../features/tools/text_selection_screen.dart';
 import '../../features/tools/todo_tool_screen.dart';
 import '../../features/tools/write_tool_screen.dart';
+import '../../features/webview/screens/webview_screen.dart';
 import '../providers/app_providers.dart' hide NotFoundScreen;
 import 'app_routes.dart';
 import 'not_found_screen.dart';

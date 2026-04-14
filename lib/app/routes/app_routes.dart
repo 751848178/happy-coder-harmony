@@ -124,6 +124,9 @@ class AppRoutes {
   static const String textSelection = '/text-selection',
       textSelectionName = 'text-selection';
 
+  static const String webview = '/webview',
+      webviewName = 'webview';
+
   static const String artifacts = '/artifacts',
       artifactsName = 'artifacts',
       changelog = '/changelog',
