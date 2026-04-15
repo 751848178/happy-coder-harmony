@@ -48,69 +48,52 @@ class _ChatScrollController extends ScrollController {
   }
 }
 
-/// ScrollPosition that corrects scroll offset synchronously during layout
+/// ScrollPhysics that corrects scroll position synchronously during layout
 /// when a standby is active on the owning [_ChatScrollController].
 ///
-/// This eliminates the one-frame jitter caused by post-frame-callback-based
-/// anchor restoration. Correction happens in [applyContentDimensions], which
-/// is called during layout (before paint), so the user never sees the wrong
-/// position.
-class _ChatScrollPosition extends ScrollPositionWithSingleContext {
-  _ChatScrollPosition({
-    required super.physics,
-    required super.context,
-    super.initialPixels,
-    super.keepScrollOffset,
-    super.oldPosition,
-    super.debugLabel,
-  });
+/// This overrides [adjustPositionForNewDimensions], which is called by the
+/// framework during [applyContentDimensions] (layout phase, before paint).
+/// The correction happens in the same frame, so the user never sees the
+/// wrong scroll position.
+class _ChatScrollPhysics extends ClampingScrollPhysics {
+  const _ChatScrollPhysics({required this.chatController});
+
+  final _ChatScrollController chatController;
 
   @override
-  bool applyContentDimensions(double min, double max) {
-    final ctrl = controller;
-    if (ctrl is _ChatScrollController) {
-      final standbyPixels = ctrl._standbyPixels;
-      final standbyMax = ctrl._standbyMaxScrollExtent;
-      if (standbyPixels != null && standbyMax != null) {
-        // Consume standby state so correction fires only once.
-        ctrl._standbyPixels = null;
-        ctrl._standbyMaxScrollExtent = null;
-        final delta = max - standbyMax;
-        if (delta.abs() > 0.5) {
-          final double corrected;
-          if (ctrl._standbyAlignToBottom) {
-            // Append mode: keep distance from bottom constant.
-            corrected = (max - (standbyMax - standbyPixels)).clamp(min, max);
-          } else {
-            // Prepend mode: shift down by the height of new content above.
-            corrected = (standbyPixels + delta).clamp(min, max);
-          }
-          forcePixels(corrected);
+  double adjustPositionForNewDimensions({
+    required ScrollMetrics oldPosition,
+    required ScrollMetrics newPosition,
+    required bool isScrolling,
+    required double velocity,
+  }) {
+    final standbyPixels = chatController._standbyPixels;
+    final standbyMax = chatController._standbyMaxScrollExtent;
+    if (standbyPixels != null && standbyMax != null) {
+      // Consume standby state so correction fires only once.
+      chatController._standbyPixels = null;
+      chatController._standbyMaxScrollExtent = null;
+      final delta = newPosition.maxScrollExtent - standbyMax;
+      if (delta.abs() > 0.5) {
+        final double corrected;
+        if (chatController._standbyAlignToBottom) {
+          // Append mode: keep distance from bottom constant.
+          corrected = (newPosition.maxScrollExtent -
+                  (standbyMax - standbyPixels))
+              .clamp(newPosition.minScrollExtent, newPosition.maxScrollExtent);
+        } else {
+          // Prepend mode: shift down by the height of new content above.
+          corrected = (standbyPixels + delta)
+              .clamp(newPosition.minScrollExtent, newPosition.maxScrollExtent);
         }
+        return corrected;
       }
     }
-    return super.applyContentDimensions(min, max);
-  }
-}
-
-/// ScrollPhysics that creates [_ChatScrollPosition] instances for the
-/// message list ListView.
-class _ChatScrollPhysics extends ClampingScrollPhysics {
-  const _ChatScrollPhysics({super.parent});
-
-  @override
-  ScrollPosition createScrollPosition(
-    ScrollContext context,
-    ScrollPhysics parent,
-    ScrollPosition? oldPosition,
-  ) {
-    return _ChatScrollPosition(
-      physics: parent,
-      context: context,
-      initialPixels: oldPosition?.pixels ?? initialPixels,
-      keepScrollOffset: keepScrollOffset,
+    return super.adjustPositionForNewDimensions(
       oldPosition: oldPosition,
-      debugLabel: debugLabel,
+      newPosition: newPosition,
+      isScrolling: isScrolling,
+      velocity: velocity,
     );
   }
 }
@@ -242,7 +225,7 @@ extension _SessionScreenViewMessages on _SessionScreenState {
               }
               return null;
             },
-            physics: const _ChatScrollPhysics(),
+            physics: _ChatScrollPhysics(chatController: _scrollController),
             padding: const EdgeInsets.fromLTRB(
               AppTheme.spacingMd,
               _sessionMessageListTopPadding,
@@ -284,7 +267,7 @@ extension _SessionScreenViewMessages on _SessionScreenState {
         }
         return null;
       },
-      physics: const ClampingScrollPhysics(),
+      physics: _ChatScrollPhysics(chatController: _scrollController),
       padding: const EdgeInsets.fromLTRB(
         AppTheme.spacingMd,
         _sessionMessageListTopPadding,

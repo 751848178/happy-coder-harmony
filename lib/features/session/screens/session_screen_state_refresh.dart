@@ -398,7 +398,7 @@ extension _SessionScreenStateRefresh on _SessionScreenState {
       }
       // Synchronous scroll correction: record position before content
       // change so _ChatScrollPosition can correct during layout.
-      (_scrollController as _ChatScrollController).standbyForPrepend();
+      _scrollController.standbyForPrepend();
       _syncMessagesFromRepository();
       final afterOffset = _scrollController.hasClients
           ? _scrollController.position.pixels
@@ -571,7 +571,7 @@ extension _SessionScreenStateRefresh on _SessionScreenState {
       }
       // Synchronous scroll correction: record position before content
       // change so _ChatScrollPosition can correct during layout.
-      (_scrollController as _ChatScrollController).standbyForAppend();
+      _scrollController.standbyForAppend();
       _syncMessagesFromRepository();
       final afterOffset = _scrollController.hasClients
           ? _scrollController.position.pixels

@@ -243,12 +243,6 @@ class _SessionScreenState extends ConsumerState<SessionScreen>
       ValueNotifier(const <_CollapsedTurnSummary>[]);
   final ValueNotifier<bool> _messageViewportReadyN = ValueNotifier(false);
   final ValueNotifier<bool> _messageInteractionsEnabledN = ValueNotifier(false);
-  // When true the message list paints with opacity 0 to hide the single-frame
-  // scroll-position jitter that occurs when older messages are prepended.
-  // When true the message list is replaced by a loading indicator to hide
-  // the single-frame scroll-position jitter that occurs when older messages
-  // are prepended during edge loading.
-  final ValueNotifier<bool> _suppressContentFlickerN = ValueNotifier(false);
 
   // Convenience getters for logic reads (no rebuild triggered).
   bool get _isSending => _isSendingN.value;
@@ -444,7 +438,6 @@ class _SessionScreenState extends ConsumerState<SessionScreen>
     _scrollActionsCollapsedN.dispose();
     _scrollActionVerticalOffsetN.dispose();
     _scrollActionDragDxN.dispose();
-    _suppressContentFlickerN.dispose();
     _queuedMessagesN.dispose();
     for (final notifier in _toolActionPendingNotifiers.values) {
       notifier.dispose();

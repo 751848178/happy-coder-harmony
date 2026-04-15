@@ -3,7 +3,7 @@ part of 'session_screen.dart';
 class _SessionViewportController {
   static const double _historyEdgeLoadTrigger = 220.0;
   static const double _historyEdgeLoadTriggerViewportFactor = 0.78;
-  static const double _edgeAutoloadRearmGap = 180.0;
+  static const double _edgeAutoloadRearmGap = 40.0;
   static const Duration _edgeAutoloadCooldown = Duration(milliseconds: 480);
 
   _SessionViewportController(this._state);
@@ -80,11 +80,9 @@ class _SessionViewportController {
     _lastCompletedEdgeLoadAt = DateTime.now();
     _lastCompletedEdgeLoadWindowStart = _state._messageWindowStartIndex;
     // Re-arm autoload after edge load with a short cooldown.
-    // Without this, the user can get stuck at the top of the content:
-    // alignToBottom:false anchor restore places them near the top,
-    // and the disarmed autoload can't re-arm because the user can't
-    // scroll far enough below the trigger to satisfy the re-arm gap.
-    _suspendEdgeAutoload(duration: const Duration(milliseconds: 200));
+    // Synchronous scroll correction keeps the position stable,
+    // so a short cooldown suffices.
+    _suspendEdgeAutoload(duration: const Duration(milliseconds: 50));
     if (direction.contains('older')) {
       _topEdgeAutoloadArmed = true;
     } else {

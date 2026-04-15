@@ -127,43 +127,34 @@ extension _SessionScreenStateBuild on _SessionScreenState {
                               : ValueListenableBuilder<bool>(
                                   valueListenable: _messageViewportReadyN,
                                   builder: (_, viewportReady, __) {
-                                    return ValueListenableBuilder<bool>(
-                                      valueListenable: _suppressContentFlickerN,
-                                      builder: (_, suppressFlicker, ___) {
-                                        final list = _buildMessageList(
-                                          messages: bodyState.messages,
-                                          turnGroups: bodyState.turnGroups,
-                                          autoApproveEnabled:
-                                              _shouldAutoApprove(session),
-                                        );
-                                        final shouldRevealList = viewportReady ||
-                                            _hasScrolledToLatest ||
-                                            _userHasScrolledUp ||
-                                            bodyState.messages.isEmpty;
-                                        // The list must ALWAYS exist in the
-                                        // widget tree so that _BuildContextAnchor
-                                        // keeps message-row BuildContexts
-                                        // registered for anchor restoration.
-                                        final effectiveOpacity =
-                                            shouldRevealList && !suppressFlicker
-                                                ? 1.0
-                                                : 0.0;
-                                        return Stack(
-                                          children: [
-                                            IgnorePointer(
-                                              ignoring: !shouldRevealList,
-                                              child: Opacity(
-                                                opacity: effectiveOpacity,
-                                                child: list,
-                                              ),
-                                            ),
-                                            if (!shouldRevealList)
-                                              const Center(
-                                                child: CircularProgressIndicator(),
-                                              ),
-                                          ],
-                                        );
-                                      },
+                                    final list = _buildMessageList(
+                                      messages: bodyState.messages,
+                                      turnGroups: bodyState.turnGroups,
+                                      autoApproveEnabled:
+                                          _shouldAutoApprove(session),
+                                    );
+                                    final shouldRevealList = viewportReady ||
+                                        _hasScrolledToLatest ||
+                                        _userHasScrolledUp ||
+                                        bodyState.messages.isEmpty;
+                                    // The list must ALWAYS exist in the
+                                    // widget tree so that _BuildContextAnchor
+                                    // keeps message-row BuildContexts
+                                    // registered for anchor restoration.
+                                    return Stack(
+                                      children: [
+                                        IgnorePointer(
+                                          ignoring: !shouldRevealList,
+                                          child: Opacity(
+                                            opacity: shouldRevealList ? 1.0 : 0.0,
+                                            child: list,
+                                          ),
+                                        ),
+                                        if (!shouldRevealList)
+                                          const Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                      ],
                                     );
                                   },
                                 ),
