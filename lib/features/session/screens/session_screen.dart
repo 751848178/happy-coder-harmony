@@ -356,6 +356,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen>
   List<SessionInputTemplate> get _customInputTemplates =>
       _customInputTemplatesN.value;
   List<_MessageTurnGroup> _visibleTurnGroups = const <_MessageTurnGroup>[];
+  List<_MessageTurnGroup>? _cachedPruneTurnGroups;
   StreamSubscription<SocketEvent>? _socketEventSubscription;
   Timer? _draftPersistDebounce;
   Timer? _messagePollingTimer;
@@ -652,24 +653,33 @@ class _SessionScreenState extends ConsumerState<SessionScreen>
       _toolActionPendingNotifiers.remove(toolId)?.dispose();
       _toolActionsInFlight.remove(toolId);
     }
+    // Only rebuild turn-group context maps when turn groups actually changed.
+    // During streaming updates the turn groups are typically append-only and
+    // the cached groups are identical, so resolveTurnGroups returns the same
+    // list.  Skip the clear+rebuild in that case to avoid O(groups) work on
+    // every message sync.
     final activeTurnGroups = _bodyPresenter.resolveTurnGroups(messages);
-    _turnSectionMessageIds
-      ..clear()
-      ..addEntries(
-        activeTurnGroups.where((group) => group.messages.isNotEmpty).map(
-              (group) => MapEntry(group.id, group.messages.last.id),
-            ),
-      );
-    _turnReplyMessageIds
-      ..clear()
-      ..addEntries(
-        activeTurnGroups
-            .map(
-              (group) => MapEntry(group.id, _resolveTurnReplyMessageId(group)),
-            )
-            .where((entry) => entry.value != null)
-            .map((entry) => MapEntry(entry.key, entry.value!)),
-      );
+    if (!identical(activeTurnGroups, _cachedPruneTurnGroups)) {
+      _cachedPruneTurnGroups = activeTurnGroups;
+      _turnSectionMessageIds
+        ..clear()
+        ..addEntries(
+          activeTurnGroups.where((group) => group.messages.isNotEmpty).map(
+                (group) => MapEntry(group.id, group.messages.last.id),
+              ),
+        );
+      _turnReplyMessageIds
+        ..clear()
+        ..addEntries(
+          activeTurnGroups
+              .map(
+                (group) =>
+                    MapEntry(group.id, _resolveTurnReplyMessageId(group)),
+              )
+              .where((entry) => entry.value != null)
+              .map((entry) => MapEntry(entry.key, entry.value!)),
+        );
+    }
   }
 
   String _debugMessageWindowSummary() {

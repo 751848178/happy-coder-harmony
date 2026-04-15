@@ -217,135 +217,40 @@ extension _SessionScreenStateRefresh on _SessionScreenState {
       return;
     }
     await _viewportController.runProgrammaticScroll(() async {
-      for (var attempt = 1; attempt <= 3; attempt += 1) {
-        await _awaitPostFrame();
-        if (!mounted || !_scrollController.hasClients) {
-          return;
-        }
-        final viewportBox = _messageListViewportRenderBox();
-        final rowContext = _messageRowContext(anchor.messageId);
-        final rowBounds = _renderBoxGlobalVerticalBounds(
-          rowContext?.findRenderObject(),
-        );
-        if (viewportBox is RenderBox && rowBounds != null) {
-          final viewportTop = viewportBox.localToGlobal(Offset.zero).dy;
-          final viewportBottom = viewportTop + viewportBox.size.height;
-          final rowTop = rowBounds.$1;
-          final rowBottom = rowBounds.$2;
-          final desiredEdge = anchor.alignToBottom
-              ? viewportBottom - anchor.distanceFromViewportEdge
-              : viewportTop + anchor.distanceFromViewportEdge;
-          final delta = anchor.alignToBottom
-              ? rowBottom - desiredEdge
-              : rowTop - desiredEdge;
-          if (!delta.isFinite ||
-              !viewportTop.isFinite ||
-              !viewportBottom.isFinite) {
-            Logger.info(
-              '[SessionAnchorDiag] restore-invalid session=${widget.sessionId} '
-              'message=${anchor.messageId} alignToBottom=${anchor.alignToBottom} '
-              'attempt=$attempt delta=$delta viewportTop=$viewportTop '
-              'viewportBottom=$viewportBottom rowTop=$rowTop rowBottom=$rowBottom '
-              '${_debugMessageWindowSummary()} ${_debugScrollSummary()} '
-              '${_debugArchiveAccessSummary()} '
-              '${_debugAnchorStateSummary(anchor.messageId)}',
-            );
-            continue;
-          }
-          Logger.info(
-            '[SessionAnchorDiag] restore session=${widget.sessionId} '
-            'message=${anchor.messageId} alignToBottom=${anchor.alignToBottom} '
-            'attempt=$attempt delta=${delta.toStringAsFixed(1)} '
-            '${_debugMessageWindowSummary()} ${_debugScrollSummary()} '
-            '${_debugArchiveAccessSummary()} ${_debugAnchorStateSummary(anchor.messageId)}',
+      // Wait one frame for the synchronous correction in _ChatScrollPosition
+      // to fire during layout, and for the anchor message's RenderBox to be
+      // available.  Then fine-tune with a single precise correction if needed.
+      await _awaitPostFrame();
+      if (!mounted || !_scrollController.hasClients) {
+        return;
+      }
+      final viewportBox = _messageListViewportRenderBox();
+      final rowContext = _messageRowContext(anchor.messageId);
+      final rowBounds = _renderBoxGlobalVerticalBounds(
+        rowContext?.findRenderObject(),
+      );
+      if (viewportBox is RenderBox && rowBounds != null) {
+        final viewportTop = viewportBox.localToGlobal(Offset.zero).dy;
+        final viewportBottom = viewportTop + viewportBox.size.height;
+        final rowTop = rowBounds.$1;
+        final rowBottom = rowBounds.$2;
+        final desiredEdge = anchor.alignToBottom
+            ? viewportBottom - anchor.distanceFromViewportEdge
+            : viewportTop + anchor.distanceFromViewportEdge;
+        final delta = anchor.alignToBottom
+            ? rowBottom - desiredEdge
+            : rowTop - desiredEdge;
+        if (delta.isFinite && delta.abs() >= 1) {
+          final position = _scrollController.position;
+          final target = (_scrollController.offset + delta).clamp(
+            position.minScrollExtent,
+            position.maxScrollExtent,
           );
-          if (delta.abs() >= 1) {
-            final position = _scrollController.position;
-            final target = (_scrollController.offset + delta).clamp(
-              position.minScrollExtent,
-              position.maxScrollExtent,
-            );
-            _scrollController.jumpTo((target as num).toDouble());
-            await SchedulerBinding.instance.endOfFrame;
-          }
-          if (!mounted) {
-            return;
-          }
-          _handleScrollMetricsChanged();
-          _scheduleViewportStateRefresh();
-          return;
-        }
-        final anchorStillInWindow = _messages.any(
-          (message) => message.id == anchor.messageId,
-        );
-        Logger.info(
-          '[SessionAnchorDiag] restore-wait session=${widget.sessionId} '
-          'message=${anchor.messageId} attempt=$attempt '
-          'hasViewport=${viewportBox is RenderBox} '
-          'hasRow=${rowBounds != null} '
-          'anchorStillInWindow=$anchorStillInWindow '
-          '${_debugMessageWindowSummary()} ${_debugScrollSummary()} '
-          '${_debugArchiveAccessSummary()} ${_debugAnchorStateSummary(anchor.messageId)}',
-        );
-        if (!anchorStillInWindow) {
-          break;
-        }
-        if (_scrollController.hasClients) {
-          final anchorIndex = _messages.indexWhere(
-            (message) => message.id == anchor.messageId,
-          );
-          if (anchorIndex >= 0 && _messages.length > 1) {
-            final position = _scrollController.position;
-            final estimatedOffset = position.maxScrollExtent *
-                (anchorIndex / (_messages.length - 1));
-            final viewportBias = anchor.alignToBottom
-                ? position.viewportDimension * 0.68
-                : position.viewportDimension * 0.18;
-            final coarseTarget = (estimatedOffset - viewportBias).clamp(
-              position.minScrollExtent,
-              position.maxScrollExtent,
-            );
-            final target = (coarseTarget as num).toDouble();
-            if ((position.pixels - target).abs() >= 1) {
-              Logger.info(
-                '[SessionAnchorDiag] restore-coarse-jump session=${widget.sessionId} '
-                'message=${anchor.messageId} attempt=$attempt '
-                'anchorIndex=$anchorIndex target=${target.toStringAsFixed(1)} '
-                '${_debugMessageWindowSummary()} ${_debugScrollSummary()}',
-              );
-              _scrollController.jumpTo(target);
-              await SchedulerBinding.instance.endOfFrame;
-            }
-          }
+          _scrollController.jumpTo((target as num).toDouble());
         }
       }
       _viewportController._suspendEdgeAutoload(
         duration: const Duration(milliseconds: 180),
-      );
-      if (_scrollController.hasClients) {
-        final position = _scrollController.position;
-        final fallbackTarget = (fallbackOffset != null &&
-                fallbackMaxScrollExtent != null &&
-                fallbackOffset.isFinite &&
-                fallbackMaxScrollExtent.isFinite)
-            ? fallbackOffset +
-                (position.maxScrollExtent - fallbackMaxScrollExtent)
-            : _SessionViewportController._historyEdgeLoadTrigger + 36;
-        final clampedTarget = fallbackTarget.clamp(
-          position.minScrollExtent,
-          position.maxScrollExtent,
-        );
-        final target = (clampedTarget as num).toDouble();
-        if ((position.pixels - target).abs() >= 1) {
-          _scrollController.jumpTo(target);
-          await SchedulerBinding.instance.endOfFrame;
-        }
-      }
-      Logger.info(
-        '[SessionAnchorDiag] restore-giveup session=${widget.sessionId} '
-        'message=${anchor.messageId} ${_debugMessageWindowSummary()} '
-        '${_debugScrollSummary()} ${_debugArchiveAccessSummary()} '
-        '${_debugAnchorStateSummary(anchor.messageId)}',
       );
       _handleScrollMetricsChanged();
       _scheduleViewportStateRefresh();

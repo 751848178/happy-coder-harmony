@@ -157,25 +157,20 @@ class _RenderObjectAnchorElement extends SingleChildRenderObjectElement {
 
   _RenderObjectAnchor get _anchorWidget => widget as _RenderObjectAnchor;
 
-  void _scheduleAttach() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      _anchorWidget.onAttach(_anchorWidget.anchorId, this);
-    });
-  }
-
   @override
   void mount(Element? parent, Object? newSlot) {
     super.mount(parent, newSlot);
-    _scheduleAttach();
+    // Register synchronously so the anchor context is available immediately
+    // for _captureMessageViewportAnchor in the same frame.  The previous
+    // postFrameCallback caused a one-frame delay that made anchor restoration
+    // fall through to coarse estimation or fail entirely.
+    _anchorWidget.onAttach(_anchorWidget.anchorId, this);
   }
 
   @override
   void activate() {
     super.activate();
-    _scheduleAttach();
+    _anchorWidget.onAttach(_anchorWidget.anchorId, this);
   }
 
   @override
@@ -185,7 +180,7 @@ class _RenderObjectAnchorElement extends SingleChildRenderObjectElement {
     if (previousWidget.anchorId != newWidget.anchorId) {
       previousWidget.onDetach(previousWidget.anchorId, this);
     }
-    _scheduleAttach();
+    _anchorWidget.onAttach(_anchorWidget.anchorId, this);
   }
 
   @override
@@ -284,7 +279,7 @@ extension _SessionScreenViewMessages on _SessionScreenState {
         }
         return null;
       },
-      physics: const ClampingScrollPhysics(),
+      physics: const _ChatScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         AppTheme.spacingMd,
         _sessionMessageListTopPadding,
@@ -317,9 +312,17 @@ extension _SessionScreenViewMessages on _SessionScreenState {
           anchorId: item.message.id,
           onAttach: _registerMessageRowContext,
           onDetach: _unregisterMessageRowContext,
-          child: _buildMessageBubble(
-            item.message,
-            autoApproveEnabled: autoApproveEnabled,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _messageInteractionsEnabledN,
+            builder: (_, interactionsEnabled, __) {
+              return IgnorePointer(
+                ignoring: !interactionsEnabled,
+                child: _buildMessageBubble(
+                  item.message,
+                  autoApproveEnabled: autoApproveEnabled,
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -333,61 +336,51 @@ extension _SessionScreenViewMessages on _SessionScreenState {
     final filePathTapHandler = _createFilePathTapHandler();
     final tool = message.tool;
     if (tool == null) {
-      return ValueListenableBuilder<bool>(
-        valueListenable: _messageInteractionsEnabledN,
-        builder: (context, interactionsEnabled, _) {
-          return RepaintBoundary(
-            child: _MessageBubble(
-              message: message,
-              autoApproveEnabled: autoApproveEnabled,
-              interactionsEnabled: interactionsEnabled,
-              isToolActionPending: false,
-              onApproveTool: _approveToolCall,
-              onRejectTool: _rejectToolCall,
-              onMessageActionChoice: (choice, actionText) =>
-                  _handleMessageActionChoice(
-                choice: choice,
-                actionText: actionText,
-              ),
-              onShowMessageActionSheet: (message, actionText) =>
-                  _showMessageActionSheet(
-                message: message,
-                actionText: actionText,
-              ),
-              onFilePathTap: filePathTapHandler,
-            ),
-          );
-        },
+      return RepaintBoundary(
+        child: _MessageBubble(
+          message: message,
+          autoApproveEnabled: autoApproveEnabled,
+          interactionsEnabled: true,
+          isToolActionPending: false,
+          onApproveTool: _approveToolCall,
+          onRejectTool: _rejectToolCall,
+          onMessageActionChoice: (choice, actionText) =>
+              _handleMessageActionChoice(
+            choice: choice,
+            actionText: actionText,
+          ),
+          onShowMessageActionSheet: (message, actionText) =>
+              _showMessageActionSheet(
+            message: message,
+            actionText: actionText,
+          ),
+          onFilePathTap: filePathTapHandler,
+        ),
       );
     }
     return ValueListenableBuilder<bool>(
       valueListenable: _toolActionPendingListenable(tool.id),
       builder: (context, isToolActionPending, _) {
-        return ValueListenableBuilder<bool>(
-          valueListenable: _messageInteractionsEnabledN,
-          builder: (context, interactionsEnabled, _) {
-            return RepaintBoundary(
-              child: _MessageBubble(
-                message: message,
-                autoApproveEnabled: autoApproveEnabled,
-                interactionsEnabled: interactionsEnabled,
-                isToolActionPending: isToolActionPending,
-                onApproveTool: _approveToolCall,
-                onRejectTool: _rejectToolCall,
-                onMessageActionChoice: (choice, actionText) =>
-                    _handleMessageActionChoice(
-                  choice: choice,
-                  actionText: actionText,
-                ),
-                onShowMessageActionSheet: (message, actionText) =>
-                    _showMessageActionSheet(
-                  message: message,
-                  actionText: actionText,
-                ),
-                onFilePathTap: filePathTapHandler,
-              ),
-            );
-          },
+        return RepaintBoundary(
+          child: _MessageBubble(
+            message: message,
+            autoApproveEnabled: autoApproveEnabled,
+            interactionsEnabled: true,
+            isToolActionPending: isToolActionPending,
+            onApproveTool: _approveToolCall,
+            onRejectTool: _rejectToolCall,
+            onMessageActionChoice: (choice, actionText) =>
+                _handleMessageActionChoice(
+              choice: choice,
+              actionText: actionText,
+            ),
+            onShowMessageActionSheet: (message, actionText) =>
+                _showMessageActionSheet(
+              message: message,
+              actionText: actionText,
+            ),
+            onFilePathTap: filePathTapHandler,
+          ),
         );
       },
     );
