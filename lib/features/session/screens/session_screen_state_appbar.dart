@@ -140,6 +140,9 @@ extension _SessionScreenStateAppBar on _SessionScreenState {
               case 'clear':
                 _showClearDialog();
                 break;
+              case 'local_service':
+                _openLocalService(session);
+                break;
             }
           },
           itemBuilder: (context) => [
@@ -212,9 +215,75 @@ extension _SessionScreenStateAppBar on _SessionScreenState {
                 ],
               ),
             ),
+            const PopupMenuItem(
+              value: 'local_service',
+              child: Row(
+                children: [
+                  Icon(Icons.language, size: 18),
+                  SizedBox(width: 12),
+                  Text('本地服务'),
+                ],
+              ),
+            ),
           ],
         ),
       ],
+    );
+  }
+
+  void _openLocalService(Session? session) {
+    if (session == null || session.id.isEmpty) return;
+    final portController = TextEditingController(text: '8080');
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('访问本地服务'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '访问 PC 上运行的本地开发服务（如 Vite、React dev server）。',
+              style: TextStyle(fontSize: 13, color: AppTheme.neutral500),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: portController,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: '端口号',
+                hintText: '8080',
+                border: OutlineInputBorder(),
+                prefixText: '127.0.0.1:',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final port = int.tryParse(portController.text.trim());
+              if (port == null || port < 1 || port > 65535) return;
+              Navigator.pop(dialogContext);
+              await ref.read(proxyStateProvider.notifier).start(
+                    sessionId: session.id,
+                    targetPort: port,
+                  );
+              if (mounted) {
+                context.push(
+                  '${AppRoutes.webview}?port=$port&title=${Uri.encodeComponent(session.title)}',
+                );
+              }
+            },
+            child: const Text('打开'),
+          ),
+        ],
+      ),
     );
   }
 }

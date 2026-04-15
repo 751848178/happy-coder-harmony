@@ -19,6 +19,7 @@ import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../shared/utils/extensions.dart';
+import '../../../core/network/proxy_state.dart';
 import '../../../core/widgets/bottom_popup_sheet.dart';
 import '../../../harmony/src/harmony_platform.dart';
 import '../../../core/widgets/immediate_long_press_region.dart';
