@@ -450,6 +450,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen>
     for (final notifier in _toolActionPendingNotifiers.values) {
       notifier.dispose();
     }
+    _clearMarkdownParseCaches();
     super.dispose();
   }
 

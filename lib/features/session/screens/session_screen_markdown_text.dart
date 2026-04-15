@@ -36,6 +36,10 @@ class _MarkdownTextBlock extends StatefulWidget {
 
 class _MarkdownTextBlockState extends State<_MarkdownTextBlock> {
   List<_MarkdownTextSection> _sections = const [];
+  // Gesture recognizers created for link/file-path taps in rich text.
+  // Disposed in dispose() to prevent memory leaks — TextSpan.recognizer
+  // is not auto-disposed by the framework.
+  final List<TapGestureRecognizer> _recognizers = [];
 
   @override
   void initState() {
@@ -49,6 +53,14 @@ class _MarkdownTextBlockState extends State<_MarkdownTextBlock> {
     if (oldWidget.content != widget.content) {
       _sections = _MarkdownTextSection.parse(widget.content);
     }
+  }
+
+  @override
+  void dispose() {
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -211,6 +223,17 @@ class _MarkdownTextBlockState extends State<_MarkdownTextBlock> {
     String raw, {
     required TextStyle baseStyle,
   }) {
+    // Dispose previous recognizers before creating new ones on rebuild.
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    _recognizers.clear();
+    TapGestureRecognizer createRecognizer(void Function() onTap) {
+      final r = TapGestureRecognizer()..onTap = onTap;
+      _recognizers.add(r);
+      return r;
+    }
+
     return SelectableText.rich(
       TextSpan(
         children: _MarkdownInlineParser.buildSpans(
@@ -222,6 +245,7 @@ class _MarkdownTextBlockState extends State<_MarkdownTextBlock> {
               ? Colors.white.withValues(alpha: 0.16)
               : AppTheme.neutral100,
           onFilePathTap: widget.onFilePathTap,
+          createRecognizer: createRecognizer,
         ),
       ),
       contextMenuBuilder: _buildMessageActionContextMenuBuilder(

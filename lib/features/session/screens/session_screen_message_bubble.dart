@@ -74,7 +74,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
   @override
   void initState() {
     super.initState();
-    _toolPresentationCache = _computeToolPresentation(message)?.._owner = this;
+    _toolPresentationCache = _computeToolPresentation(message);
     _collapsed = _shouldStartCollapsed(message);
     _canCollapse = _computeCanCollapse(message);
     // NOTE: _ensureActionState() deferred to first access via getters.
@@ -91,7 +91,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
     if (identical(oldWidget.message, widget.message)) {
       return;
     }
-    _toolPresentationCache = _computeToolPresentation(message)?.._owner = this;
+    _toolPresentationCache = _computeToolPresentation(message);
     _actionTextComputed = false;
     // NOTE: _ensureActionState() deferred to first access via getters.
     if (_shouldResetCollapsedState(oldWidget.message, message)) {
@@ -234,53 +234,13 @@ class _ToolPresentationCache {
     required this.command,
     required this.diffPreview,
     required this.canCollapse,
-    required String? argumentsPreview,
-    required String? resultPreview,
-  })  : _argumentsPreview = argumentsPreview,
-        _resultPreview = resultPreview;
+    required this.argumentsPreview,
+    required this.resultPreview,
+  });
 
   final String? command;
   final String? diffPreview;
   final bool canCollapse;
-
-  // Expensive fields — may be lazily computed on first access.
-  String? _argumentsPreview;
-  String? _resultPreview;
-  bool _argumentsComputed = false;
-  bool _resultComputed = false;
-
-  /// The _MessageBubbleState that owns this cache (set after construction).
-  _MessageBubbleState? _owner;
-
-  String? get argumentsPreview {
-    if (!_argumentsComputed) {
-      _argumentsComputed = true;
-      if (_owner != null && _argumentsPreview == null) {
-        final tool = _owner!.message.tool;
-        if (tool != null &&
-            _owner!._shouldShowRawArguments(
-              tool.arguments,
-              command: command,
-              diff: diffPreview,
-            ) &&
-            _owner!._shouldDisplayArguments(tool.name)) {
-          _argumentsPreview = _owner!._formatToolArguments(tool.arguments);
-        }
-      }
-    }
-    return _argumentsPreview;
-  }
-
-  String? get resultPreview {
-    if (!_resultComputed) {
-      _resultComputed = true;
-      if (_owner != null && _resultPreview == null) {
-        final tool = _owner!.message.tool;
-        if (tool != null) {
-          _resultPreview = _owner!._formatToolResult(tool.result);
-        }
-      }
-    }
-    return _resultPreview;
-  }
+  final String? argumentsPreview;
+  final String? resultPreview;
 }

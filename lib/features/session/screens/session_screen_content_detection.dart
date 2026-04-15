@@ -190,3 +190,14 @@ void _storeContentDetectionCache<T>(
   }
   cache[key] = value;
 }
+
+/// Clear all markdown/content-detection parse caches.
+/// Called when a session screen is disposed to release cached data from
+/// the previous session that will not be reused.
+void _clearMarkdownParseCaches() {
+  _markdownContentCache.clear();
+  _structuredLanguageCache.clear();
+  _MarkdownBlock._parseCache.clear();
+  _MarkdownTextSection._parseCache.clear();
+  _MarkdownInlineParser._parseCache.clear();
+}

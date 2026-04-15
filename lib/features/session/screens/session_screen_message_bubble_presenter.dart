@@ -12,12 +12,24 @@ class _SessionMessageBubblePresenter {
         looksLarge(diffPreview) ||
         rawArgumentsLookLarge(tool.arguments) ||
         rawResultLooksLarge(tool.result);
+    // Compute previews eagerly — the presenter owns all formatting logic,
+    // so there is no reason to defer to the widget state via _owner.
+    String? argumentsPreview;
+    if (shouldShowRawArguments(
+      tool.arguments,
+      command: command,
+      diff: diffPreview,
+    ) &&
+        shouldDisplayArguments(tool.name)) {
+      argumentsPreview = formatToolArguments(tool.arguments);
+    }
+    final resultPreview = formatToolResult(tool.result);
     return _ToolPresentationCache(
       command: command,
       diffPreview: diffPreview,
       canCollapse: canCollapse,
-      argumentsPreview: null,
-      resultPreview: null,
+      argumentsPreview: argumentsPreview,
+      resultPreview: resultPreview,
     );
   }
 

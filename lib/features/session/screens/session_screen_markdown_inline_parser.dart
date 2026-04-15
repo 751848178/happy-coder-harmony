@@ -134,7 +134,10 @@ class _MarkdownInlineParser {
   }
 
   /// Build InlineSpan list from pre-parsed segments + styles.
-  /// This is the public API — replaces the old monolithic buildSpans().
+  /// When [createRecognizer] is provided, it is used to create
+  /// TapGestureRecognizers for links and file paths, allowing the caller
+  /// to manage their lifecycle (dispose).  When null, recognizers are
+  /// created inline (legacy behavior — may leak if caller does not dispose).
   static List<InlineSpan> buildSpans(
     String input, {
     required TextStyle baseStyle,
@@ -142,6 +145,7 @@ class _MarkdownInlineParser {
     required Color inlineCodeColor,
     required Color inlineCodeBackground,
     void Function(String filePath)? onFilePathTap,
+    TapGestureRecognizer Function(void Function() onTap)? createRecognizer,
   }) {
     final segments = _parse(input);
     return [
@@ -153,6 +157,7 @@ class _MarkdownInlineParser {
           inlineCodeColor,
           inlineCodeBackground,
           onFilePathTap,
+          createRecognizer,
         ),
     ];
   }
@@ -164,6 +169,7 @@ class _MarkdownInlineParser {
     Color inlineCodeColor,
     Color inlineCodeBackground,
     void Function(String filePath)? onFilePathTap,
+    TapGestureRecognizer Function(void Function() onTap)? createRecognizer,
   ) {
     switch (seg.type) {
       case _InlineSegmentType.plain:
@@ -175,10 +181,9 @@ class _MarkdownInlineParser {
             color: linkColor,
             decoration: TextDecoration.underline,
           ),
-          recognizer: TapGestureRecognizer()
-            ..onTap = () {
-              launchUrlString(seg.url!);
-            },
+          recognizer: createRecognizer != null
+              ? createRecognizer(() => launchUrlString(seg.url!))
+              : (TapGestureRecognizer()..onTap = () => launchUrlString(seg.url!)),
         );
       case _InlineSegmentType.inlineCode:
         return TextSpan(
@@ -208,7 +213,10 @@ class _MarkdownInlineParser {
             decoration: TextDecoration.underline,
           ),
           recognizer: onFilePathTap != null
-              ? (TapGestureRecognizer()..onTap = () => onFilePathTap(seg.url!))
+              ? (createRecognizer != null
+                  ? createRecognizer(() => onFilePathTap(seg.url!))
+                  : (TapGestureRecognizer()
+                    ..onTap = () => onFilePathTap(seg.url!)))
               : null,
         );
     }
