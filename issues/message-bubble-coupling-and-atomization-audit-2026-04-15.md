@@ -48,7 +48,12 @@ Total: up to 680 entries, each keyed by raw content string. These are process-li
 
 All part files use `extension on _MessageBubbleState`, giving every extension unrestricted access to all private fields. Changes to state variable semantics affect all extensions simultaneously. No extension can be tested in isolation.
 
-**Status:** Documented. Not fixing in this round -- would require extracting to separate widget classes which is a larger refactor. The presenter extraction in Issue 1 addresses the most critical coupling.
+**Fix applied (partial):**
+- Removed 3 pure pass-through extension files (Issue 9) — eliminated 16 methods that were trivial delegation wrappers, reducing the extension surface area
+- Moved `_messageKindLabel` (pure string→string mapping) to `_SessionMessageBubblePresenter` — logic no longer depends on State internals
+- Inlined `_buildDefaultMessage` into `_MessageBubbleState.build()` — eliminated one more extension method that accessed `message.kind`
+- Moved `_buildToolStatusBadge` to `_SessionScreenMessageBubbleToolPanelSupport` — colocated with its sole caller, no longer in a shared helpers file
+- Remaining 7 extension files are all widget-building methods that inherently need `BuildContext` and State access. Fully resolving this would require extracting to separate widget classes (future work).
 
 ## Issue 5: `isToolActionPending` passed through but unused in most paths
 
@@ -66,7 +71,11 @@ All part files use `extension on _MessageBubbleState`, giving every extension un
 
 `onApproveTool`, `onRejectTool`, `onMessageActionChoice`, `onShowMessageActionSheet`, `onFilePathTap` are passed from `_SessionScreenState` through `_buildFlatMessageItem` -> `_MessageBubble` -> child widgets. Each layer passes all 5 even though no single child uses all 5.
 
-**Status:** Documented. Not fixing in this round -- this is a design pattern choice, not a bug.
+**Fix applied:** `_buildMessageBubble()` now conditionally passes callbacks based on message type:
+- Non-tool messages: pass `onFilePathTap` but `onApproveTool: null`, `onRejectTool: null`
+- Tool messages: pass `onApproveTool` and `onRejectTool` but `onFilePathTap: null`
+- `onMessageActionChoice` and `onShowMessageActionSheet` passed in both paths (used by most message types)
+- `_MessageBubble` constructor fields `onApproveTool` and `onRejectTool` changed from required to nullable
 
 ## Issue 7: `interactionsEnabled` redundant state in `_MessageBubble`
 
@@ -89,8 +98,8 @@ After the list-level `IgnorePointer` was added in the previous round, `interacti
 ## Issue 9: 4 helper extension files are pure pass-through proxies
 
 **Severity:** Low (architectural noise)
-**Files:** session_screen_message_bubble_tool_helpers.dart, _helpers_2.dart, _helpers_3.dart
+**Files:** session_screen_message_bubble_tool_helpers.dart, _helpers_2.dart, _helpers_3.dart (all deleted)
 
-All 18 methods in these files are single-line delegations: `return _bubblePresenter.xxx(...)`. They exist only because Dart extension methods can't directly access static fields on the extended type without going through an extension method. The callers are already on `_MessageBubbleState` which holds `_bubblePresenter` as a static.
+All 18 methods in these files were single-line delegations: `return _bubblePresenter.xxx(...)`. They existed only because Dart extension methods can't directly access static fields on the extended type without going through an extension method.
 
-**Status:** Documented. Not fixing — the indirection is harmless and removing it would change ~30 call sites across 5 files for no functional benefit. A future refactor could make callers reference `_bubblePresenter` directly if the extension pattern is abandoned.
+**Fix applied:** Deleted all 3 files. Callers now reference `_MessageBubbleState._bubblePresenter.xxx(...)` directly. `_messageKindLabel` and `_buildToolStatusBadge` (the two non-pass-through methods in helpers_3) were relocated to the presenter and tool_panel_support respectively.

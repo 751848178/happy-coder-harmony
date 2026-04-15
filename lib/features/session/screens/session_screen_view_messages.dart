@@ -46,6 +46,23 @@ class _ChatScrollController extends ScrollController {
     _standbyMaxScrollExtent = position.maxScrollExtent;
     _standbyAlignToBottom = true;
   }
+
+  @override
+  ScrollPosition createScrollPosition(
+    ScrollPhysics physics,
+    ScrollContext context,
+    ScrollPosition? oldPosition,
+  ) {
+    return _ChatScrollPosition(
+      controller: this,
+      physics: physics,
+      context: context,
+      initialPixels: oldPosition?.pixels ?? initialScrollOffset,
+      keepScrollOffset: keepScrollOffset,
+      oldPosition: oldPosition,
+      debugLabel: debugLabel,
+    );
+  }
 }
 
 /// ScrollPosition that corrects scroll offset synchronously during layout
@@ -57,61 +74,39 @@ class _ChatScrollController extends ScrollController {
 /// position.
 class _ChatScrollPosition extends ScrollPositionWithSingleContext {
   _ChatScrollPosition({
+    required _ChatScrollController controller,
     required super.physics,
     required super.context,
     super.initialPixels,
     super.keepScrollOffset,
     super.oldPosition,
     super.debugLabel,
-  });
+  }) : _controller = controller;
+
+  final _ChatScrollController _controller;
 
   @override
   bool applyContentDimensions(double min, double max) {
-    final ctrl = controller;
-    if (ctrl is _ChatScrollController) {
-      final standbyPixels = ctrl._standbyPixels;
-      final standbyMax = ctrl._standbyMaxScrollExtent;
-      if (standbyPixels != null && standbyMax != null) {
-        // Consume standby state so correction fires only once.
-        ctrl._standbyPixels = null;
-        ctrl._standbyMaxScrollExtent = null;
-        final delta = max - standbyMax;
-        if (delta.abs() > 0.5) {
-          final double corrected;
-          if (ctrl._standbyAlignToBottom) {
-            // Append mode: keep distance from bottom constant.
-            corrected = (max - (standbyMax - standbyPixels)).clamp(min, max);
-          } else {
-            // Prepend mode: shift down by the height of new content above.
-            corrected = (standbyPixels + delta).clamp(min, max);
-          }
-          forcePixels(corrected);
+    final standbyPixels = _controller._standbyPixels;
+    final standbyMax = _controller._standbyMaxScrollExtent;
+    if (standbyPixels != null && standbyMax != null) {
+      // Consume standby state so correction fires only once.
+      _controller._standbyPixels = null;
+      _controller._standbyMaxScrollExtent = null;
+      final delta = max - standbyMax;
+      if (delta.abs() > 0.5) {
+        final double corrected;
+        if (_controller._standbyAlignToBottom) {
+          // Append mode: keep distance from bottom constant.
+          corrected = (max - (standbyMax - standbyPixels)).clamp(min, max);
+        } else {
+          // Prepend mode: shift down by the height of new content above.
+          corrected = (standbyPixels + delta).clamp(min, max);
         }
+        forcePixels(corrected);
       }
     }
     return super.applyContentDimensions(min, max);
-  }
-}
-
-/// ScrollPhysics that creates [_ChatScrollPosition] instances for the
-/// message list ListView.
-class _ChatScrollPhysics extends ClampingScrollPhysics {
-  const _ChatScrollPhysics({super.parent});
-
-  @override
-  ScrollPosition createScrollPosition(
-    ScrollContext context,
-    ScrollPhysics parent,
-    ScrollPosition? oldPosition,
-  ) {
-    return _ChatScrollPosition(
-      physics: parent,
-      context: context,
-      initialPixels: oldPosition?.pixels ?? initialPixels,
-      keepScrollOffset: keepScrollOffset,
-      oldPosition: oldPosition,
-      debugLabel: debugLabel,
-    );
   }
 }
 
@@ -237,7 +232,7 @@ extension _SessionScreenViewMessages on _SessionScreenState {
               }
               return null;
             },
-            physics: const _ChatScrollPhysics(),
+            physics: const ClampingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(
               AppTheme.spacingMd,
               _sessionMessageListTopPadding,
@@ -279,7 +274,7 @@ extension _SessionScreenViewMessages on _SessionScreenState {
         }
         return null;
       },
-      physics: const _ChatScrollPhysics(),
+      physics: const ClampingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         AppTheme.spacingMd,
         _sessionMessageListTopPadding,
@@ -333,32 +328,28 @@ extension _SessionScreenViewMessages on _SessionScreenState {
     ReducerMessage message, {
     required bool autoApproveEnabled,
   }) {
-    final filePathTapHandler = _createFilePathTapHandler();
-    final tool = message.tool;
-    if (tool == null) {
+    final isTool = message.isToolCall && message.tool != null;
+    final onMessageActionChoice = (_SessionMessageActionChoice choice, String actionText) =>
+        _handleMessageActionChoice(choice: choice, actionText: actionText);
+    final onShowMessageActionSheet = (ReducerMessage msg, String actionText) =>
+        _showMessageActionSheet(message: msg, actionText: actionText);
+
+    if (!isTool) {
       return RepaintBoundary(
         child: _MessageBubble(
           message: message,
           autoApproveEnabled: autoApproveEnabled,
           isToolActionPending: false,
-          onApproveTool: _approveToolCall,
-          onRejectTool: _rejectToolCall,
-          onMessageActionChoice: (choice, actionText) =>
-              _handleMessageActionChoice(
-            choice: choice,
-            actionText: actionText,
-          ),
-          onShowMessageActionSheet: (message, actionText) =>
-              _showMessageActionSheet(
-            message: message,
-            actionText: actionText,
-          ),
-          onFilePathTap: filePathTapHandler,
+          onApproveTool: null,
+          onRejectTool: null,
+          onMessageActionChoice: onMessageActionChoice,
+          onShowMessageActionSheet: onShowMessageActionSheet,
+          onFilePathTap: _createFilePathTapHandler(),
         ),
       );
     }
     return ValueListenableBuilder<bool>(
-      valueListenable: _toolActionPendingListenable(tool.id),
+      valueListenable: _toolActionPendingListenable(message.tool!.id),
       builder: (context, isToolActionPending, _) {
         return RepaintBoundary(
           child: _MessageBubble(
@@ -367,17 +358,9 @@ extension _SessionScreenViewMessages on _SessionScreenState {
             isToolActionPending: isToolActionPending,
             onApproveTool: _approveToolCall,
             onRejectTool: _rejectToolCall,
-            onMessageActionChoice: (choice, actionText) =>
-                _handleMessageActionChoice(
-              choice: choice,
-              actionText: actionText,
-            ),
-            onShowMessageActionSheet: (message, actionText) =>
-                _showMessageActionSheet(
-              message: message,
-              actionText: actionText,
-            ),
-            onFilePathTap: filePathTapHandler,
+            onMessageActionChoice: onMessageActionChoice,
+            onShowMessageActionSheet: onShowMessageActionSheet,
+            onFilePathTap: null,
           ),
         );
       },

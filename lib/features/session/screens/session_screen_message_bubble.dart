@@ -9,8 +9,8 @@ class _MessageBubble extends StatefulWidget {
     required this.message,
     required this.autoApproveEnabled,
     required this.isToolActionPending,
-    required this.onApproveTool,
-    required this.onRejectTool,
+    this.onApproveTool,
+    this.onRejectTool,
     required this.onMessageActionChoice,
     required this.onShowMessageActionSheet,
     this.onFilePathTap,
@@ -19,8 +19,8 @@ class _MessageBubble extends StatefulWidget {
   final ReducerMessage message;
   final bool autoApproveEnabled;
   final bool isToolActionPending;
-  final Future<void> Function(String) onApproveTool;
-  final Future<void> Function(String, String?) onRejectTool;
+  final Future<void> Function(String)? onApproveTool;
+  final Future<void> Function(String, String?)? onRejectTool;
   final Future<void> Function(
     _SessionMessageActionChoice choice,
     String actionText,
@@ -54,8 +54,8 @@ class _MessageBubbleState extends State<_MessageBubble> {
   ReducerMessage get message => widget.message;
   bool get autoApproveEnabled => widget.autoApproveEnabled;
   bool get isToolActionPending => widget.isToolActionPending;
-  Future<void> Function(String) get onApproveTool => widget.onApproveTool;
-  Future<void> Function(String, String?) get onRejectTool =>
+  Future<void> Function(String)? get onApproveTool => widget.onApproveTool;
+  Future<void> Function(String, String?)? get onRejectTool =>
       widget.onRejectTool;
   void Function(String)? get onFilePathTap => widget.onFilePathTap;
   _SessionMessageActionHandler? get onMessageAction {
@@ -211,7 +211,22 @@ class _MessageBubbleState extends State<_MessageBubble> {
     } else if (message.isToolCall && message.tool != null) {
       child = _buildToolCallMessage(message.tool!);
     } else {
-      child = _buildDefaultMessage();
+      child = Container(
+        margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
+        padding: const EdgeInsets.all(AppTheme.spacingMd),
+        decoration: BoxDecoration(
+          color: AppTheme.neutral100,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        ),
+        child: Text(
+          _bubblePresenter.messageKindLabel(message.kind),
+          style: TextStyle(
+            fontSize: 12,
+            color: AppTheme.neutral600,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
     }
     if (!_canLongPressMessageActions()) {
       return child;

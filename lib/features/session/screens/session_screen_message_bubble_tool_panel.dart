@@ -10,13 +10,14 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
     );
     final status = visualState.status;
     final isPending = status == ToolCallStatus.pending;
-    final category = _toolCategory(tool.name);
-    final presentation = _toolPresentationKind(tool.name);
-    final primaryPath = _extractPrimaryPath(tool.arguments);
+    final p = _MessageBubbleState._bubblePresenter;
+    final category = p.toolCategory(tool.name);
+    final presentation = p.toolPresentationKind(tool.name);
+    final primaryPath = p.extractPrimaryPath(tool.arguments);
     // Use cached presentation data to avoid redundant JSON parsing.
     final cache = _toolPresentationCache;
-    final command = cache?.command ?? _extractCommand(tool.arguments);
-    final diffPreview = cache?.diffPreview ?? _extractDiff(tool);
+    final command = cache?.command ?? p.extractCommand(tool.arguments);
+    final diffPreview = cache?.diffPreview ?? p.extractDiff(tool);
     final canCollapse = cache?.canCollapse ?? _shouldCollapseToolMessage(tool);
     // NOTE: argumentsPreview and resultPreview are only computed for the
     // expanded path — the collapsed preview uses cheap _plainTextPreview()
@@ -133,15 +134,16 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
   Widget _buildSubagentChildToolRow(ReducerMessage child) {
     final tool = child.tool!;
     final toolStatus = tool.status ?? ToolCallStatus.pending;
-    final icon = _toolIcon(tool.name);
+    final icon = _MessageBubbleState._bubblePresenter.toolIcon(tool.name);
     final statusIcon = _toolStatusIcon(toolStatus);
     final statusColor = _toolStatusColor(toolStatus);
     // Use lightweight plain-text preview — expensive JSON formatting.
     // The row only shows a one-line summary; full JSON decode+re-encode is wasteful.
-    final title = _toolSummaryText(
-          tool,
-          resultPreview: _plainTextPreview(tool.result ?? ''),
-        ) ??
+    final title = _MessageBubbleState._bubblePresenter
+            .toolSummaryText(
+              tool,
+              resultPreview: _plainTextPreview(tool.result ?? ''),
+            ) ??
         tool.name;
 
     return Padding(
@@ -251,22 +253,23 @@ extension _SessionScreenMessageBubbleToolPanel on _MessageBubbleState {
     required String? diffPreview,
     required _ToolPresentationCache? cache,
   }) {
+    final p = _MessageBubbleState._bubblePresenter;
     final argumentsPreview = cache?.argumentsPreview ??
-        (_shouldShowRawArguments(
+        (p.shouldShowRawArguments(
                   tool.arguments,
                   command: command,
                   diff: diffPreview,
                 ) &&
-                _shouldDisplayArguments(tool.name)
-            ? _formatToolArguments(tool.arguments)
+                p.shouldDisplayArguments(tool.name)
+            ? p.formatToolArguments(tool.arguments)
             : null);
     final resultPreview =
-        cache?.resultPreview ?? _formatToolResult(tool.result);
-    final resultLanguage = _guessLanguageForResult(
+        cache?.resultPreview ?? p.formatToolResult(tool.result);
+    final resultLanguage = p.guessLanguageForResult(
       resultPreview,
       toolName: tool.name,
     );
-    final summaryText = _toolSummaryText(tool, resultPreview: resultPreview);
+    final summaryText = p.toolSummaryText(tool, resultPreview: resultPreview);
     return _buildToolDetailSections(
       tool: tool,
       presentation: presentation,

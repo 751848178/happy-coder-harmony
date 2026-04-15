@@ -138,7 +138,7 @@ extension _SessionScreenMessageBubbleToolSections on _MessageBubbleState {
       sections.addAll([
         const SizedBox(height: 10),
         _ToolSection(
-          title: _resultSectionTitle(toolName),
+          title: _MessageBubbleState._bubblePresenter.resultSectionTitle(toolName),
           child: _ToolResultView(
             content: resultPreview,
             language: resultLanguage,

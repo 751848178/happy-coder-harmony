@@ -1,6 +1,48 @@
 part of 'session_screen.dart';
 
 extension _SessionScreenMessageBubbleToolPanelSupport on _MessageBubbleState {
+  Widget _buildToolStatusBadge(ToolCallStatus status) {
+    Color color;
+    String text;
+
+    switch (status) {
+      case ToolCallStatus.pending:
+        color = AppTheme.warningColor;
+        text = '待确认';
+      case ToolCallStatus.approved:
+        color = AppTheme.infoColor;
+        text = '已处理';
+      case ToolCallStatus.rejected:
+        color = AppTheme.errorColor;
+        text = '已拒绝';
+      case ToolCallStatus.executing:
+        color = AppTheme.infoColor;
+        text = '执行中';
+      case ToolCallStatus.completed:
+        color = AppTheme.infoColor;
+        text = '已完成';
+      case ToolCallStatus.failed:
+        color = AppTheme.errorColor;
+        text = '失败';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   Widget _buildToolHeaderContent({
     required ToolInfo tool,
     required ToolCallStatus status,
@@ -14,7 +56,7 @@ extension _SessionScreenMessageBubbleToolPanelSupport on _MessageBubbleState {
         Row(
           children: [
             Icon(
-              _toolIcon(tool.name),
+              _MessageBubbleState._bubblePresenter.toolIcon(tool.name),
               color: status == ToolCallStatus.pending
                   ? AppTheme.warningColor
                   : AppTheme.neutral600,
@@ -23,7 +65,7 @@ extension _SessionScreenMessageBubbleToolPanelSupport on _MessageBubbleState {
             const SizedBox(width: AppTheme.spacingSm),
             Expanded(
               child: Text(
-                _toolTitle(tool.name),
+                _MessageBubbleState._bubblePresenter.toolTitle(tool.name),
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -126,7 +168,7 @@ extension _SessionScreenMessageBubbleToolPanelSupport on _MessageBubbleState {
             ),
           OutlinedButton(
             onPressed:
-                isToolActionPending ? null : () => onRejectTool(toolId, null),
+                isToolActionPending ? null : () => onRejectTool?.call(toolId, null),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(0, 34),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -141,7 +183,7 @@ extension _SessionScreenMessageBubbleToolPanelSupport on _MessageBubbleState {
           ),
           const SizedBox(width: 8),
           FilledButton(
-            onPressed: isToolActionPending ? null : () => onApproveTool(toolId),
+            onPressed: isToolActionPending ? null : () => onApproveTool?.call(toolId),
             style: FilledButton.styleFrom(
               minimumSize: const Size(0, 34),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

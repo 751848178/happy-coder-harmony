@@ -570,4 +570,23 @@ class _SessionMessageBubblePresenter {
       return arguments.toString();
     }
   }
+
+  String messageKindLabel(String kind) {
+    switch (kind) {
+      case 'text':
+        return '文本消息';
+      case 'tool-call':
+        return '工具调用';
+      case 'permission-request':
+        return '权限请求';
+      case 'turn-close':
+        return '回合结束';
+      case 'agent-event':
+        return '状态事件';
+      case 'error':
+        return '错误消息';
+      default:
+        return kind;
+    }
+  }
 }

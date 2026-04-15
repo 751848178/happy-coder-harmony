@@ -5,7 +5,7 @@ extension _SessionScreenMessageBubbleToolSections2 on _MessageBubbleState {
     List<Widget> sections, {
     required ToolInfo tool,
   }) {
-    final prompt = _firstNonEmpty([
+    final prompt = _MessageBubbleState._bubblePresenter.firstNonEmpty([
       tool.arguments['question']?.toString(),
       tool.arguments['prompt']?.toString(),
       tool.description,
@@ -111,11 +111,11 @@ extension _SessionScreenMessageBubbleToolSections2 on _MessageBubbleState {
       sections.addAll([
         const SizedBox(height: 10),
         _ToolSection(
-          title: _resultSectionTitle(tool.name),
+          title: _MessageBubbleState._bubblePresenter.resultSectionTitle(tool.name),
           child: _ToolResultView(
             content: resultPreview,
             language: resultLanguage,
-            preferCode: _prefersCodeView(tool.name),
+            preferCode: _MessageBubbleState._bubblePresenter.prefersCodeView(tool.name),
             onMessageAction: onMessageAction,
           ),
         ),
