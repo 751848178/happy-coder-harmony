@@ -357,6 +357,10 @@ class _SessionScreenState extends ConsumerState<SessionScreen>
       _customInputTemplatesN.value;
   List<_MessageTurnGroup> _visibleTurnGroups = const <_MessageTurnGroup>[];
   List<_MessageTurnGroup>? _cachedPruneTurnGroups;
+  // Cached file-path tap handler — avoids creating a new closure on every
+  // _buildMessageBubble() call for every visible message on every build.
+  String? _cachedFilePathTapHandlerSessionId;
+  void Function(String)? _cachedFilePathTapHandler;
   StreamSubscription<SocketEvent>? _socketEventSubscription;
   Timer? _draftPersistDebounce;
   Timer? _messagePollingTimer;

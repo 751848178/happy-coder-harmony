@@ -67,3 +67,30 @@ All part files use `extension on _MessageBubbleState`, giving every extension un
 `onApproveTool`, `onRejectTool`, `onMessageActionChoice`, `onShowMessageActionSheet`, `onFilePathTap` are passed from `_SessionScreenState` through `_buildFlatMessageItem` -> `_MessageBubble` -> child widgets. Each layer passes all 5 even though no single child uses all 5.
 
 **Status:** Documented. Not fixing in this round -- this is a design pattern choice, not a bug.
+
+## Issue 7: `interactionsEnabled` redundant state in `_MessageBubble`
+
+**Severity:** Low (dead state)
+**File:** session_screen_message_bubble.dart
+
+After the list-level `IgnorePointer` was added in the previous round, `interactionsEnabled` was still passed to `_MessageBubble` and used in `ImmediateLongPressRegion(enabled: interactionsEnabled)`. The widget always received `true`, making the parameter dead state — the list-level `IgnorePointer` already controls interactivity.
+
+**Fix applied:** Remove `interactionsEnabled` from `_MessageBubble` constructor and `_MessageBubbleState`. `ImmediateLongPressRegion` now always uses `enabled: true`.
+
+## Issue 8: `_createFilePathTapHandler()` allocates new closure per message per build
+
+**Severity:** Low (unnecessary allocation)
+**File:** session_screen_view_messages.dart
+
+`_createFilePathTapHandler()` is called inside `_buildMessageBubble()` for every message on every build cycle. Since `widget.sessionId` is stable and `context` doesn't change, the closure can be cached.
+
+**Fix applied:** Cache the handler in `_cachedFilePathTapHandler` on `_SessionScreenState`, keyed by `sessionId`. Reuse across builds until sessionId changes.
+
+## Issue 9: 4 helper extension files are pure pass-through proxies
+
+**Severity:** Low (architectural noise)
+**Files:** session_screen_message_bubble_tool_helpers.dart, _helpers_2.dart, _helpers_3.dart
+
+All 18 methods in these files are single-line delegations: `return _bubblePresenter.xxx(...)`. They exist only because Dart extension methods can't directly access static fields on the extended type without going through an extension method. The callers are already on `_MessageBubbleState` which holds `_bubblePresenter` as a static.
+
+**Status:** Documented. Not fixing — the indirection is harmless and removing it would change ~30 call sites across 5 files for no functional benefit. A future refactor could make callers reference `_bubblePresenter` directly if the extension pattern is abandoned.

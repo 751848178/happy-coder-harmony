@@ -8,7 +8,6 @@ class _MessageBubble extends StatefulWidget {
   const _MessageBubble({
     required this.message,
     required this.autoApproveEnabled,
-    required this.interactionsEnabled,
     required this.isToolActionPending,
     required this.onApproveTool,
     required this.onRejectTool,
@@ -19,7 +18,6 @@ class _MessageBubble extends StatefulWidget {
 
   final ReducerMessage message;
   final bool autoApproveEnabled;
-  final bool interactionsEnabled;
   final bool isToolActionPending;
   final Future<void> Function(String) onApproveTool;
   final Future<void> Function(String, String?) onRejectTool;
@@ -55,7 +53,6 @@ class _MessageBubbleState extends State<_MessageBubble> {
 
   ReducerMessage get message => widget.message;
   bool get autoApproveEnabled => widget.autoApproveEnabled;
-  bool get interactionsEnabled => widget.interactionsEnabled;
   bool get isToolActionPending => widget.isToolActionPending;
   Future<void> Function(String) get onApproveTool => widget.onApproveTool;
   Future<void> Function(String, String?) get onRejectTool =>
@@ -220,7 +217,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
       return child;
     }
     return ImmediateLongPressRegion(
-      enabled: interactionsEnabled,
+      enabled: true,
       longPressDelay: _sessionMessageImmediateLongPressDelay,
       moveSlop: _sessionMessageLongPressMoveSlop,
       onLongPress: _handleLongPressMessageTrigger,

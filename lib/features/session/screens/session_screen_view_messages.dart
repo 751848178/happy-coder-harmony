@@ -340,7 +340,6 @@ extension _SessionScreenViewMessages on _SessionScreenState {
         child: _MessageBubble(
           message: message,
           autoApproveEnabled: autoApproveEnabled,
-          interactionsEnabled: true,
           isToolActionPending: false,
           onApproveTool: _approveToolCall,
           onRejectTool: _rejectToolCall,
@@ -365,7 +364,6 @@ extension _SessionScreenViewMessages on _SessionScreenState {
           child: _MessageBubble(
             message: message,
             autoApproveEnabled: autoApproveEnabled,
-            interactionsEnabled: true,
             isToolActionPending: isToolActionPending,
             onApproveTool: _approveToolCall,
             onRejectTool: _rejectToolCall,
@@ -504,7 +502,13 @@ extension _SessionScreenViewMessages on _SessionScreenState {
   void Function(String)? _createFilePathTapHandler() {
     final sessionId = widget.sessionId;
     if (sessionId.isEmpty) return null;
-    return (String filePath) {
+    // Reuse the cached handler when sessionId hasn't changed — avoids
+    // creating a new closure on every _buildMessageBubble() call.
+    if (_cachedFilePathTapHandlerSessionId == sessionId) {
+      return _cachedFilePathTapHandler;
+    }
+    _cachedFilePathTapHandlerSessionId = sessionId;
+    _cachedFilePathTapHandler = (String filePath) {
       final fileName = filePath.split('/').last;
       final uri = Uri.parse(
         AppRoutes.sessionFileDetail(sessionId) +
@@ -513,5 +517,6 @@ extension _SessionScreenViewMessages on _SessionScreenState {
       );
       context.push(uri.toString());
     };
+    return _cachedFilePathTapHandler;
   }
 }
