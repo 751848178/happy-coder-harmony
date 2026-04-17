@@ -16,6 +16,16 @@ class _SessionServiceMessageCoordinator {
     int? maxPages,
     int? messageWindowSize,
   }) async {
+    // Deduplicate concurrent loads for the same session.
+    // Force loads always run; non-force loads join an in-flight request.
+    if (!force) {
+      final inFlight = _notifier._loadMessagesInFlight[sessionId];
+      if (inFlight != null) {
+        return inFlight;
+      }
+    }
+    final completer = Completer<void>();
+    _notifier._loadMessagesInFlight[sessionId] = completer.future;
     try {
       final sessionKey = _notifier._sessionDataKeys[sessionId];
       final existing = _notifier._repository.getSessionMessages(sessionId);
@@ -186,6 +196,13 @@ class _SessionServiceMessageCoordinator {
       if (throwOnError) {
         rethrow;
       }
+    } finally {
+      if (identical(_notifier._loadMessagesInFlight[sessionId], completer.future)) {
+        _notifier._loadMessagesInFlight.remove(sessionId);
+      }
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
     }
   }
 
@@ -242,10 +259,14 @@ class _SessionServiceMessageCoordinator {
                 !force && maxPagesPerSession != null && maxPagesPerSession > 0;
             if (isPreviewRefresh && existing?.isLoaded != true) {
               Logger.info(
-                'Skipping unloaded session preview refresh for $sessionId; '
-                'relying on session summary preview fields.',
+                'Loading initial messages for unloaded session: $sessionId',
               );
-              return Future<void>.value();
+              return loadSessionMessages(
+                sessionId,
+                force: false,
+                throwOnError: true,
+                maxPages: maxPagesPerSession,
+              );
             }
             final shouldLimitPages = !force &&
                 maxPagesPerSession != null &&

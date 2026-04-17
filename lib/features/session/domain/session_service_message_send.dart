@@ -82,17 +82,17 @@ extension SessionServiceMessageSend on SessionServiceNotifier {
     required String sessionId,
     required Future<void> stopSignal,
   }) async {
-    var shouldStop = false;
-    stopSignal.then((_) {
-      shouldStop = true;
+    final stopCompleter = Completer<void>();
+    stopSignal.whenComplete(() {
+      if (!stopCompleter.isCompleted) stopCompleter.complete();
     });
 
-    while (!shouldStop) {
+    while (!stopCompleter.isCompleted) {
       await Future.any<void>([
-        stopSignal,
+        stopCompleter.future,
         Future<void>.delayed(const Duration(milliseconds: 450)),
       ]);
-      if (shouldStop) {
+      if (stopCompleter.isCompleted) {
         break;
       }
       try {

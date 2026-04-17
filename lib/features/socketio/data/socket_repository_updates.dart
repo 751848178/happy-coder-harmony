@@ -51,6 +51,42 @@ extension SocketRepositoryUpdates on SocketRepository {
             'agentStateVersion': body?['agentStateVersion'],
             'dataEncryptionKey': body?['dataEncryptionKey'],
           };
+          try {
+            final newSessionId = sessionJson['id']?.toString();
+            final secretKey = await _tokenStorage.getSecretKey();
+            final encryptedDataKey =
+                sessionJson['dataEncryptionKey']?.toString();
+            final dataKey = secretKey != null &&
+                    secretKey.isNotEmpty &&
+                    encryptedDataKey != null &&
+                    encryptedDataKey.isNotEmpty
+                ? await (await CryptoService.instance)
+                    .decryptHappyCoderDataEncryptionKey(
+                    encryptedDataKey,
+                    secretKey,
+                  )
+                : null;
+            final metadata = await decodeSessionUpdateJsonMap(
+              rawValue: sessionJson['metadata'],
+              sessionKey: dataKey,
+              secretKey: secretKey,
+            );
+            final agentState = await decodeSessionUpdateJsonMap(
+              rawValue: sessionJson['agentState'],
+              sessionKey: dataKey,
+              secretKey: secretKey,
+            );
+            if (metadata != null) sessionJson['metadata'] = metadata;
+            if (agentState != null) sessionJson['agentState'] = agentState;
+            if (newSessionId != null && dataKey != null) {
+              SessionDataKeyStore.instance.setSessionKey(newSessionId, dataKey);
+            }
+          } catch (e) {
+            Logger.warning(
+              'Failed to decrypt new-session payload, '
+              'applying with raw data: $e',
+            );
+          }
           _sessionRepository.applySessions([Session.fromJson(sessionJson)]);
           break;
         case 'update-session':
@@ -60,22 +96,36 @@ extension SocketRepositoryUpdates on SocketRepository {
           if (existing == null) return;
           final metadataUpdate = _asStringMap(body?['metadata']);
           final agentStateUpdate = _asStringMap(body?['agentState']);
-          final nextMetadata = await decodeSessionUpdateJsonMap(
-                rawValue: metadataUpdate?['value'],
-                sessionKey: SessionDataKeyStore.instance.sessionKeyFor(
-                  sessionId,
-                ),
-                secretKey: await _tokenStorage.getSecretKey(),
-              ) ??
-              existing.metadata;
-          final nextAgentState = await decodeSessionUpdateJsonMap(
-                rawValue: agentStateUpdate?['value'],
-                sessionKey: SessionDataKeyStore.instance.sessionKeyFor(
-                  sessionId,
-                ),
-                secretKey: await _tokenStorage.getSecretKey(),
-              ) ??
-              existing.agentState;
+          final metadataVersion =
+              metadataUpdate?['version'] as int? ?? existing.metadataVersion;
+          final agentStateVersion =
+              agentStateUpdate?['version'] as int? ?? existing.agentStateVersion;
+          Map<String, dynamic>? nextMetadata;
+          Map<String, dynamic>? nextAgentState;
+          try {
+            nextMetadata = await decodeSessionUpdateJsonMap(
+                  rawValue: metadataUpdate?['value'],
+                  sessionKey: SessionDataKeyStore.instance.sessionKeyFor(
+                    sessionId,
+                  ),
+                  secretKey: await _tokenStorage.getSecretKey(),
+                ) ??
+                existing.metadata;
+            nextAgentState = await decodeSessionUpdateJsonMap(
+                  rawValue: agentStateUpdate?['value'],
+                  sessionKey: SessionDataKeyStore.instance.sessionKeyFor(
+                    sessionId,
+                  ),
+                  secretKey: await _tokenStorage.getSecretKey(),
+                ) ??
+                existing.agentState;
+          } catch (e) {
+            Logger.warning(
+              'Failed to decrypt update-session payload for $sessionId, '
+              'skipping update: $e',
+            );
+            return;
+          }
           final nextTitle = nextMetadata?['name']?.toString() ??
               nextMetadata?['title']?.toString() ??
               existing.title;
@@ -91,13 +141,11 @@ extension SocketRepositoryUpdates on SocketRepository {
             existing.copyWith(
               title: nextTitle,
               metadata: nextMetadata,
-              metadataVersion: metadataUpdate?['version'] as int? ??
-                  existing.metadataVersion,
+              metadataVersion: metadataVersion,
               modelMode: nextModelMode,
               permissionMode: nextPermissionMode,
               agentState: nextAgentState,
-              agentStateVersion: agentStateUpdate?['version'] as int? ??
-                  existing.agentStateVersion,
+              agentStateVersion: agentStateVersion,
               updatedAt: resolveSessionUpdatedAtForRealtimeUpdate(
                 currentUpdatedAt: existing.updatedAt,
                 sessionUpdatedAt: _parseDateTime(

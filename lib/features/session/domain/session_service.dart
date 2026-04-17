@@ -109,6 +109,8 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
   Future<void>? _loadMachinesInFlight;
   final Map<String, Future<void>> _archiveHydrationInFlight =
       <String, Future<void>>{};
+  final Map<String, Future<void>> _loadMessagesInFlight =
+      <String, Future<void>>{};
   DateTime? _lastSessionsLoadedAt;
   DateTime? _lastMachinesLoadedAt;
   bool _emitScheduled = false;
@@ -133,7 +135,7 @@ class SessionServiceNotifier extends StateNotifier<SessionServiceState> {
     // screens use local ValueNotifier + stateChanges subscription.
     state = SessionServiceState.ready(
       sessions: _repository.sessionsMap,
-      sessionMessages: const {},
+      sessionMessages: _repository.sessionMessagesMap,
       machines: _repository.machinesMap,
     );
   }

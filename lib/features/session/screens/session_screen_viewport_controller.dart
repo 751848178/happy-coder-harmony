@@ -90,7 +90,7 @@ class _SessionViewportController {
     } else {
       _bottomEdgeAutoloadArmed = true;
     }
-    Logger.info(
+    Logger.debug(
       '[SessionEdgeDiag] load-complete direction=$direction '
       'session=${_state.widget.sessionId} ${debugEdgeLoadStateSummary()} '
       '${_state._debugMessageWindowSummary()} ${_state._debugScrollSummary()}',
@@ -115,7 +115,7 @@ class _SessionViewportController {
     Duration duration = _edgeAutoloadCooldown,
   }) {
     _edgeAutoloadSuspendedUntil = DateTime.now().add(duration);
-    Logger.info(
+    Logger.debug(
       '[SessionArchive] edge-autoload suspended session=${_state.widget.sessionId} '
       'until=${_edgeAutoloadSuspendedUntil!.toIso8601String()} '
       '${_state._debugMessageWindowSummary()} ${_state._debugScrollSummary()}',
@@ -137,7 +137,7 @@ class _SessionViewportController {
     _state._userHasScrolledUp = false;
     if (_state._hasNewerMessages) {
       unawaited(() async {
-        Logger.info(
+        Logger.debug(
           '[SessionArchive] scroll-bottom request session=${_state.widget.sessionId} '
           'complete=${_state._hasCompleteArchivedMessageHistory} '
           'hasNewer=${_state._hasNewerMessages} '
@@ -275,7 +275,7 @@ class _SessionViewportController {
     required bool force,
   }) async {
     if (!_state.mounted || !_state._scrollController.hasClients) {
-      Logger.info(
+      Logger.debug(
         '[ScrollDiag] scrollToLatestUntilSettled SKIP '
         'mounted=${_state.mounted} hasClients=${_state._scrollController.hasClients} '
         'requestId=$requestId',
@@ -283,13 +283,13 @@ class _SessionViewportController {
       return;
     }
     if (_state._hasScrolledToLatest && !force) {
-      Logger.info(
+      Logger.debug(
         '[ScrollDiag] scrollToLatestUntilSettled SKIP already-at-latest '
         'requestId=$requestId animate=$animate force=$force',
       );
       return;
     }
-    Logger.info(
+    Logger.debug(
       '[ScrollDiag] scrollToLatestUntilSettled START '
       'requestId=$requestId animate=$animate force=$force '
       '${_state._debugScrollSummary()}',
@@ -387,7 +387,7 @@ class _SessionViewportController {
     _state._shouldStickToLatestN.value = false;
     if (_state._hasOlderMessages) {
       unawaited(() async {
-        Logger.info(
+        Logger.debug(
           '[SessionArchive] scroll-top request session=${_state.widget.sessionId} '
           'complete=${_state._hasCompleteArchivedMessageHistory} '
           'hasOlder=${_state._hasOlderMessages} '
@@ -429,7 +429,7 @@ class _SessionViewportController {
 
   Future<void> _scrollToEarliestHistoryBoundary() async {
     _suspendEdgeAutoload();
-    Logger.info(
+    Logger.debug(
       '[SessionArchive] scroll-top boundary-start session=${_state.widget.sessionId} '
       '${_state._debugMessageWindowSummary()} ${_state._debugScrollSummary()}',
     );
@@ -437,7 +437,7 @@ class _SessionViewportController {
       adjustScrollAfterLoad: false,
     );
     if (!loaded || !_state.mounted) {
-      Logger.info(
+      Logger.debug(
         '[SessionArchive] scroll-top boundary-fallback session=${_state.widget.sessionId} '
         'loaded=$loaded ${_state._debugMessageWindowSummary()} '
         '${_state._debugScrollSummary()}',
@@ -461,7 +461,7 @@ class _SessionViewportController {
         _state._scrollController.jumpTo(target);
       }
       handleScrollMetricsChanged();
-      Logger.info(
+      Logger.debug(
         '[SessionArchive] scroll-top boundary-end session=${_state.widget.sessionId} '
         '${_state._debugMessageWindowSummary()} ${_state._debugScrollSummary()} '
         '${_state._debugVisibleMessageSummary()}',
@@ -471,7 +471,7 @@ class _SessionViewportController {
 
   Future<void> _scrollToLatestHistoryBoundary() async {
     _suspendEdgeAutoload();
-    Logger.info(
+    Logger.debug(
       '[SessionArchive] scroll-bottom boundary-start session=${_state.widget.sessionId} '
       '${_state._debugMessageWindowSummary()} ${_state._debugScrollSummary()}',
     );
@@ -479,7 +479,7 @@ class _SessionViewportController {
       adjustScrollAfterLoad: false,
     );
     if (!loaded || !_state.mounted) {
-      Logger.info(
+      Logger.debug(
         '[SessionArchive] scroll-bottom boundary-fallback session=${_state.widget.sessionId} '
         'loaded=$loaded ${_state._debugMessageWindowSummary()} '
         '${_state._debugScrollSummary()}',
@@ -498,7 +498,7 @@ class _SessionViewportController {
         _state._scrollController.jumpTo(target);
       }
       handleScrollMetricsChanged();
-      Logger.info(
+      Logger.debug(
         '[SessionArchive] scroll-bottom boundary-end session=${_state.widget.sessionId} '
         '${_state._debugMessageWindowSummary()} ${_state._debugScrollSummary()} '
         '${_state._debugVisibleMessageSummary()}',
@@ -527,7 +527,7 @@ class _SessionViewportController {
     _logTopEdgeDiagnostic('eligible');
     _topEdgeAutoloadArmed = false;
     _edgeOlderHistoryAccessInFlight = true;
-    Logger.info(
+    Logger.debug(
       '[ScrollDiag] top-edge-LOAD-TRIGGERED session=${_state.widget.sessionId} '
       'pixels=${position.pixels.toStringAsFixed(1)} '
       'trigger=${topEdgeTrigger.toStringAsFixed(1)} '
@@ -535,7 +535,7 @@ class _SessionViewportController {
     );
     unawaited(() async {
       try {
-        Logger.info(
+        Logger.debug(
           '[SessionArchive] top-edge trigger session=${_state.widget.sessionId} '
           'start=${_state._messageWindowStartIndex} loaded=${_state._messages.length} '
           'total=${_state._totalMessageCount} complete=${_state._hasCompleteArchivedMessageHistory} '
@@ -544,7 +544,7 @@ class _SessionViewportController {
         final ready = _state._hasLocallyAccessibleOlderArchivedMessages ||
             _state._hasCompleteArchivedMessageHistory ||
             await _state._awaitArchivedMessageHistoryAccessible();
-        Logger.info(
+        Logger.debug(
           '[SessionArchive] top-edge ready session=${_state.widget.sessionId} '
           'ready=$ready hasOlder=${_state._hasOlderMessages} '
           'start=${_state._messageWindowStartIndex} ${_state._debugScrollSummary()} '
@@ -584,7 +584,7 @@ class _SessionViewportController {
     _logBottomEdgeDiagnostic('eligible');
     _bottomEdgeAutoloadArmed = false;
     _edgeNewerHistoryAccessInFlight = true;
-    Logger.info(
+    Logger.debug(
       '[ScrollDiag] bottom-edge-LOAD-TRIGGERED session=${_state.widget.sessionId} '
       'distanceToBottom=${distanceToBottom.toStringAsFixed(1)} '
       'trigger=${bottomEdgeTrigger.toStringAsFixed(1)} '
@@ -592,7 +592,7 @@ class _SessionViewportController {
     );
     unawaited(() async {
       try {
-        Logger.info(
+        Logger.debug(
           '[SessionArchive] bottom-edge trigger session=${_state.widget.sessionId} '
           'start=${_state._messageWindowStartIndex} loaded=${_state._messages.length} '
           'total=${_state._totalMessageCount} complete=${_state._hasCompleteArchivedMessageHistory} '
@@ -601,7 +601,7 @@ class _SessionViewportController {
         final ready = _state._hasLocallyAccessibleNewerArchivedMessages ||
             _state._hasCompleteArchivedMessageHistory ||
             await _state._awaitArchivedMessageHistoryAccessible();
-        Logger.info(
+        Logger.debug(
           '[SessionArchive] bottom-edge ready session=${_state.widget.sessionId} '
           'ready=$ready hasNewer=${_state._hasNewerMessages} '
           'start=${_state._messageWindowStartIndex} ${_state._debugScrollSummary()} '
@@ -689,7 +689,7 @@ class _SessionViewportController {
       return;
     }
     _lastTopEdgeDiagnostic = next;
-    Logger.info(
+    Logger.debug(
       '[SessionEdgeDiag] top-edge reason=$reason '
       'session=${_state.widget.sessionId} '
       '${_state._debugMessageWindowSummary()} ${_state._debugScrollSummary()} '
@@ -705,7 +705,7 @@ class _SessionViewportController {
       return;
     }
     _lastBottomEdgeDiagnostic = next;
-    Logger.info(
+    Logger.debug(
       '[SessionEdgeDiag] bottom-edge reason=$reason '
       'session=${_state.widget.sessionId} '
       '${_state._debugMessageWindowSummary()} ${_state._debugScrollSummary()} '
@@ -731,7 +731,7 @@ class _SessionViewportController {
       return;
     }
     _lastMetricsDiagnostic = next;
-    Logger.info(
+    Logger.debug(
       '[SessionEdgeDiag] metrics session=${_state.widget.sessionId} '
       'dir=${position.userScrollDirection.name} '
       'outOfRange=${position.outOfRange} '
@@ -835,7 +835,7 @@ class _SessionViewportController {
         !_state._userHasScrolledUp &&
         _state._hasScrolledToLatest) {
       _state._userHasScrolledUp = true;
-      Logger.info(
+      Logger.debug(
         '[ScrollDiag] userScrolledUp -> true session=${_state.widget.sessionId} '
         'distanceToBottom=${distanceToBottom.toStringAsFixed(1)} '
         '${_state._debugScrollSummary()}',
@@ -846,7 +846,7 @@ class _SessionViewportController {
         !_state._isLoadingOlderMessages &&
         !_state._isLoadingNewerMessages) {
       _state._userHasScrolledUp = false;
-      Logger.info(
+      Logger.debug(
         '[ScrollDiag] userScrolledUp -> false session=${_state.widget.sessionId} '
         'distanceToBottom=${distanceToBottom.toStringAsFixed(1)} '
         '${_state._debugScrollSummary()}',
@@ -874,7 +874,7 @@ class _SessionViewportController {
     }
     if (_state._canScrollToBottom != nextCanScrollToBottom ||
         _state._shouldStickToLatest != nextShouldStickToLatest) {
-      Logger.info(
+      Logger.debug(
         '[ScrollDiag] state-change session=${_state.widget.sessionId} '
         'canScrollDown: ${_state._canScrollToBottom} -> $nextCanScrollToBottom '
         'canScrollUp: ${_state._canScrollToTop} -> $nextCanScrollToTop '

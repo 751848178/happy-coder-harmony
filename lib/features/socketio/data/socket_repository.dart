@@ -69,6 +69,7 @@ class SocketRepository {
   Timer? _heartbeatTimer;
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
+  bool _isConnecting = false;
 
   static const int _maxReconnectAttempts = 10;
 
@@ -80,10 +81,16 @@ class SocketRepository {
       _toolCallRequestController.stream;
 
   SocketConnectionState get connectionState {
-    if (_socket == null) return SocketConnectionState.disconnected;
-    return _socket!.connected
-        ? SocketConnectionState.connected
-        : SocketConnectionState.disconnected;
+    if (_socket != null && _socket!.connected) {
+      return SocketConnectionState.connected;
+    }
+    if (_reconnectAttempts > 0) {
+      return SocketConnectionState.reconnecting;
+    }
+    if (_isConnecting) {
+      return SocketConnectionState.connecting;
+    }
+    return SocketConnectionState.disconnected;
   }
 
   String? get socketId => _socket?.id;

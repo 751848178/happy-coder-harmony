@@ -51,36 +51,6 @@ extension SessionRepositoryStateMutations on SessionRepository {
     );
   }
 
-  void applyAgentState(String sessionId, Map<String, dynamic>? agentState) {
-    final existing = _sessionMessages[sessionId];
-    if (existing == null) {
-      _sessionMessages[sessionId] = SessionMessages(
-        messages: const [],
-        messagesMap: const {},
-        reducerState: domain.ReducerState.initial,
-        isLoaded: true,
-        totalMessageCount: 0,
-        windowStartIndex: 0,
-      );
-    } else {
-      _sessionMessages[sessionId] = SessionMessages(
-        messages: existing.messages,
-        messagesMap: existing.messagesMap,
-        reducerState: existing.reducerState,
-        isLoaded: existing.isLoaded,
-        totalMessageCount: existing.totalMessageCount,
-        windowStartIndex: existing.windowStartIndex,
-      );
-    }
-    _stateController.add(
-      SessionStateChange(
-        type: SessionChangeType.agentStateUpdated,
-        sessionId: sessionId,
-      ),
-    );
-    Logger.info('Applied agent state to session: $sessionId');
-  }
-
   void approveToolCall(String sessionId, String toolId) {
     final existing = _sessionMessages[sessionId];
     if (existing == null) return;
@@ -137,7 +107,7 @@ extension SessionRepositoryStateMutations on SessionRepository {
       for (final message in messages) message.id: message,
     };
 
-    _sessionMessages[sessionId] = SessionMessages(
+    _sessionMessages[sessionId] = SessionMessages.resolved(
       messages: messages,
       messagesMap: updatedMessagesMap,
       reducerState: existing.reducerState,
@@ -257,6 +227,48 @@ class SessionMessages {
           totalMessageCount: totalMessageCount ?? messages.length,
           windowStartIndex: windowStartIndex,
         );
+
+  /// Optimized constructor that computes windowStartIndex once.
+  factory SessionMessages.resolved({
+    required List<domain.ReducerMessage> messages,
+    required Map<String, domain.ReducerMessage> messagesMap,
+    required domain.ReducerState reducerState,
+    bool isLoaded = false,
+    int? totalMessageCount,
+    int? windowStartIndex,
+  }) {
+    final resolvedTotal = totalMessageCount ?? messages.length;
+    final resolvedWindowStart = windowStartIndex ??
+        _resolveLatestWindowStartIndex(
+          totalMessageCount: resolvedTotal,
+          loadedMessageCount: messages.length,
+        );
+    return SessionMessages._(
+      messages: messages,
+      messagesMap: messagesMap,
+      reducerState: reducerState,
+      isLoaded: isLoaded,
+      totalMessageCount: resolvedTotal,
+      windowStartIndex: resolvedWindowStart,
+      hasOlderMessages: resolvedWindowStart > 0,
+      hasNewerMessages: _resolveHasNewerMessages(
+        messages: messages,
+        totalMessageCount: resolvedTotal,
+        windowStartIndex: resolvedWindowStart,
+      ),
+    );
+  }
+
+  SessionMessages._({
+    required this.messages,
+    required this.messagesMap,
+    required this.reducerState,
+    required this.isLoaded,
+    required this.totalMessageCount,
+    required this.windowStartIndex,
+    required this.hasOlderMessages,
+    required this.hasNewerMessages,
+  });
 }
 
 int _resolveLatestWindowStartIndex({

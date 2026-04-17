@@ -20,8 +20,9 @@ class SocketNotifier extends StateNotifier<SocketState> {
       );
       Logger.info('Socket initialization started');
     } catch (error) {
-      state = SocketState.error('初始化失败: ${error.toString()}');
-      Logger.error('Socket initialize error: $error');
+      // Don't set error state — the repository's _scheduleReconnect()
+      // already handles state via events (reconnecting / error at max).
+      Logger.warning('Socket initialize failed (reconnect will continue): $error');
     }
   }
 
@@ -119,6 +120,9 @@ class SocketNotifier extends StateNotifier<SocketState> {
     _unsubscribeFromEvents();
     _eventSubscription = _repository.eventStream.listen((event) {
       event.when(
+        connecting: () {
+          state = SocketState.connecting();
+        },
         connected: (_) {
           state = SocketState.connected(_repository.socketId ?? 'unknown');
         },

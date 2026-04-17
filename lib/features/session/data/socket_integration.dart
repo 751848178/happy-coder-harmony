@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'dart:async';
 
 import '../../socketio/data/socket_repository.dart';
 import '../../socketio/domain/socket_service.dart';
 import '../../../shared/utils/extensions.dart';
-import '../domain/reducer.dart';
 import '../domain/session_service.dart';
 
 part 'socket_integration_message_parsing.dart';
@@ -18,7 +16,6 @@ class SocketIntegration {
   final SocketRepository _socketRepository = SocketRepository.instance;
   SessionServiceNotifier? _sessionService;
   StreamSubscription<SocketEvent>? _eventSubscription;
-  StreamSubscription<SocketMessage>? _messageSubscription;
   String? _currentSessionId;
 
   void setSessionService(SessionServiceNotifier sessionService) {
@@ -42,9 +39,6 @@ class SocketIntegration {
             Logger.info('Socket reconnecting: attempt $attempt'),
       );
     });
-    _messageSubscription = _socketRepository.messageStream.listen(
-      _handleMessageReceived,
-    );
   }
 
   void _handleConnected() {
@@ -59,14 +53,14 @@ class SocketIntegration {
   }
 
   void _handleMessageReceived(SocketMessage socketMessage) {
-    final reducerMessage = _convertToReducerMessage(socketMessage);
-    if (reducerMessage != null && socketMessage.sessionId != null) {
-      _sessionService?.loadSessionMessages(
-        socketMessage.sessionId!,
-        messageWindowSize:
-            SessionServiceNotifier.sessionDetailAutomaticMessageWindowSize,
-      );
+    if (socketMessage.sessionId == null || socketMessage.sessionId!.isEmpty) {
+      return;
     }
+    _sessionService?.loadSessionMessages(
+      socketMessage.sessionId!,
+      messageWindowSize:
+          SessionServiceNotifier.sessionDetailAutomaticMessageWindowSize,
+    );
   }
 
   void setCurrentSession(String sessionId) {
@@ -124,7 +118,6 @@ class SocketIntegration {
 
   void dispose() {
     _eventSubscription?.cancel();
-    _messageSubscription?.cancel();
     Logger.info('Socket-Session integration disposed');
   }
 }

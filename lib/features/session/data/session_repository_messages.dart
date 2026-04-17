@@ -17,7 +17,7 @@ extension SessionRepositoryMessages on SessionRepository {
     if (existing == null) {
       final trimmedMessages = _trimMessageWindow(messages, messageWindowSize);
       final messagesMap = _buildMessagesMap(trimmedMessages);
-      _sessionMessages[sessionId] = SessionMessages(
+      _sessionMessages[sessionId] = SessionMessages.resolved(
         messages: trimmedMessages,
         messagesMap: messagesMap,
         reducerState: domain.ReducerState.initial,
@@ -78,7 +78,7 @@ extension SessionRepositoryMessages on SessionRepository {
       messagesArray = _trimMessageWindow(messagesArray, messageWindowSize);
       mergedMessagesMap = _buildMessagesMap(messagesArray);
 
-      _sessionMessages[sessionId] = SessionMessages(
+      _sessionMessages[sessionId] = SessionMessages.resolved(
         messages: messagesArray,
         messagesMap: mergedMessagesMap,
         reducerState: existing.reducerState,

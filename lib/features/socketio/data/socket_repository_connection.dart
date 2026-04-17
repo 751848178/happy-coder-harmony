@@ -61,6 +61,7 @@ extension SocketRepositoryConnection on SocketRepository {
     _socket?.disconnect();
     _disposeSocketInstance();
     _connectionCompleter = null;
+    _isConnecting = false;
     _reconnectAttempts = 0;
 
     Logger.info('Socket disconnected');

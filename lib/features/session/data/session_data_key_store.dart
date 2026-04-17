@@ -22,6 +22,10 @@ class SessionDataKeyStore {
       );
   }
 
+  void setSessionKey(String sessionId, Uint8List key) {
+    _sessionKeys[sessionId] = Uint8List.fromList(key);
+  }
+
   void removeSessionKey(String sessionId) {
     _sessionKeys.remove(sessionId);
   }

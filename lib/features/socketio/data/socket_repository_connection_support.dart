@@ -6,19 +6,21 @@ extension SocketRepositoryConnectionSupport on SocketRepository {
     Duration timeout = const Duration(milliseconds: AppConfig.connectTimeout),
   }) async {
     try {
+      _isConnecting = true;
       _eventController.add(SocketEvent.connecting());
       _prepareConnectionCompleter();
       _disposeSocketInstance();
 
+      final socketUrl = AppConfig.socketUrl;
+      Logger.info('Socket connecting to: $socketUrl${AppConfig.socketPath}');
       _socket = io.io(
-        AppConfig.socketUrl,
+        socketUrl,
         io.OptionBuilder()
             .setPath(AppConfig.socketPath)
             .setTransports(AppConfig.socketTransports)
             .setAuth({'token': _token, 'clientType': 'user-scoped'})
             .disableAutoConnect()
-            .setReconnectionAttempts(SocketRepository._maxReconnectAttempts)
-            .setReconnectionDelay(AppConfig.socketReconnectDelay)
+            .disableReconnection()
             .setTimeout(AppConfig.socketTimeout)
             .build(),
       );
@@ -32,7 +34,7 @@ extension SocketRepositoryConnectionSupport on SocketRepository {
       Logger.info('Socket connect requested');
     } catch (e) {
       Logger.error('Socket connection error: $e');
-      _eventController.add(SocketEvent.error('连接失败: ${e.toString()}'));
+      _isConnecting = false;
       _scheduleReconnect();
     }
   }
@@ -45,6 +47,7 @@ extension SocketRepositoryConnectionSupport on SocketRepository {
     _socket!
       ..on('connect', (_) {
         Logger.info('Socket connected');
+        _isConnecting = false;
         final pendingConnection = _connectionCompleter;
         if (pendingConnection != null && !pendingConnection.isCompleted) {
           pendingConnection.complete();
@@ -59,8 +62,8 @@ extension SocketRepositoryConnectionSupport on SocketRepository {
         _scheduleReconnect();
       })
       ..on('connect_error', (error) {
-        Logger.error('Socket connect error: $error');
-        _eventController.add(SocketEvent.error(error.toString()));
+        Logger.warning('Socket connect error (will retry): $error');
+        _scheduleReconnect();
       })
       ..on('message', _handleIncomingMessage)
       ..on('server_message', (data) {

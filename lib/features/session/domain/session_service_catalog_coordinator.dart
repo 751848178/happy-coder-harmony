@@ -55,6 +55,7 @@ class _SessionServiceCatalogCoordinator {
         '(raw=${remoteLoad.sessionItems.length}, '
         'confirmed=${parsed.remoteSessionIds.length})',
       );
+      await _reactivateInactiveSessions(parsed.sessionsMap.values);
     } catch (error) {
       await _notifier._handleLoadSessionsError(error);
     } finally {
@@ -142,6 +143,7 @@ class _SessionServiceCatalogCoordinator {
         ..addAll(nextKeys);
       _notifier._repository.applyMachines(machines, replace: true);
       _notifier._lastMachinesLoadedAt = DateTime.now();
+      await _reactivateInactiveMachines(machines);
     } catch (error) {
       Logger.error('Load machines error: $error');
       if (!allowFailure) {
@@ -239,5 +241,51 @@ class _SessionServiceCatalogCoordinator {
       secretKey: secretKey,
       crypto: crypto,
     );
+  }
+
+  Future<void> _reactivateInactiveMachines(List<Machine> machines) async {
+    final inactive = machines.where((m) => !m.active).toList();
+    if (inactive.isEmpty) return;
+
+    Logger.info('Reactivating ${inactive.length} inactive machines...');
+    final reactivated = <Machine>[];
+    await Future.wait(inactive.map((machine) async {
+      try {
+        await ApiService.instance.post<dynamic>(
+          '/v1/machines/${machine.id}/activate',
+        );
+        reactivated.add(machine.copyWith(active: true));
+        Logger.info('Reactivated machine: ${machine.name}');
+      } catch (e) {
+        Logger.warning('Failed to reactivate machine ${machine.name}: $e');
+      }
+    }));
+    if (reactivated.isNotEmpty) {
+      _notifier._repository.applyMachines(reactivated);
+    }
+  }
+
+  Future<void> _reactivateInactiveSessions(
+    Iterable<Session> sessions,
+  ) async {
+    final inactive = sessions.where((s) => !s.active).toList();
+    if (inactive.isEmpty) return;
+
+    Logger.info('Reactivating ${inactive.length} inactive sessions...');
+    final reactivated = <Session>[];
+    await Future.wait(inactive.map((session) async {
+      try {
+        await ApiService.instance.post<dynamic>(
+          '/v1/sessions/${session.id}/unarchive',
+        );
+        reactivated.add(session.copyWith(active: true));
+        Logger.info('Reactivated session: ${session.id}');
+      } catch (e) {
+        Logger.warning('Failed to reactivate session ${session.id}: $e');
+      }
+    }));
+    if (reactivated.isNotEmpty) {
+      _notifier._repository.applySessions(reactivated);
+    }
   }
 }
