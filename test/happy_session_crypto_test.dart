@@ -58,7 +58,10 @@ void main() {
     );
 
     final bundled = Uint8List(
-      1 + nonce.length + encrypted.cipherText.length + encrypted.mac.bytes.length,
+      1 +
+          nonce.length +
+          encrypted.cipherText.length +
+          encrypted.mac.bytes.length,
     )
       ..[0] = 0
       ..setAll(1, nonce)

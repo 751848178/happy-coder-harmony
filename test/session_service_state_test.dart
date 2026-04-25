@@ -92,7 +92,8 @@ void main() {
     repository.clearAll();
   });
 
-  test('windowed message snapshots preserve total count for large sessions', () {
+  test('windowed message snapshots preserve total count for large sessions',
+      () {
     final repository = SessionRepository.instance;
     repository.clearAll();
 

@@ -112,6 +112,26 @@ class ApiService {
     }
   }
 
+  /// 发送 PATCH 请求
+  Future<T> patch<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      final response = await dio.patch(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+      return _handleResponse<T>(response);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   /// 发送 DELETE 请求
   Future<T> delete<T>(
     String path, {

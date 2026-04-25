@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +8,7 @@ import '../../../app/providers/app_providers.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../domain/session_recency.dart';
+import '../presentation/session_detail_navigation.dart';
 
 /// 机器详情页
 class MachineDetailScreen extends ConsumerStatefulWidget {
@@ -135,8 +138,13 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
                   title: Text(session.title.isEmpty ? '未命名会话' : session.title),
                   subtitle: Text(session.path ?? session.tag ?? '无路径信息'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () =>
-                      context.push(AppRoutes.sessionDetail(session.id)),
+                  onTap: () => unawaited(
+                    openSessionDetail(
+                      context: context,
+                      ref: ref,
+                      sessionId: session.id,
+                    ),
+                  ),
                 ),
               ),
             ),

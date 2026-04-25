@@ -147,7 +147,7 @@ class LocalProxyServer {
     HttpRequestProxy proxyRequest,
   ) async {
     try {
-      // Encrypt the payload using the same logic as session_service_rpc.dart.
+      // Encrypt the payload using the same logic as rpc.dart.
       final encrypted = await _encryptPayload(sessionId, proxyRequest.toJson());
 
       // Send via the existing RPC channel.
@@ -170,7 +170,7 @@ class LocalProxyServer {
   }
 
   // ---------------------------------------------------------------------------
-  // Encryption helpers (mirrors session_service_rpc.dart logic)
+  // Encryption helpers (mirrors rpc.dart logic)
   // ---------------------------------------------------------------------------
 
   Future<String> _encryptPayload(

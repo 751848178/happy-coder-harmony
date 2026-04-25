@@ -14,7 +14,17 @@ class AppConfig {
   static String get serverUrl => ServerConfigService.instance.serverUrl;
 
   /// Socket.IO 服务器地址
-  static String get socketUrl => serverUrl;
+  ///
+  /// Explicitly includes the default port so that socket_io_client
+  /// (which constructs wss:// URLs) avoids Dart's Uri.port returning 0
+  /// for unrecognised schemes like wss://.
+  static String get socketUrl {
+    final uri = Uri.parse(serverUrl);
+    final hasExplicitPort = uri.hasPort && uri.port > 0;
+    if (hasExplicitPort) return serverUrl;
+    final defaultPort = uri.scheme == 'https' ? 443 : 80;
+    return '${uri.scheme}://${uri.host}:$defaultPort';
+  }
 
   /// Socket.IO 路径
   static const String socketPath = '/v1/updates';

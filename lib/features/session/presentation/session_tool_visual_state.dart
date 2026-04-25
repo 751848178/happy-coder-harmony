@@ -18,16 +18,14 @@ SessionToolVisualState resolveSessionToolVisualState({
   required bool isToolActionPending,
 }) {
   if (autoApproveEnabled) {
-    if (status == ToolCallStatus.pending ||
-        status == ToolCallStatus.approved ||
-        status == ToolCallStatus.executing ||
-        isToolActionPending) {
+    if (status == ToolCallStatus.pending || isToolActionPending) {
       return const SessionToolVisualState(
         status: ToolCallStatus.executing,
         showsManualActions: false,
         showsAutoResolvingFooter: true,
       );
     }
+    // approved / executing / completed / failed → silent
     return SessionToolVisualState(
       status: status,
       showsManualActions: false,

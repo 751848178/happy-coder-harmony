@@ -1,12 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../app/providers/app_providers.dart';
-import '../../../app/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../domain/session_recency.dart';
 import '../domain/session_stats.dart';
+import '../presentation/session_detail_navigation.dart';
 import '../../../shared/widgets/session_history_list.dart';
 
 /// Upstream-aligned recent sessions: grouped history only.
@@ -74,7 +75,13 @@ class _SessionRecentScreenState extends ConsumerState<SessionRecentScreen> {
         padding: const EdgeInsets.all(16),
         child: SessionHistoryList(
           items: items,
-          onItemTap: (item) => context.push(AppRoutes.sessionDetail(item.id)),
+          onItemTap: (item) => unawaited(
+            openSessionDetail(
+              context: context,
+              ref: ref,
+              sessionId: item.id,
+            ),
+          ),
         ),
       ),
     );

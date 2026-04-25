@@ -62,6 +62,5 @@ class HttpProxyResponse {
       );
 
   /// Decode the base64 body to raw bytes.
-  List<int>? get bodyBytes =>
-      body != null ? base64Decode(body!) : null;
+  List<int>? get bodyBytes => body != null ? base64Decode(body!) : null;
 }

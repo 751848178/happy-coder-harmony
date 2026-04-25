@@ -166,9 +166,7 @@ List<ReducerMessage> restoreMessagesFromSnapshotPayload(
   int? maxMessages,
 }) {
   final sourceMessages =
-      maxMessages != null &&
-              maxMessages > 0 &&
-              rawMessages.length > maxMessages
+      maxMessages != null && maxMessages > 0 && rawMessages.length > maxMessages
           ? rawMessages.sublist(rawMessages.length - maxMessages)
           : rawMessages;
   final restoredMessages = sourceMessages

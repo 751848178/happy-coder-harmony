@@ -98,7 +98,10 @@ DateTime? _resolveThinkingStartedAt(
   if (session?.thinkingAt != null) {
     return session!.thinkingAt;
   }
-  for (final message in (messages is List<ReducerMessage> ? messages : messages.toList(growable: false)).reversed) {
+  for (final message in (messages is List<ReducerMessage>
+          ? messages
+          : messages.toList(growable: false))
+      .reversed) {
     if (!message.isText || sessionMessageIsUserAuthored(message)) {
       continue;
     }

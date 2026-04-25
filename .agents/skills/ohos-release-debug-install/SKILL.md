@@ -1,126 +1,87 @@
 ---
 name: ohos-release-debug-install
-description: Build and install a HarmonyOS/OpenHarmony package to a real device in the current project. When the user says "install to real device" or similar without explicitly asking for a debug package, default to building and installing a release package that uses the profile and certificate currently configured in `ohos/build-profile.json5`. Only use a debug package when the user explicitly says `debug`, `调试包`, wants hot reload, or asks for a live debug run.
+description: 覆盖安装 HarmonyOS APP 到真机。触发词 — 安装、装到手机、install、deploy、hdc、真机。永远使用 hdc 全路径覆盖安装（-r），绝不卸载，保护用户数据。
 ---
 
-# Ohos Release Debug Install
+# OHOS 真机覆盖安装
 
-## Overview
+## 绝对规则
 
-Use this skill whenever the user wants to install the app to a HarmonyOS/OpenHarmony real device.
+1. **永远使用 `hdc install -r`（覆盖安装）**，保留应用数据。
+2. **绝不执行 `hdc uninstall`**，卸载会清除全部本地数据（Hive 数据库、Token、加密密钥、PC 连接状态）。
+3. **永远使用 hdc 全路径**（从 `ohos/local.properties` → `hwsdk.dir` 解析），不依赖系统 PATH 中的 hdc。
+4. 安装前先 `aa force-stop` 停止运行中的 app，避免覆盖后残留旧进程。
 
-Default behavior:
-- If the user only says "安装到真机", "装到手机", "install to device", or similar, treat it as a release-package install.
-- Use the profile and certificate that are currently configured in `ohos/build-profile.json5`.
-- Do not silently swap signing materials unless the user explicitly asks for a different profile or certificate.
+## 触发条件
 
-Only switch to a debug package when the user clearly asks for one, such as:
-- `debug`
-- `调试包`
-- hot reload / breakpoint / attach debugger
-- a live `flutter run` session
+以下表述均触发此 skill：
+- 安装、装到手机、装到真机、安装到设备
+- install、deploy、push to device
+- hdc、hdc install
+- 覆盖安装、更新 app
+- 真机调试（非 hot reload 场景）
 
-For release-package installs, prefer direct `flutter + hdc` commands or the bundled script instead of `scripts/run.sh`, because:
-- the project may intentionally keep a debug signing profile in `ohos/build-profile.json5`
-- `scripts/run.sh` may block on release-profile alignment checks that are irrelevant for this workflow
+## 两种安装方式
 
-For explicit debug-package installs, use the normal debug run/install path such as `./scripts/run.sh run -d <device-id> --debug`.
+### 方式 A：使用项目脚本（推荐）
 
-Before building, always inspect `ohos/build-profile.json5` and report which `profile` and `certpath` are being used so the install result is easy to audit.
+一键构建 + 覆盖安装：
 
-## Workflow
-
-1. Determine install mode from the request.
-Rules:
-- Default to `release` for real-device install.
-- Use `debug` only when the user explicitly asks for a debug package or live debugging.
-
-2. Confirm the project root and required files exist.
-Required files:
-- `ohos/local.properties`
-- `ohos/build-profile.json5`
-- `ohos/AppScope/app.json5`
-
-3. Read the current signing material from `ohos/build-profile.json5`.
-Always capture:
-- `material.profile`
-- `material.certpath`
-- `material.storeFile`
-
-4. Read SDK locations from `ohos/local.properties`.
-Required keys:
-- `flutter.sdk`
-- `hwsdk.dir`
-
-5. Discover the target device.
-Preferred command:
-```bash
-./scripts/run.sh devices
-```
-When the user did not specify a device id, auto-select the first connected `ohos-arm64` real device.
-
-6. Run the correct install path.
-
-Release package path:
-- Build a release package using the current `ohos/build-profile.json5` signing materials.
-- Prefer the bundled script for deterministic execution.
-- Before building, apply the same anti-stale strategy that `scripts/run.sh` uses for debug:
-  - inspect whether the latest signed release `.app` is older than project source/config files
-  - if stale, run `flutter clean`
-  - clear old `ohos/build/outputs/default/*.app` and `build/ohos/app/*.app` artifacts before the next build
-  - stop the running app process on device before reinstalling, so the user does not keep seeing an old process after overwrite install
-
-Command shape:
 ```bash
 bash .agents/skills/ohos-release-debug-install/scripts/build_release_install_debug_profile.sh --device-id <device-id>
 ```
 
-Explicit debug package path:
-- Use the normal debug run/install workflow.
+脚本内部会：
+1. 从 `ohos/local.properties` 读取 `hwsdk.dir`，解析 hdc 全路径
+2. 检测陈旧产物，必要时 `flutter clean`
+3. 清除旧的 signed `.app` 产物
+4. `flutter build app --release`
+5. `aa force-stop` 停止运行中的 app
+6. **`hdc -t <device-id> install -r <artifact>`** — 覆盖安装
+7. `bm dump` 验证安装结果
 
-Command shape:
+### 方式 B：使用 ./scripts/run.sh
+
 ```bash
-./scripts/run.sh run -d <device-id> --debug
+./scripts/run.sh run -d <device-id>
 ```
 
-7. If you use direct commands instead of the bundled script for release, export OHOS build environment and run direct Flutter build.
-Command shape:
+适用于 debug 模式安装或需要 `scripts/run.sh` 提供的额外预检流程时。
+
+### 方式 C：手动 hdc 全路径覆盖安装
+
+当 release 产物已存在且未过期时，可跳过构建直接安装：
+
 ```bash
-"$FLUTTER_BIN" build app --release
+# 1. 从 local.properties 解析 hdc 全路径
+HDC_BIN="$(grep 'hwsdk.dir' ohos/local.properties | cut -d'=' -f2-)/default/openharmony/toolchains/hdc"
+
+# 2. 找到 signed artifact
+ARTIFACT="$(ls -t ohos/build/outputs/default/*-all-signed.app | head -1)"
+
+# 3. 停止 app
+"$HDC_BIN" -t <device-id> shell aa force-stop cn.svton.happy
+
+# 4. 覆盖安装（注意 -r 标志）
+"$HDC_BIN" -t <device-id> install -r "$ARTIFACT"
 ```
 
-8. Install the freshly built release package to the target device with `hdc`.
-Preferred artifact:
-- `ohos/build/outputs/default/*-all-signed.app`
-Install command shape:
-```bash
-"$HDC" -t <device-id> install -r "<artifact-path>"
-```
+## 选择逻辑
 
-9. Verify the installed bundle.
-Use bundle name from `ohos/AppScope/app.json5`.
-Command shape:
-```bash
-"$HDC" -t <device-id> shell bm dump -n <bundle-name>
-```
+| 用户意图 | 方式 |
+|---------|------|
+| "安装到真机"、"覆盖安装"、"install" | **A（脚本）** |
+| "debug 安装"、"调试模式安装" | **B（run.sh --debug）** |
+| "只安装不构建"、产物已存在 | **C（手动 hdc）** |
+| 用户明确指定用 run.sh | **B** |
 
-10. Report concise results.
-Always include:
-- used device id
-- resolved install mode: `release` or `debug`
-- used profile full path
-- used cert full path
-- build command and exit status
-- installed artifact full path
-- install result and key diagnostics if failed
+## 输出
 
-## Script
-
-For default release-package installs, run the bundled script for deterministic execution:
-```bash
-bash .agents/skills/ohos-release-debug-install/scripts/build_release_install_debug_profile.sh --device-id <device-id>
-```
-
-When `--device-id` is omitted, the script auto-selects the first connected `ohos-arm64` device from `flutter devices`.
-The script builds a release package and installs it using the profile and certificate currently configured in `ohos/build-profile.json5`.
-It now also checks for stale release artifacts, performs `flutter clean` when needed, clears old signed `.app` outputs, and force-stops the installed app before reinstalling.
+安装完成后报告：
+- 设备 ID
+- hdc 全路径
+- 安装模式：release / debug
+- 签名 profile 全路径
+- 签名 cert 全路径
+- 安装产物全路径
+- 安装结果（成功/失败 + 诊断信息）

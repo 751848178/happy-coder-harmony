@@ -191,6 +191,13 @@ SessionListActivitySnapshot resolveSessionListActivitySnapshotFromPreview(
     );
   }
 
+  if ((session.latestUsage?.messageCount ?? 0) > 0) {
+    return const SessionListActivitySnapshot(
+      previewText: '最近消息待同步',
+      phase: SessionListActivityPhase.syncing,
+    );
+  }
+
   return const SessionListActivitySnapshot(
     previewText: '等待第一条消息',
     phase: SessionListActivityPhase.empty,

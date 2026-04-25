@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:happy_coder_flutter/features/session/domain/reducer.dart';
+import 'package:happy_coder_flutter/features/session/domain/reducer.dart'
+    show ReducerMessage, ToolCallStatus, ToolInfo;
 import 'package:happy_coder_flutter/features/session/domain/session_list_preview.dart';
 import 'package:happy_coder_flutter/features/session/domain/session_models.dart';
 
@@ -12,6 +13,7 @@ void main() {
     String? previewText,
     DateTime? lastMessageAt,
     String? listStatusKind,
+    LatestUsage? latestUsage,
   }) {
     return Session(
       id: 'session-preview-test',
@@ -25,6 +27,7 @@ void main() {
       previewText: previewText,
       lastMessageAt: lastMessageAt,
       listStatusKind: listStatusKind,
+      latestUsage: latestUsage,
     );
   }
 
@@ -93,6 +96,23 @@ void main() {
     expect(snapshot.previewText, 'cached preview text');
     expect(snapshot.isSyncing, isFalse);
     expect(snapshot.lastMessageAt, lastMessageAt);
+  });
+
+  test('precomputed resolver shows syncing when persisted count has no preview',
+      () {
+    final snapshot = resolveSessionListActivitySnapshotFromPreview(
+      buildSession(
+        latestUsage: LatestUsage(
+          messageCount: 3,
+          tokenCount: 128,
+          timestamp: DateTime.fromMillisecondsSinceEpoch(1772962446908),
+        ),
+      ),
+    );
+
+    expect(snapshot.previewText, '最近消息待同步');
+    expect(snapshot.isSyncing, isTrue);
+    expect(snapshot.lastMessageAt, isNull);
   });
 
   test('prefers explicit renamed title over working directory', () {

@@ -138,7 +138,8 @@ void main() {
     expect(resolved, 'gpt-5-medium');
   });
 
-  test('session model mode resolves to remote metadata when persisted is default',
+  test(
+      'session model mode resolves to remote metadata when persisted is default',
       () {
     final resolved = resolveSessionModelMode(
       metadata: const <String, dynamic>{
